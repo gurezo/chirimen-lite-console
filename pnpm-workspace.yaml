@@ -8,7 +8,8 @@ onlyBuiltDependencies:
   - msgpackr-extract
   - nx
 
-# Temporarily disabled for installing @gurezo/web-serial-rxjs@0.2.0.
+# Temporarily disabled for @gurezo/web-serial-rxjs@2.0.3 (release age < 7 days at install time).
+# Re-enable minimumReleaseAge after 7 days from npm publish. See plan / PR for issue #536.
 # Malicious releases are often detected and removed within a week.
 # 7 days x 24h x 60 min
-minimumReleaseAge: 10080
+# minimumReleaseAge: 10080
