@@ -72,7 +72,9 @@ export class SerialTransportService {
   }
 
   /**
-   * connect$ 直後（getPorts 等の前）に 1 回呼ぶ。receive$ へ即購読し Replay に流す。
+   * connect$ 直後（getPorts 等の前）に 1 回呼ぶ。`receive$` へ即購読し Replay に流す。
+   * ドキュメントの行区切りは `lines$` だが、ここはプロンプト照合用にチャンク列が必要なため
+   * `receive$` を用いる（SerialSession 概要: receive$ vs lines$）。
    */
   private beginReceiveReplayBuffer(): void {
     this.receiveToReplaySub?.unsubscribe();
@@ -139,6 +141,7 @@ export class SerialTransportService {
           return from(this.resolveGrantedPortAsync()).pipe(
             map((port): { port: SerialPort } | { error: string } => {
               if (!port) {
+                this.tearDownSession();
                 return {
                   error: getConnectionErrorMessage(
                     new Error('Port is not available after connection')
@@ -146,6 +149,9 @@ export class SerialTransportService {
                 };
               }
               this.cachedPort = port;
+              // connect$ 成功直後: isConnected$ が次ティックで true になる前に
+              // Facade から getReadStream → startReadLoop が走るのを防ぐ
+              this.connected = true;
               return { port };
             })
           );
@@ -199,9 +205,12 @@ export class SerialTransportService {
   /**
    * 読み取りストリーム（文字列）を取得
    * 未接続時またはエラー時は throwError
+   *
+   * v2: `isConnected$` より前に本メソッドが呼ばれ得るため、`readShared$` がある
+   * （connect$ 内で beginReceive 済み）なら接続扱いとする。
    */
   getReadStream(): Observable<string> {
-    if (!this.session || !this.connected) {
+    if (!this.session) {
       return throwError(() => new Error('Serial port not connected'));
     }
     if (!this.readShared$) {
@@ -218,7 +227,10 @@ export class SerialTransportService {
    * 未接続時またはエラー時は throwError
    */
   write(data: string): Observable<void> {
-    if (!this.session || !this.connected) {
+    if (!this.session) {
+      return throwError(() => new Error('Serial port not connected'));
+    }
+    if (!this.readShared$) {
       return throwError(() => new Error('Serial port not connected'));
     }
     return this.session.send$(data).pipe(
