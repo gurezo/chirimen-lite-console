@@ -13,14 +13,15 @@ import {
   filter,
   finalize,
   map,
-  merge,
   mergeMap,
   of,
   retry,
+  startWith,
   take,
   throwError,
   timeout,
 } from 'rxjs';
+import { stripSerialAnsiForPrompt } from '@libs-web-serial-util';
 import { SerialTransportService } from './serial-transport.service';
 
 /**
@@ -97,7 +98,7 @@ export class SerialCommandService {
     this.readSubscription?.unsubscribe();
     this.readSubscription = this.transport.getReadStream().subscribe({
       next: (chunk) => {
-        this.readBuffer += chunk;
+        this.readBuffer += stripSerialAnsiForPrompt(chunk);
         this.bufferNotify$.next();
       },
       error: (err) => console.error('Serial read stream error:', err),
@@ -158,7 +159,8 @@ export class SerialCommandService {
     config: CommandExecutionConfig,
     enqueuedGen: number,
   ): Observable<string> {
-    return merge(of(undefined), this.bufferNotify$).pipe(
+    return this.bufferNotify$.pipe(
+      startWith(undefined),
       map(() => {
         if (this.generation !== enqueuedGen) {
           throw new Error('All commands cancelled');

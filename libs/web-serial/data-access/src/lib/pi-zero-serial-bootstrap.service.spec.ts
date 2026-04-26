@@ -92,7 +92,7 @@ describe('PiZeroSerialBootstrapService', () => {
     });
     expect(readUntilPrompt).toHaveBeenNthCalledWith(2, {
       prompt: PI_ZERO_SERIAL_LOGIN_LINE_PATTERN,
-      timeout: SERIAL_TIMEOUT.DEFAULT,
+      timeout: SERIAL_TIMEOUT.LONG,
     });
     expect(exec).toHaveBeenNthCalledWith(
       1,
