@@ -11,4 +11,4 @@ onlyBuiltDependencies:
 # Temporarily disabled for installing @gurezo/web-serial-rxjs@0.2.0.
 # Malicious releases are often detected and removed within a week.
 # 7 days x 24h x 60 min
-# minimumReleaseAge: 10080
+minimumReleaseAge: 10080
