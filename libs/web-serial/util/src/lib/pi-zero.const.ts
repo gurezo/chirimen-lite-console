@@ -11,11 +11,11 @@ export const PI_ZERO_LOGIN_PASSWORD = 'raspberry' as const;
 
 /**
  * ログイン名入力待ち。
- * - 英語 `login:` / 日本語ロケールの `ログイン:` 等
+ * - 英語 `login:` / 日本語ロケールの `ログイン:` 等（大小・`:` 前の空白差を吸収）
  * - 行末 `$` に依存しない（シリアルに ANSI や未改行が混ざっても検出しやすくする）
  */
 export const PI_ZERO_SERIAL_LOGIN_LINE_PATTERN =
-  /(?:^|[\r\n])[^\r\n]*(?:login|ログイン):\s*/im;
+  /(?:^|[\r\n])[^\r\n]*(?:[Ll]ogin|ログイン)\s*:\s*/im;
 
 /**
  * パスワード入力待ち（`Password:` / `password:` 行末）
