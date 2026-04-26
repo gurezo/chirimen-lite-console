@@ -13,7 +13,6 @@ module.exports = {
         'web-serial',
         'web-serial-util',
         'web-serial-data-access',
-        'web-serial-state',
         'example',
         'wifi',
         'dialogs',

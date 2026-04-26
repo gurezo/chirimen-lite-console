@@ -35,10 +35,6 @@ export default defineConfig({
         __dirname,
         '../../web-serial/data-access/src/index.ts',
       ),
-      '@libs-web-serial-state': resolve(
-        __dirname,
-        '../../web-serial/state/src/index.ts',
-      ),
     },
   },
   esbuild: {
