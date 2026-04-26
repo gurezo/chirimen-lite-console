@@ -5,6 +5,14 @@ import {
 
 function getErrorMessageFromCode(code: SerialErrorCode): string {
   switch (code) {
+    case SerialErrorCode.BROWSER_NOT_SUPPORTED:
+      return 'このブラウザでは Web Serial API に対応していません。Chromium 系ブラウザをご利用ください。';
+    case SerialErrorCode.INVALID_FILTER_OPTIONS:
+      return 'シリアルポートのフィルタ指定が無効です。';
+    case SerialErrorCode.OPERATION_TIMEOUT:
+      return 'シリアル操作がタイムアウトしました。';
+    case SerialErrorCode.UNKNOWN:
+      return '不明なエラーが発生しました';
     case SerialErrorCode.OPERATION_CANCELLED:
       return "Failed to execute 'requestPort' on 'Serial': No port selected by the user.";
     case SerialErrorCode.PORT_ALREADY_OPEN:
