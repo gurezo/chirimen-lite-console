@@ -98,6 +98,19 @@ describe('SerialCommandService', () => {
     expect(result.stdout).toMatch(/ログイン/);
   });
 
+  it('readUntilPrompt matches login when chunk contains ANSI escape sequences', async () => {
+    const { service, chunks } = createService();
+    chunks.next('\u001b[2J\u001b[Hraspberrypi login: ');
+    const result = await firstValueFrom(
+      service.readUntilPrompt$({
+        prompt: PI_ZERO_SERIAL_LOGIN_LINE_PATTERN,
+        timeout: 1000,
+        retry: 0,
+      }),
+    );
+    expect(result.stdout).toMatch(/login:\s*/i);
+  });
+
   it('supports RegExp prompt', async () => {
     const { service, chunks, transport } = createService();
 

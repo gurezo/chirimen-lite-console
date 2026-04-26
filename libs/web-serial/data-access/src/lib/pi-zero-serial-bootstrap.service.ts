@@ -130,7 +130,8 @@ export class PiZeroSerialBootstrapService {
     return this.serial
       .readUntilPrompt$({
         prompt: PI_ZERO_SERIAL_LOGIN_LINE_PATTERN,
-        timeout: SERIAL_TIMEOUT.DEFAULT,
+        // 起動直後のログ出しが続くと login: 行が遅延することがある
+        timeout: SERIAL_TIMEOUT.LONG,
       })
       .pipe(
         tap(() => {
