@@ -1,27 +1,45 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { Store } from '@ngrx/store';
-import { BehaviorSubject, firstValueFrom } from 'rxjs';
+import { SerialFacadeService, SerialNotificationService } from '@libs-web-serial-data-access';
+import { BehaviorSubject, firstValueFrom, of } from 'rxjs';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { ConnectPageComponent } from './connect-page.component';
 
 describe('ConnectPageComponent', () => {
   let component: ConnectPageComponent;
   let fixture: ComponentFixture<ConnectPageComponent>;
-  let storeSelect: ReturnType<typeof vi.fn>;
-  let storeDispatch: ReturnType<typeof vi.fn>;
-  let connected$: BehaviorSubject<boolean>;
+  let isConnected: BehaviorSubject<boolean>;
+  let connectResult: { ok: true } | { ok: false; errorMessage: string };
+  let connect$: ReturnType<typeof vi.fn>;
+  let notifySuccess: ReturnType<typeof vi.fn>;
+  let notifyError: ReturnType<typeof vi.fn>;
 
   beforeEach(async () => {
-    connected$ = new BehaviorSubject<boolean>(false);
-    storeSelect = vi.fn().mockReturnValue(connected$);
-    storeDispatch = vi.fn();
+    isConnected = new BehaviorSubject<boolean>(false);
+    connectResult = { ok: true };
+    connect$ = vi.fn();
+    notifySuccess = vi.fn();
+    notifyError = vi.fn();
+
+    connect$.mockImplementation(() => of(connectResult));
 
     await TestBed.configureTestingModule({
       imports: [ConnectPageComponent],
       providers: [
         {
-          provide: Store,
-          useValue: { select: storeSelect, dispatch: storeDispatch },
+          provide: SerialFacadeService,
+          useValue: {
+            get isConnected$() {
+              return isConnected.asObservable();
+            },
+            connect$,
+          },
+        },
+        {
+          provide: SerialNotificationService,
+          useValue: {
+            notifyConnectionSuccess: notifySuccess,
+            notifyConnectionError: notifyError,
+          },
         },
       ],
     }).compileComponents();
@@ -35,24 +53,37 @@ describe('ConnectPageComponent', () => {
     expect(component).toBeTruthy();
   });
 
-  it('should call store.select for webSerial.isConnected', () => {
-    expect(storeSelect).toHaveBeenCalled();
-  });
-
-  it('should dispatch WebSerialActions.onConnect when onConnect is called', () => {
+  it('should call connect$ when onConnect is called', () => {
+    connect$.mockClear();
     component.onConnect();
-    expect(storeDispatch).toHaveBeenCalledTimes(1);
+    expect(connect$).toHaveBeenCalledTimes(1);
   });
 
-  it('should map connectionStatus$ to disconnected when store is false', async () => {
-    connected$.next(false);
+  it('should map connectionStatus$ to disconnected when not connected', async () => {
+    isConnected.next(false);
     const status = await firstValueFrom(component.connectionStatus$);
     expect(status).toBe('disconnected');
   });
 
-  it('should map connectionStatus$ to connected when store is true', async () => {
-    connected$.next(true);
+  it('should map connectionStatus$ to connected when connected', async () => {
+    isConnected.next(true);
     const status = await firstValueFrom(component.connectionStatus$);
     expect(status).toBe('connected');
+  });
+
+  it('should notify on successful connect from onConnect', () => {
+    connectResult = { ok: true };
+    connect$.mockImplementation(() => of(connectResult));
+    component.onConnect();
+    expect(notifySuccess).toHaveBeenCalledTimes(1);
+    expect(notifyError).not.toHaveBeenCalled();
+  });
+
+  it('should notify on failed connect from onConnect', () => {
+    connectResult = { ok: false, errorMessage: 'failed' };
+    connect$.mockImplementation(() => of(connectResult));
+    component.onConnect();
+    expect(notifyError).toHaveBeenCalledWith('failed');
+    expect(notifySuccess).not.toHaveBeenCalled();
   });
 });

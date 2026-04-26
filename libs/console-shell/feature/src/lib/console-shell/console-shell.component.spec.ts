@@ -4,22 +4,39 @@ import { ActivatedRoute, Router } from '@angular/router';
 import { DialogService } from '@libs-dialogs-util';
 import { ConsoleShellStore } from '@libs-console-shell-util';
 import {
-  isConnected,
-  selectConnectionMessage,
-  selectErrorMessage,
-} from '@libs-web-serial-state';
-import { Store } from '@ngrx/store';
-import { SerialNotificationService } from '@libs-web-serial-data-access';
+  SerialFacadeService,
+  SerialNotificationService,
+} from '@libs-web-serial-data-access';
 import { TerminalCommandRequestService } from '@libs-terminal-util';
+import { SerialSessionState } from '@gurezo/web-serial-rxjs';
 import { BehaviorSubject, EMPTY, of } from 'rxjs';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { ConsoleShellComponent } from './console-shell.component';
 
+function createSerialFacadeMock(isConnected: BehaviorSubject<boolean>) {
+  const connect$ = vi
+    .fn()
+    .mockReturnValue(of<{ ok: true } | { ok: false; errorMessage: string }>({ ok: true }));
+  const disconnect$ = vi.fn().mockReturnValue(of(undefined));
+  return {
+    get isConnected$() {
+      return isConnected.asObservable();
+    },
+    state$: of(SerialSessionState.Idle),
+    errors$: EMPTY,
+    get portInfo$() {
+      return of(null);
+    },
+    connect$,
+    disconnect$,
+  };
+}
+
 describe('ConsoleShellComponent', () => {
   let component: ConsoleShellComponent;
   let fixture: ComponentFixture<ConsoleShellComponent>;
-  let storeSelect: ReturnType<typeof vi.fn>;
-  let storeDispatch: ReturnType<typeof vi.fn>;
+  let connect$: ReturnType<typeof vi.fn>;
+  let disconnect$: ReturnType<typeof vi.fn>;
   let notifyConnectionSuccess: ReturnType<typeof vi.fn>;
   let notifyConnectionError: ReturnType<typeof vi.fn>;
   let openDialog: ReturnType<typeof vi.fn>;
@@ -40,15 +57,11 @@ describe('ConsoleShellComponent', () => {
       firstChild: { snapshot: { url: [{ path: 'terminal' }] } },
     } as unknown as ActivatedRoute;
     isConnected$ = new BehaviorSubject(false);
+    const serial = createSerialFacadeMock(isConnected$);
+    connect$ = serial.connect$;
+    disconnect$ = serial.disconnect$;
     applyConnectedLayout = vi.fn();
     resetLayoutAfterDisconnect = vi.fn();
-    storeSelect = vi.fn((selector: unknown) => {
-      if (selector === selectConnectionMessage) return of('');
-      if (selector === selectErrorMessage) return of('');
-      if (selector === isConnected) return isConnected$.asObservable();
-      return isConnected$.asObservable();
-    });
-    storeDispatch = vi.fn();
 
     notifyConnectionSuccess = vi.fn();
     notifyConnectionError = vi.fn();
@@ -67,10 +80,7 @@ describe('ConsoleShellComponent', () => {
           useValue: { navigate: navigateSpy, events: EMPTY },
         },
         { provide: ActivatedRoute, useValue: activatedRouteMock },
-        {
-          provide: Store,
-          useValue: { select: storeSelect, dispatch: storeDispatch },
-        },
+        { provide: SerialFacadeService, useValue: serial },
         {
           provide: SerialNotificationService,
           useValue: {
@@ -115,16 +125,16 @@ describe('ConsoleShellComponent', () => {
     expect(component).toBeTruthy();
   });
 
-  it('should dispatch onConnect when onConnect is called', () => {
-    storeDispatch.mockClear();
+  it('should call connect$ when onConnect is called', () => {
+    connect$.mockClear();
     component.onConnect();
-    expect(storeDispatch).toHaveBeenCalledTimes(1);
+    expect(connect$).toHaveBeenCalledTimes(1);
   });
 
-  it('should dispatch onDisConnect when onDisConnect is called', () => {
-    storeDispatch.mockClear();
+  it('should call disconnect$ when onDisConnect is called', () => {
+    disconnect$.mockClear();
     component.onDisConnect();
-    expect(storeDispatch).toHaveBeenCalledTimes(1);
+    expect(disconnect$).toHaveBeenCalledTimes(1);
   });
 
   it('should switch pane when editor action is clicked', () => {
@@ -193,19 +203,13 @@ describe('ConsoleShellComponent', () => {
 describe('ConsoleShellComponent gridTemplateColumns when right nav closed', () => {
   let component: ConsoleShellComponent;
   let fixture: ComponentFixture<ConsoleShellComponent>;
-  let storeSelect: ReturnType<typeof vi.fn>;
 
   beforeEach(async () => {
-    const isConnected$ = new BehaviorSubject(false);
+    const isConn = new BehaviorSubject(false);
+    const serial = createSerialFacadeMock(isConn);
     const activatedRoute = {
       firstChild: { snapshot: { url: [{ path: 'terminal' }] } },
     } as unknown as ActivatedRoute;
-    storeSelect = vi.fn((selector: unknown) => {
-      if (selector === selectConnectionMessage) return of('');
-      if (selector === selectErrorMessage) return of('');
-      if (selector === isConnected) return isConnected$.asObservable();
-      return isConnected$.asObservable();
-    });
 
     await TestBed.configureTestingModule({
       imports: [ConsoleShellComponent],
@@ -215,10 +219,7 @@ describe('ConsoleShellComponent gridTemplateColumns when right nav closed', () =
           useValue: { navigate: vi.fn().mockResolvedValue(true), events: EMPTY },
         },
         { provide: ActivatedRoute, useValue: activatedRoute },
-        {
-          provide: Store,
-          useValue: { select: storeSelect, dispatch: vi.fn() },
-        },
+        { provide: SerialFacadeService, useValue: serial },
         {
           provide: SerialNotificationService,
           useValue: {
@@ -267,8 +268,6 @@ describe('ConsoleShellComponent gridTemplateColumns when right nav closed', () =
 describe('ConsoleShellComponent layout DOM (connected vs disconnected)', () => {
   let fixture: ComponentFixture<ConsoleShellComponent>;
   let isConnected$: BehaviorSubject<boolean>;
-  let storeSelect: ReturnType<typeof vi.fn>;
-  let storeDispatch: ReturnType<typeof vi.fn>;
   let activatedRouteMock: ActivatedRoute;
 
   beforeEach(async () => {
@@ -276,13 +275,7 @@ describe('ConsoleShellComponent layout DOM (connected vs disconnected)', () => {
       firstChild: { snapshot: { url: [{ path: 'terminal' }] } },
     } as unknown as ActivatedRoute;
     isConnected$ = new BehaviorSubject(false);
-    storeSelect = vi.fn((selector: unknown) => {
-      if (selector === selectConnectionMessage) return of('');
-      if (selector === selectErrorMessage) return of('');
-      if (selector === isConnected) return isConnected$.asObservable();
-      return isConnected$.asObservable();
-    });
-    storeDispatch = vi.fn();
+    const serial = createSerialFacadeMock(isConnected$);
 
     await TestBed.configureTestingModule({
       imports: [ConsoleShellComponent],
@@ -295,11 +288,8 @@ describe('ConsoleShellComponent layout DOM (connected vs disconnected)', () => {
           },
         },
         { provide: ActivatedRoute, useValue: activatedRouteMock },
+        { provide: SerialFacadeService, useValue: serial },
         ConsoleShellStore,
-        {
-          provide: Store,
-          useValue: { select: storeSelect, dispatch: storeDispatch },
-        },
         {
           provide: SerialNotificationService,
           useValue: {
