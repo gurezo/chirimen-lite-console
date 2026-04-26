@@ -10,7 +10,7 @@ import {
   map,
   Observable,
   of,
-  share,
+  ReplaySubject,
   Subscription,
   switchMap,
   tap,
@@ -43,11 +43,12 @@ export class SerialTransportService {
   private cachedPort: SerialPort | undefined;
 
   /**
-   * port.readable は同時にロックできる Reader が 1 つだけのため、
-   * getReadStream() を呼ぶたびに新しい Reader を取ると Facade の常時購読と
-   * read$() などがデータを奪い合い、プロンプト待ちがタイムアウトする。
-   * 1 本の Observable を share して多重購読する。
+   * v2 では接続直後に受信が始まるが、購読前のチャンクは捨てられる。
+   * {@link #beginReceiveReplayBuffer} を connect$ 内で getPorts より先に行い、
+   * ここに一度だけ中継してから UI / Command 側が遅延購読しても起動ログを再現する。
    */
+  private readReplay$?: ReplaySubject<string>;
+  private receiveToReplaySub: Subscription | undefined;
   private readShared$: Observable<string> | null = null;
 
   private wireStateSubscription(s: SerialSession): void {
@@ -60,10 +61,35 @@ export class SerialTransportService {
   private tearDownSession(): void {
     this.stateSub?.unsubscribe();
     this.stateSub = undefined;
+    this.receiveToReplaySub?.unsubscribe();
+    this.receiveToReplaySub = undefined;
+    this.readReplay$?.complete();
+    this.readReplay$ = undefined;
     this.session = undefined;
     this.connected = false;
     this.cachedPort = undefined;
     this.readShared$ = null;
+  }
+
+  /**
+   * connect$ 直後（getPorts 等の前）に 1 回呼ぶ。receive$ へ即購読し Replay に流す。
+   */
+  private beginReceiveReplayBuffer(): void {
+    this.receiveToReplaySub?.unsubscribe();
+    this.readReplay$?.complete();
+    if (!this.session) {
+      return;
+    }
+    this.readReplay$ = new ReplaySubject<string>(512);
+    this.receiveToReplaySub = this.session.receive$.subscribe({
+      next: (chunk) => {
+        this.readReplay$?.next(chunk);
+      },
+      error: (err: unknown) => {
+        this.readReplay$?.error(new Error(getReadErrorMessage(err)));
+      },
+    });
+    this.readShared$ = this.readReplay$.asObservable();
   }
 
   /**
@@ -108,8 +134,9 @@ export class SerialTransportService {
       this.session = session;
       this.wireStateSubscription(session);
       return session.connect$().pipe(
-        switchMap(() =>
-          from(this.resolveGrantedPortAsync()).pipe(
+        switchMap(() => {
+          this.beginReceiveReplayBuffer();
+          return from(this.resolveGrantedPortAsync()).pipe(
             map((port): { port: SerialPort } | { error: string } => {
               if (!port) {
                 return {
@@ -121,8 +148,8 @@ export class SerialTransportService {
               this.cachedPort = port;
               return { port };
             })
-          )
-        ),
+          );
+        }),
         catchError((error) => {
           this.tearDownSession();
           return of({ error: getConnectionErrorMessage(error) });
@@ -178,12 +205,10 @@ export class SerialTransportService {
       return throwError(() => new Error('Serial port not connected'));
     }
     if (!this.readShared$) {
-      this.readShared$ = this.session.receive$.pipe(
-        catchError((error) =>
-          throwError(() => new Error(getReadErrorMessage(error)))
-        ),
-        share()
-      );
+      this.beginReceiveReplayBuffer();
+    }
+    if (!this.readShared$) {
+      return throwError(() => new Error('Serial read stream not available'));
     }
     return this.readShared$;
   }
