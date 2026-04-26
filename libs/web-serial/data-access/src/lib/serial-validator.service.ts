@@ -12,6 +12,23 @@ import { RASPBERRY_PI_ZERO_INFO } from '@libs-web-serial-util';
 })
 export class SerialValidatorService {
   /**
+   * 同期 `SerialPortInfo`（`SerialSession.getPortInfo()` 等）で Pi Zero 互換 USB ID か判定
+   */
+  isPiZeroPortInfo(info: SerialPortInfo | null | undefined): boolean {
+    if (info == null) {
+      return false;
+    }
+    const { usbVendorId, usbProductId } = info;
+    if (usbVendorId == null || usbProductId == null) {
+      return false;
+    }
+    return (
+      usbVendorId === RASPBERRY_PI_ZERO_INFO.usbVendorId &&
+      usbProductId === RASPBERRY_PI_ZERO_INFO.usbProductId
+    );
+  }
+
+  /**
    * Raspberry Pi Zero かどうかを検証
    * @param port SerialPort
    * @returns Raspberry Pi Zero の場合 true
@@ -19,11 +36,7 @@ export class SerialValidatorService {
   async isRaspberryPiZero(port: SerialPort): Promise<boolean> {
     try {
       const info = await port.getInfo();
-
-      return (
-        info.usbVendorId === RASPBERRY_PI_ZERO_INFO.usbVendorId &&
-        info.usbProductId === RASPBERRY_PI_ZERO_INFO.usbProductId
-      );
+      return this.isPiZeroPortInfo(info);
     } catch (error) {
       console.error('Failed to get port info:', error);
       return false;
