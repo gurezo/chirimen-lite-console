@@ -1,11 +1,7 @@
 /// <reference types="@types/w3c-web-serial" />
 
 import { Injectable } from '@angular/core';
-import {
-  createSerialSession,
-  SerialSessionState,
-  type SerialSession,
-} from '@gurezo/web-serial-rxjs';
+import { createSerialSession, type SerialSession } from '@gurezo/web-serial-rxjs';
 import {
   catchError,
   defaultIfEmpty,
@@ -41,7 +37,7 @@ import {
 export class SerialTransportService {
   private session: SerialSession | undefined;
   private stateSub: Subscription | undefined;
-  /** {@link SerialSession#state$} から `connected` を同期 */
+  /** {@link SerialSession#isConnected$} から同期（同期版 {@link isConnected} 用） */
   private connected = false;
   /** 接続成功後、getPorts + USB 突合で解決（{@link getPort} 用） */
   private cachedPort: SerialPort | undefined;
@@ -56,8 +52,8 @@ export class SerialTransportService {
 
   private wireStateSubscription(s: SerialSession): void {
     this.stateSub?.unsubscribe();
-    this.stateSub = s.state$.subscribe((state) => {
-      this.connected = state === SerialSessionState.Connected;
+    this.stateSub = s.isConnected$.subscribe((on) => {
+      this.connected = on;
     });
   }
 
