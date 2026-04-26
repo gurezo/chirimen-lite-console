@@ -68,7 +68,6 @@
       "@libs-web-serial-data-access": [
         "libs/web-serial/data-access/src/index.ts"
       ],
-      "@libs-web-serial-state": ["libs/web-serial/state/src/index.ts"],
       "@libs-wifi-util": ["libs/wifi/util/src/index.ts"],
       "@libs-wifi-data-access": ["libs/wifi/data-access/src/index.ts"],
       "@libs-wifi-ui": ["libs/wifi/ui/src/index.ts"],

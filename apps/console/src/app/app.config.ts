@@ -4,12 +4,6 @@ import { MAT_ICON_DEFAULT_OPTIONS } from '@angular/material/icon';
 import { provideAnimationsAsync } from '@angular/platform-browser/animations/async';
 import { provideRouter } from '@angular/router';
 import { monacoConfig } from '@libs-editor-util';
-import {
-  WebSerialEffects,
-  webSerialFeatureKey,
-  webSerialReducer,
-} from '@libs-web-serial-state';
-import { provideEffects } from '@ngrx/effects';
 import { provideRouterStore } from '@ngrx/router-store';
 import { provideStore } from '@ngrx/store';
 import { provideStoreDevtools } from '@ngrx/store-devtools';
@@ -33,10 +27,7 @@ export const appConfig: ApplicationConfig = {
     }),
     provideHttpClient(),
     provideMonacoEditor(monacoConfig),
-    provideStore({
-      [webSerialFeatureKey]: webSerialReducer,
-    }),
-    provideEffects([WebSerialEffects]),
+    provideStore({}),
     provideStoreDevtools({
       maxAge: 25,
       connectInZone: true,

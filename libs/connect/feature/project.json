@@ -10,7 +10,7 @@
   ],
   "implicitDependencies": [
     "libs-connect-ui",
-    "libs-web-serial-state"
+    "libs-web-serial-data-access"
   ],
   "targets": {
     "build": {

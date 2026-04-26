@@ -8,7 +8,6 @@
   "implicitDependencies": [
     "libs-connect-feature",
     "libs-connect-ui",
-    "libs-web-serial-state",
     "libs-web-serial-data-access",
     "libs-console-shell-ui",
     "libs-shared-ui",
