@@ -1,11 +1,19 @@
 /// <reference types="@types/w3c-web-serial" />
 
 import { Injectable } from '@angular/core';
-import { createSerialSession, type SerialSession } from '@gurezo/web-serial-rxjs';
 import {
+  createSerialSession,
+  SerialError,
+  SerialSessionState,
+  type SerialSession,
+} from '@gurezo/web-serial-rxjs';
+import {
+  BehaviorSubject,
   catchError,
   defaultIfEmpty,
   defer,
+  distinctUntilChanged,
+  EMPTY,
   Observable,
   of,
   Subscription,
@@ -22,32 +30,68 @@ import {
 
 /**
  * Serial 接続・読取・書込を一元化するサービス
- * v2 @gurezo/web-serial-rxjs の SerialSession を直接利用
+ * v2 @gurezo/web-serial-rxjs の {@link SerialSession} を直接利用し、
+ * `state$` / `isConnected$` / `errors$` 等をアプリ層に橋渡しする。
  *
- * v2.1.0 では {@link SerialSession.receiveReplay$} と {@link SerialSession.getCurrentPort}
- * により、自前の ReplaySubject 中継や getPorts 突合が不要。
+ * 受信はチャンク単位: `createSerialSession({ receiveReplay: { enabled: true } })` により
+ * {@link SerialSession.receiveReplay$} を使い、同一接続内で遅延購読者（例: ターミナル）へ
+ * 直近バッファを引き渡す。行単位が欲しい場合はライブラリの `lines$` を別経路で購読する（シェル exec はチャンク蓄積が必要なため従来どおり `receiveReplay$` + Command バッファ）。
  */
 @Injectable({
   providedIn: 'root',
 })
 export class SerialTransportService {
   private session: SerialSession | undefined;
-  private stateSub: Subscription | undefined;
-  /** {@link SerialSession#isConnected$} から同期（同期版 {@link isConnected} 用） */
-  private connected = false;
+  private sessionSubscription = new Subscription();
 
-  private wireStateSubscription(s: SerialSession): void {
-    this.stateSub?.unsubscribe();
-    this.stateSub = s.isConnected$.subscribe((on) => {
-      this.connected = on;
-    });
+  /** 接続中セッションの `state$` をミラー。未接続・切断後は `idle`。 */
+  private readonly lifecycleState$ = new BehaviorSubject<SerialSessionState>(
+    SerialSessionState.Idle
+  );
+  private readonly isConnectedState$ = new BehaviorSubject(false);
+
+  /** @gurezo/web-serial-rxjs 2.1.0 が npm 上の最新。API は TypeDoc 参照。 */
+  readonly state$ = this.lifecycleState$
+    .asObservable()
+    .pipe(distinctUntilChanged());
+
+  /** ライブラリの `isConnected$` をミラー（未接続時は `false`）。 */
+  readonly isConnected$ = this.isConnectedState$
+    .asObservable()
+    .pipe(distinctUntilChanged());
+
+  private wireSession(s: SerialSession): void {
+    this.sessionSubscription.unsubscribe();
+    this.sessionSubscription = new Subscription();
+    this.sessionSubscription.add(
+      s.state$.subscribe((st) => this.lifecycleState$.next(st))
+    );
+    this.sessionSubscription.add(
+      s.isConnected$.subscribe((on) => this.isConnectedState$.next(on))
+    );
   }
 
   private tearDownSession(): void {
-    this.stateSub?.unsubscribe();
-    this.stateSub = undefined;
+    this.sessionSubscription.unsubscribe();
+    this.sessionSubscription = new Subscription();
     this.session = undefined;
-    this.connected = false;
+    this.lifecycleState$.next(SerialSessionState.Idle);
+    this.isConnectedState$.next(false);
+  }
+
+  /**
+   * I/O エラー（`SerialError`）のライブラリ本流。未接続時は空ストリーム。
+   */
+  get errors$(): Observable<SerialError> {
+    return this.session?.errors$ ?? EMPTY;
+  }
+
+  get portInfo$(): Observable<SerialPortInfo | null> {
+    return this.session?.portInfo$ ?? of(null);
+  }
+
+  getPortInfo(): SerialPortInfo | null {
+    return this.session?.getPortInfo() ?? null;
   }
 
   /**
@@ -70,7 +114,7 @@ export class SerialTransportService {
         receiveReplay: { enabled: true, bufferSize: 512 },
       });
       this.session = session;
-      this.wireStateSubscription(session);
+      this.wireSession(session);
       return session.connect$().pipe(
         switchMap(() => {
           const port = session.getCurrentPort();
@@ -82,9 +126,6 @@ export class SerialTransportService {
               ),
             });
           }
-          // connect$ 成功直後: isConnected$ が次ティックで true になる前に
-          // Facade から getReadStream → startReadLoop が走るのを防ぐ
-          this.connected = true;
           return of({ port });
         }),
         catchError((error) => {
@@ -119,16 +160,10 @@ export class SerialTransportService {
     });
   }
 
-  /**
-   * 接続状態を取得
-   */
   isConnected(): boolean {
-    return this.connected;
+    return this.isConnectedState$.getValue();
   }
 
-  /**
-   * 現在の SerialPort を取得
-   */
   getPort(): SerialPort | undefined {
     return this.session?.getCurrentPort() ?? undefined;
   }
@@ -136,8 +171,6 @@ export class SerialTransportService {
   /**
    * 読み取りストリーム（文字列）を取得
    * 未接続時またはエラー時は throwError
-   *
-   * チャンクの replay は {@link SerialSession.receiveReplay$}（createSerialSession 時に有効化）。
    */
   getReadStream(): Observable<string> {
     if (!this.session) {
@@ -155,7 +188,7 @@ export class SerialTransportService {
    * 未接続時またはエラー時は throwError
    */
   write(data: string): Observable<void> {
-    if (!this.session || !this.connected) {
+    if (!this.session || !this.isConnected()) {
       return throwError(() => new Error('Serial port not connected'));
     }
     return this.session.send$(data).pipe(

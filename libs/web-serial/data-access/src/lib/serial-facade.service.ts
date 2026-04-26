@@ -1,6 +1,7 @@
 /// <reference types="@types/w3c-web-serial" />
 
 import { Injectable, inject } from '@angular/core';
+import type { SerialError } from '@gurezo/web-serial-rxjs';
 import {
   catchError,
   defer,
@@ -49,8 +50,21 @@ export class SerialFacadeService {
   private readonly connectionEstablished = new Subject<void>();
   /**
    * シリアル接続が確立されるたびに通知（ターミナルが後からマウントされる場合のブートストラップ用）
+   * {@link SerialTransportService.state$} が `connected` になる回と同期。
    */
   readonly connectionEstablished$ = this.connectionEstablished.asObservable();
+
+  /** ライブラリ `SerialSession.state$` の橋渡し（未接続は `idle`） */
+  readonly state$ = this.transport.state$;
+  /** ライブラリ `SerialSession.isConnected$` の橋渡し */
+  readonly isConnected$ = this.transport.isConnected$;
+  /** ライブラリ主エラーチャネル（未接続時は購読しても何も来ない） */
+  get errors$(): Observable<SerialError> {
+    return this.transport.errors$;
+  }
+  get portInfo$(): Observable<SerialPortInfo | null> {
+    return this.transport.portInfo$;
+  }
 
   /**
    * データストリーム (Observable)
@@ -205,6 +219,10 @@ export class SerialFacadeService {
   }
 
   async isRaspberryPiZero(): Promise<boolean> {
+    const syncInfo = this.transport.getPortInfo();
+    if (this.validator.isPiZeroPortInfo(syncInfo)) {
+      return true;
+    }
     const port = this.transport.getPort();
     if (!port) {
       return false;
