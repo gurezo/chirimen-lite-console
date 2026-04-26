@@ -24,17 +24,12 @@ import {
 } from '@libs-console-shell-ui';
 import { SetupPageComponent } from '@libs-chirimen-setup-feature';
 import { RemotePageComponent } from '@libs-remote-feature';
-import { SerialNotificationService } from '@libs-web-serial-data-access';
-import { DialogService } from '@libs-dialogs-util';
 import {
-  isConnected,
-  selectConnectionMessage,
-  selectErrorMessage,
-  WebSerialActions,
-} from '@libs-web-serial-state';
-import { Store } from '@ngrx/store';
-import { Subscription } from 'rxjs';
-import { filter, pairwise, startWith } from 'rxjs/operators';
+  SerialFacadeService,
+  SerialNotificationService,
+} from '@libs-web-serial-data-access';
+import { DialogService } from '@libs-dialogs-util';
+import { filter, pairwise, startWith, Subscription, take } from 'rxjs';
 import {
   buildConsoleShellBreadcrumbSegments,
   ConsoleShellStore,
@@ -71,7 +66,7 @@ export class ConsoleShellComponent implements OnInit, OnDestroy {
   /** Narrow rail when the PIN panel is collapsed (px); keeps toggle + pin chrome visible. */
   private static readonly RIGHT_RAIL_COLLAPSED_WIDTH_PX = 48;
 
-  private store = inject(Store);
+  private serial = inject(SerialFacadeService);
   private serialNotification = inject(SerialNotificationService);
   private shellStore = inject(ConsoleShellStore);
   private dialogService = inject(DialogService);
@@ -79,7 +74,8 @@ export class ConsoleShellComponent implements OnInit, OnDestroy {
   private router = inject(Router);
   private route = inject(ActivatedRoute);
 
-  connected$ = this.store.select((state) => state.webSerial.isConnected);
+  /** Web Serial 接続状態（`@gurezo/web-serial-rxjs` の isConnected$ 経由） */
+  connected$ = this.serial.isConnected$;
 
   readonly activePanel = this.shellStore.activePanel;
   readonly leftNavOpen = this.shellStore.leftNavOpen;
@@ -121,26 +117,7 @@ export class ConsoleShellComponent implements OnInit, OnDestroy {
     );
 
     this.subscriptions.add(
-      this.store
-        .select(selectConnectionMessage)
-        .pipe(filter((message) => message !== ''))
-        .subscribe(() => {
-          this.serialNotification.notifyConnectionSuccess();
-        }),
-    );
-
-    this.subscriptions.add(
-      this.store
-        .select(selectErrorMessage)
-        .pipe(filter((message) => message !== ''))
-        .subscribe((errorMessage) => {
-          this.serialNotification.notifyConnectionError(errorMessage);
-        }),
-    );
-
-    this.subscriptions.add(
-      this.store
-        .select(isConnected)
+      this.serial.isConnected$
         .pipe(
           startWith(false),
           pairwise(),
@@ -175,11 +152,25 @@ export class ConsoleShellComponent implements OnInit, OnDestroy {
   }
 
   onConnect() {
-    this.store.dispatch(WebSerialActions.onConnect());
+    this.serial
+      .connect$()
+      .pipe(take(1))
+      .subscribe((result) => {
+        if (result.ok) {
+          this.serialNotification.notifyConnectionSuccess();
+        } else {
+          this.serialNotification.notifyConnectionError(result.errorMessage);
+        }
+      });
   }
 
   onDisConnect() {
-    this.store.dispatch(WebSerialActions.onDisConnect());
+    this.serial
+      .disconnect$()
+      .pipe(take(1))
+      .subscribe({
+        error: (err: unknown) => console.error('Disconnect error', err),
+      });
   }
 
   onToggleLeftSidebar() {

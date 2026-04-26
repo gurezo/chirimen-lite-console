@@ -5,9 +5,11 @@ import {
   ConnectionStatusComponent,
   type ConnectStatus,
 } from '@libs-connect-ui';
-import { WebSerialActions } from '@libs-web-serial-state';
-import { Store } from '@ngrx/store';
-import { map } from 'rxjs';
+import {
+  SerialFacadeService,
+  SerialNotificationService,
+} from '@libs-web-serial-data-access';
+import { map, take } from 'rxjs';
 
 @Component({
   selector: 'lib-connect-page',
@@ -16,7 +18,8 @@ import { map } from 'rxjs';
   templateUrl: './connect-page.component.html',
 })
 export class ConnectPageComponent {
-  private store = inject(Store);
+  private serial = inject(SerialFacadeService);
+  private serialNotification = inject(SerialNotificationService);
 
   disconnectedMessage =
     'Raspberry Pi Zero と PC を USB で繋いだ後、Connect ボタンをクリックして、Web Serail を接続して下さい';
@@ -24,12 +27,7 @@ export class ConnectPageComponent {
   imageAlt = 'PiZeroW_OTG';
   connectButtonLabel = 'Web Serial Connect';
 
-  private connected$ = this.store.select(
-    (state: { webSerial: { isConnected: boolean } }) =>
-      state.webSerial.isConnected,
-  );
-
-  connectionStatus$ = this.connected$.pipe(
+  connectionStatus$ = this.serial.isConnected$.pipe(
     map(
       (connected): ConnectStatus =>
         connected ? 'connected' : 'disconnected',
@@ -37,6 +35,15 @@ export class ConnectPageComponent {
   );
 
   onConnect(): void {
-    this.store.dispatch(WebSerialActions.onConnect());
+    this.serial
+      .connect$()
+      .pipe(take(1))
+      .subscribe((result) => {
+        if (result.ok) {
+          this.serialNotification.notifyConnectionSuccess();
+        } else {
+          this.serialNotification.notifyConnectionError(result.errorMessage);
+        }
+      });
   }
 }
