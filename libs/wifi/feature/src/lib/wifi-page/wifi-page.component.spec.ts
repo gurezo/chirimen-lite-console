@@ -1,6 +1,6 @@
 import { Dialog } from '@angular/cdk/dialog';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { of } from 'rxjs';
+import { BehaviorSubject, of } from 'rxjs';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { NotificationService } from '@libs-shared-ui';
 import {
@@ -43,7 +43,7 @@ describe('WifiPageComponent', () => {
         },
         {
           provide: SerialFacadeService,
-          useValue: { isConnected: vi.fn().mockReturnValue(true) },
+          useValue: { isConnected$: new BehaviorSubject(true) },
         },
         {
           provide: WifiScanService,

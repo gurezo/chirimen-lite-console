@@ -16,6 +16,7 @@ import {
   finalize,
   firstValueFrom,
   switchMap,
+  take,
 } from 'rxjs';
 import { FitAddon } from '@xterm/addon-fit';
 import { Terminal } from '@xterm/xterm';
@@ -62,18 +63,25 @@ export class TerminalViewComponent implements AfterViewInit, OnDestroy {
   private commandRequestSub?: Subscription;
   private resizeObserver?: ResizeObserver;
 
+  /** {@link SerialFacadeService#isConnected$} の直近値（キー入力可否用） */
+  private serialInputEnabled = false;
+
   ngAfterViewInit(): void {
     this.configTerminal();
     this.serial.connectionEstablished$
       .pipe(
-        switchMap(() => {
-          if (!this.serial.isConnected()) {
-            return EMPTY;
-          }
-          return this.bootstrapAfterConnect$(
-            '[コンソール] シリアルに接続しました。',
-          );
-        }),
+        switchMap(() =>
+          this.serial.isConnected$.pipe(
+            take(1),
+            switchMap((connected) =>
+              connected
+                ? this.bootstrapAfterConnect$(
+                    '[コンソール] シリアルに接続しました。',
+                  )
+                : EMPTY
+            ),
+          ),
+        ),
         takeUntilDestroyed(this.destroyRef),
       )
       .subscribe();
@@ -104,14 +112,24 @@ export class TerminalViewComponent implements AfterViewInit, OnDestroy {
     this.resizeObserver = new ResizeObserver(() => this.fitTerminal());
     this.resizeObserver.observe(el);
 
+    this.serial.isConnected$
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe((c) => {
+        this.serialInputEnabled = c;
+      });
+
     this.xterminal.reset();
-    if (this.serial.isConnected()) {
-      this.bootstrapAfterConnect$('[コンソール] シリアル接続済み。')
-        .pipe(takeUntilDestroyed(this.destroyRef))
-        .subscribe();
-    } else {
-      this.xterminal.writeln('$ ');
-    }
+    this.serial.isConnected$
+      .pipe(take(1), takeUntilDestroyed(this.destroyRef))
+      .subscribe((connected) => {
+        if (connected) {
+          this.bootstrapAfterConnect$('[コンソール] シリアル接続済み。')
+            .pipe(takeUntilDestroyed(this.destroyRef))
+            .subscribe();
+        } else {
+          this.xterminal.writeln('$ ');
+        }
+      });
 
     attachTerminalInput(
       this.xterminal,
@@ -124,13 +142,16 @@ export class TerminalViewComponent implements AfterViewInit, OnDestroy {
           return sanitizeSerialStdout(stdout, command, this.remotePrompt());
         });
       },
-      () => this.serial.isConnected(),
+      () => this.serialInputEnabled,
     );
 
     this.commandRequestSub = this.commandRequests.commandRequests$.subscribe(
       (cmd) => {
         void this.enqueueExec(async () => {
-          if (!this.serial.isConnected()) {
+          const connected = await firstValueFrom(
+            this.serial.isConnected$.pipe(take(1)),
+          );
+          if (!connected) {
             this.xterminal.writeln(`$ ${cmd}`);
             this.xterminal.writeln('Command failed: Serial port not connected');
             this.xterminal.write('$ ');
@@ -171,15 +192,20 @@ export class TerminalViewComponent implements AfterViewInit, OnDestroy {
   }
 
   private bootstrapAfterConnect$(prefixMessage: string) {
-    if (!this.piZeroBootstrap.shouldRunAfterConnect()) {
-      this.xterminal.writeln(`${prefixMessage} 初期化済みのためスキップします。`);
-      this.xterminal.write('$ ');
-      return EMPTY;
-    }
-    this.xterminal.writeln(`${prefixMessage} 初期化しています...`);
-    return this.piZeroBootstrap.runAfterConnect$((line) =>
-      this.xterminal.writeln(line),
-    ).pipe(
+    return this.piZeroBootstrap.shouldRunAfterConnect$().pipe(
+      switchMap((should) => {
+        if (!should) {
+          this.xterminal.writeln(
+            `${prefixMessage} 初期化済みのためスキップします。`,
+          );
+          this.xterminal.write('$ ');
+          return EMPTY;
+        }
+        this.xterminal.writeln(`${prefixMessage} 初期化しています...`);
+        return this.piZeroBootstrap.runAfterConnect$((line) =>
+          this.xterminal.writeln(line),
+        );
+      }),
       catchError(() => EMPTY),
       finalize(() => this.xterminal.write('$ ')),
     );

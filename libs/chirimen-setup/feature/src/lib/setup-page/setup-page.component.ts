@@ -23,6 +23,7 @@ import { DialogService } from '@libs-dialogs-util';
 import { NotificationService } from '@libs-shared-ui';
 import { SerialFacadeService } from '@libs-web-serial-data-access';
 import { MatDividerModule } from '@angular/material/divider';
+import { firstValueFrom, take } from 'rxjs';
 
 @Component({
   selector: 'lib-setup-page',
@@ -81,7 +82,10 @@ export class SetupPageComponent {
   }
 
   async runSetup(): Promise<void> {
-    if (!this.serial.isConnected()) {
+    const connected = await firstValueFrom(
+      this.serial.isConnected$.pipe(take(1)),
+    );
+    if (!connected) {
       this.notify.warning('Setup', 'シリアル接続してください');
       return;
     }

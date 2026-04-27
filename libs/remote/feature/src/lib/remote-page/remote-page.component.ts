@@ -1,7 +1,7 @@
 import { Component, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { MatDividerModule } from '@angular/material/divider';
-import { firstValueFrom } from 'rxjs';
+import { firstValueFrom, take } from 'rxjs';
 import { ConfirmDialogComponent } from '@libs-dialogs-ui';
 import { DialogService } from '@libs-dialogs-util';
 import {
@@ -54,8 +54,11 @@ export class RemotePageComponent {
     this.dialogService.close();
   }
 
-  private ensureSerial(): boolean {
-    if (!this.serial.isConnected()) {
+  private async ensureSerial(): Promise<boolean> {
+    const ok = await firstValueFrom(
+      this.serial.isConnected$.pipe(take(1)),
+    );
+    if (!ok) {
       this.notify.warning('Remote', 'シリアル接続してください');
       return false;
     }
@@ -67,7 +70,7 @@ export class RemotePageComponent {
   }
 
   async refreshList(): Promise<void> {
-    if (!this.ensureSerial()) {
+    if (!(await this.ensureSerial())) {
       return;
     }
     this.listInProgress.set(true);
@@ -93,7 +96,7 @@ export class RemotePageComponent {
 
   async startScript(): Promise<void> {
     const path = this.scriptPath.trim();
-    if (!path || !this.ensureSerial()) {
+    if (!path || !(await this.ensureSerial())) {
       return;
     }
     this.actionInProgress.set(true);
@@ -111,7 +114,7 @@ export class RemotePageComponent {
 
   async stopSelected(): Promise<void> {
     const target = this.selected;
-    if (!target || !this.ensureSerial()) {
+    if (!target || !(await this.ensureSerial())) {
       return;
     }
     this.actionInProgress.set(true);
@@ -129,7 +132,7 @@ export class RemotePageComponent {
   }
 
   async confirmStopAll(): Promise<void> {
-    if (!this.ensureSerial()) {
+    if (!(await this.ensureSerial())) {
       return;
     }
     const ref = this.dialogService.open(ConfirmDialogComponent, {

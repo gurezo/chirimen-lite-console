@@ -11,7 +11,7 @@ import {
   type WifiConnectDialogData,
   WifiListComponent,
 } from '@libs-wifi-ui';
-import { firstValueFrom } from 'rxjs';
+import { firstValueFrom, take } from 'rxjs';
 
 /**
  * WiFi 設定画面（スマートコンポーネント）
@@ -34,8 +34,11 @@ export class WifiPageComponent {
   private readonly wifiScan = inject(WifiScanService);
   private readonly wifiReboot = inject(WifiRebootFlowService);
 
-  private ensureSerial(): boolean {
-    if (!this.serial.isConnected()) {
+  private async ensureSerial(): Promise<boolean> {
+    const ok = await firstValueFrom(
+      this.serial.isConnected$.pipe(take(1)),
+    );
+    if (!ok) {
       this.notify.warning('WiFi', 'シリアル接続してください');
       return false;
     }
@@ -43,7 +46,7 @@ export class WifiPageComponent {
   }
 
   async runWifiScan(): Promise<void> {
-    if (!this.ensureSerial()) {
+    if (!(await this.ensureSerial())) {
       return;
     }
     this.scanInProgress.set(true);
@@ -63,13 +66,15 @@ export class WifiPageComponent {
   }
 
   openConnectDialog(initialSsid?: string): void {
-    if (!this.ensureSerial()) {
-      return;
-    }
-    this.dialog.open(WifiConnectDialogComponent, {
-      width: '400px',
-      data: { initialSsid } satisfies WifiConnectDialogData,
-    });
+    void (async () => {
+      if (!(await this.ensureSerial())) {
+        return;
+      }
+      this.dialog.open(WifiConnectDialogComponent, {
+        width: '400px',
+        data: { initialSsid } satisfies WifiConnectDialogData,
+      });
+    })();
   }
 
   onNetworkSelected(info: WiFiInfo): void {
@@ -78,7 +83,7 @@ export class WifiPageComponent {
   }
 
   async showWifiInfo(): Promise<void> {
-    if (!this.ensureSerial()) {
+    if (!(await this.ensureSerial())) {
       return;
     }
     this.actionInProgress.set(true);
@@ -105,7 +110,7 @@ export class WifiPageComponent {
   }
 
   async resetWifi(): Promise<void> {
-    if (!this.ensureSerial()) {
+    if (!(await this.ensureSerial())) {
       return;
     }
     this.actionInProgress.set(true);
@@ -121,7 +126,7 @@ export class WifiPageComponent {
   }
 
   async rebootDevice(): Promise<void> {
-    if (!this.ensureSerial()) {
+    if (!(await this.ensureSerial())) {
       return;
     }
     const ref = this.dialog.open(ConfirmDialogComponent, {
@@ -149,7 +154,7 @@ export class WifiPageComponent {
   }
 
   async checkConnectivity(): Promise<void> {
-    if (!this.ensureSerial()) {
+    if (!(await this.ensureSerial())) {
       return;
     }
     this.actionInProgress.set(true);
