@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { firstValueFrom, from } from 'rxjs';
+import { firstValueFrom, from, of } from 'rxjs';
 import {
   PI_ZERO_LOGIN_PASSWORD,
   PI_ZERO_LOGIN_USER,
@@ -32,7 +32,7 @@ describe('PiZeroSerialBootstrapService', () => {
     });
     const exec = vi.fn().mockResolvedValue({ stdout: '' });
     const serial = {
-      isConnected: () => true,
+      isConnected$: of(true),
       getConnectionEpoch: () => 1,
       readUntilPrompt$: (o: unknown) => from(readUntilPrompt(o)),
       exec$: (c: string, o: unknown) => from(exec(c, o)),
@@ -73,7 +73,7 @@ describe('PiZeroSerialBootstrapService', () => {
       .mockResolvedValueOnce({ stdout: 'raspberrypi login: ' });
     const exec = vi.fn().mockResolvedValue({ stdout: `Password: \r\n` });
     const serial = {
-      isConnected: () => true,
+      isConnected$: of(true),
       getConnectionEpoch: () => 1,
       readUntilPrompt$: (o: unknown) => from(readUntilPrompt(o)),
       exec$: (c: string, o: unknown) => from(exec(c, o)),
@@ -137,7 +137,7 @@ describe('PiZeroSerialBootstrapService', () => {
     });
     const exec = vi.fn().mockResolvedValue({ stdout: '' });
     const serial = {
-      isConnected: () => true,
+      isConnected$: of(true),
       getConnectionEpoch: () => 1,
       readUntilPrompt$: (o: unknown) => from(readUntilPrompt(o)),
       exec$: (c: string, o: unknown) => from(exec(c, o)),
@@ -160,7 +160,7 @@ describe('PiZeroSerialBootstrapService', () => {
     });
     const exec = vi.fn().mockResolvedValue({ stdout: '' });
     const serial = {
-      isConnected: () => true,
+      isConnected$: of(true),
       getConnectionEpoch: () => epoch,
       readUntilPrompt$: (o: unknown) => from(readUntilPrompt(o)),
       exec$: (c: string, o: unknown) => from(exec(c, o)),
@@ -188,7 +188,7 @@ describe('PiZeroSerialBootstrapService', () => {
         stdout: `${TZ_STATUS_CMD}\r\n       Time zone: Asia/Tokyo (${PI_ZERO_PROMPT} `,
       });
     const serial = {
-      isConnected: () => true,
+      isConnected$: of(true),
       getConnectionEpoch: () => 1,
       readUntilPrompt$: (o: unknown) => from(readUntilPrompt(o)),
       exec$: (c: string, o: unknown) => from(exec(c, o)),
