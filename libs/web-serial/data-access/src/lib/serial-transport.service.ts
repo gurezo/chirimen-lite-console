@@ -19,6 +19,7 @@ import {
   Observable,
   of,
   switchMap,
+  take,
   tap,
   throwError,
 } from 'rxjs';
@@ -166,13 +167,6 @@ export class SerialTransportService {
     });
   }
 
-  /**
-   * 同期の接続判定。ライブラリの {@link SerialSession.getCurrentPort} に委譲。
-   */
-  isConnected(): boolean {
-    return this.session?.getCurrentPort() != null;
-  }
-
   getPort(): SerialPort | undefined {
     return this.session?.getCurrentPort() ?? undefined;
   }
@@ -182,14 +176,24 @@ export class SerialTransportService {
    * 未接続時またはエラー時は throwError
    */
   getReadStream(): Observable<string> {
-    if (!this.session) {
-      return throwError(() => new Error('Serial port not connected'));
-    }
-    return this.session.receiveReplay$.pipe(
-      catchError((err: unknown) =>
-        throwError(() => new Error(getReadErrorMessage(err)))
-      )
-    );
+    return defer(() => {
+      const s = this.session;
+      if (!s) {
+        return throwError(() => new Error('Serial port not connected'));
+      }
+      return s.isConnected$.pipe(
+        take(1),
+        switchMap((connected) =>
+          connected
+            ? s.receiveReplay$.pipe(
+                catchError((err: unknown) =>
+                  throwError(() => new Error(getReadErrorMessage(err)))
+                ),
+              )
+            : throwError(() => new Error('Serial port not connected'))
+        )
+      );
+    });
   }
 
   /**
@@ -197,14 +201,26 @@ export class SerialTransportService {
    * 未接続時またはエラー時は throwError
    */
   write(data: string): Observable<void> {
-    if (!this.session || !this.isConnected()) {
-      return throwError(() => new Error('Serial port not connected'));
-    }
-    return this.session.send$(data).pipe(
-      catchError((error) =>
-        throwError(() => new Error(getWriteErrorMessage(error)))
-      )
-    );
+    return defer(() => {
+      const s = this.session;
+      if (!s) {
+        return throwError(() => new Error('Serial port not connected'));
+      }
+      return s.isConnected$.pipe(
+        take(1),
+        switchMap((connected) =>
+          connected
+            ? s.send$(data).pipe(
+                catchError((error) =>
+                  throwError(
+                    () => new Error(getWriteErrorMessage(error)),
+                  )
+                )
+              )
+            : throwError(() => new Error('Serial port not connected'))
+        )
+      );
+    });
   }
 
   private tearDownSession(): void {
