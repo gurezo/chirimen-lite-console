@@ -68,11 +68,9 @@ export class SerialFacadeService {
 
   /**
    * データストリーム (Observable)
+   * 未接続時は購読時にエラーとなる（{@link SerialTransportService#getReadStream}）。
    */
   get data$() {
-    if (!this.transport.isConnected()) {
-      throw new Error('Serial port not connected');
-    }
     return this.transport.getReadStream();
   }
 
@@ -82,11 +80,12 @@ export class SerialFacadeService {
    * @param baudRate ボーレート (デフォルト: 115200)
    */
   connect$(baudRate = 115200): Observable<SerialFacadeConnectResult> {
-    return defer(() => {
-      const preConnect$ = this.isConnected()
-        ? this.disconnect$()
-        : of(undefined);
-      return preConnect$.pipe(
+    return defer(() =>
+      this.transport.isConnected$.pipe(
+        take(1),
+        switchMap((connected) =>
+          connected ? this.disconnect$() : of(undefined)
+        ),
         switchMap(() => this.transport.connect$(baudRate)),
         switchMap((result) => {
           if ('error' in result) {
@@ -109,8 +108,8 @@ export class SerialFacadeService {
             errorMessage: getConnectionErrorMessage(error),
           });
         })
-      );
-    });
+      )
+    );
   }
 
   private startReadStreamSubscription(): void {
@@ -136,9 +135,6 @@ export class SerialFacadeService {
    * データを書き込む（Observable）
    */
   write$(data: string): Observable<void> {
-    if (!this.transport.isConnected()) {
-      return throwError(() => new Error('Serial port not connected'));
-    }
     return this.transport.write(data);
   }
 
@@ -146,9 +142,6 @@ export class SerialFacadeService {
    * 1 チャンクだけ読み取る（Observable）
    */
   read$(): Observable<string> {
-    if (!this.transport.isConnected()) {
-      return throwError(() => new Error('Serial port not connected'));
-    }
     return this.transport.getReadStream().pipe(take(1));
   }
 
@@ -199,19 +192,11 @@ export class SerialFacadeService {
     return this.connectionEpoch;
   }
 
-  isConnected(): boolean {
-    return this.transport.isConnected();
-  }
-
   /**
    * 読み取り中かどうか（ストリーム購読中は true）
    */
   isReading(): boolean {
     return this.command.isReading();
-  }
-
-  isWriteReady(): boolean {
-    return this.transport.isConnected();
   }
 
   getPendingCommandCount(): number {

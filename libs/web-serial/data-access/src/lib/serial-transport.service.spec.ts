@@ -74,7 +74,6 @@ describe('SerialTransportService', () => {
     expect(state).toBe(SerialSessionState.Idle);
     const connectedFlag = await firstValueFrom(service.isConnected$);
     expect(connectedFlag).toBe(false);
-    expect(service.isConnected()).toBe(false);
     expect(service.getPort()).toBeUndefined();
     expect(service.getPortInfo()).toBeNull();
   });
@@ -90,7 +89,6 @@ describe('SerialTransportService', () => {
     expect(state).toBe(SerialSessionState.Connected);
     const connectedFlag = await firstValueFrom(service.isConnected$);
     expect(connectedFlag).toBe(true);
-    expect(service.isConnected()).toBe(true);
     expect(service.getPort()).toBe(mockPort);
     expect(session.connect$).toHaveBeenCalledTimes(1);
   });
@@ -100,13 +98,17 @@ describe('SerialTransportService', () => {
     mockCreateSerialSession.mockReturnValue(buildMockSession(mockPort));
 
     await firstValueFrom(service.connect$());
-    expect(service.isConnected()).toBe(true);
+    expect(
+      await firstValueFrom(service.isConnected$.pipe(take(1))),
+    ).toBe(true);
 
     await firstValueFrom(service.disconnect$());
 
     const state = await firstValueFrom(service.state$);
     expect(state).toBe(SerialSessionState.Idle);
-    expect(service.isConnected()).toBe(false);
+    expect(
+      await firstValueFrom(service.isConnected$.pipe(take(1))),
+    ).toBe(false);
     expect(service.getPort()).toBeUndefined();
   });
 
