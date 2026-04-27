@@ -4,6 +4,7 @@ import { SetupCommandService } from '@libs-chirimen-setup-data-access';
 import { DialogService } from '@libs-dialogs-util';
 import { NotificationService } from '@libs-shared-ui';
 import { SerialFacadeService } from '@libs-web-serial-data-access';
+import { of } from 'rxjs';
 import { SetupPageComponent } from './setup-page.component';
 
 describe('SetupPageComponent', () => {
@@ -20,7 +21,7 @@ describe('SetupPageComponent', () => {
         },
         {
           provide: SerialFacadeService,
-          useValue: { isConnected: () => true },
+          useValue: { isConnected$: of(true) },
         },
         { provide: DialogService, useValue: { close: vi.fn() } },
         {

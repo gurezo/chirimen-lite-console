@@ -1,5 +1,5 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { of } from 'rxjs';
+import { BehaviorSubject, of } from 'rxjs';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { DialogService } from '@libs-dialogs-util';
 import {
@@ -17,8 +17,10 @@ const PLAIN_ROW =
 describe('RemotePageComponent', () => {
   let component: RemotePageComponent;
   let fixture: ComponentFixture<RemotePageComponent>;
+  let serialConnected: BehaviorSubject<boolean>;
 
   beforeEach(async () => {
+    serialConnected = new BehaviorSubject(true);
     const dialogRef = { closed: of(true) };
     await TestBed.configureTestingModule({
       imports: [RemotePageComponent],
@@ -41,7 +43,11 @@ describe('RemotePageComponent', () => {
         },
         {
           provide: SerialFacadeService,
-          useValue: { isConnected: vi.fn().mockReturnValue(true) },
+          useFactory: () => ({
+            get isConnected$() {
+              return serialConnected.asObservable();
+            },
+          }),
         },
         {
           provide: RemoteStatusService,
@@ -77,10 +83,7 @@ describe('RemotePageComponent', () => {
   });
 
   it('refreshList warns when serial disconnected', async () => {
-    const serial = TestBed.inject(SerialFacadeService) as unknown as {
-      isConnected: ReturnType<typeof vi.fn>;
-    };
-    serial.isConnected.mockReturnValue(false);
+    serialConnected.next(false);
     const notify = TestBed.inject(NotificationService) as unknown as {
       warning: ReturnType<typeof vi.fn>;
     };

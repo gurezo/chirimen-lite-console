@@ -38,14 +38,14 @@ describe('TerminalViewComponent', () => {
     execMock = vi.fn().mockResolvedValue({
       stdout: `i2cdetect -y 1\n     0  1\n${PI_ZERO_PROMPT} `,
     });
-    shouldRunAfterConnectMock = vi.fn(() => true);
+    shouldRunAfterConnectMock = vi.fn(() => of(true));
     runAfterConnectMock = vi.fn(() => of(undefined));
     await TestBed.configureTestingModule({
       imports: [TerminalViewComponent],
     })
       .overrideProvider(SerialFacadeService, {
         useValue: {
-          isConnected: () => true,
+          isConnected$: of(true),
           exec$: (...args: unknown[]) =>
             from(execMock(...(args as [string, unknown]))),
           connectionEstablished$: NEVER,
@@ -54,7 +54,7 @@ describe('TerminalViewComponent', () => {
       })
       .overrideProvider(PiZeroSerialBootstrapService, {
         useValue: {
-          shouldRunAfterConnect: shouldRunAfterConnectMock,
+          shouldRunAfterConnect$: shouldRunAfterConnectMock,
           runAfterConnect$: runAfterConnectMock,
         },
       })
@@ -87,7 +87,7 @@ describe('TerminalViewComponent', () => {
 
   it('skips bootstrap execution when already initialized', async () => {
     runAfterConnectMock.mockClear();
-    shouldRunAfterConnectMock.mockReturnValue(false);
+    shouldRunAfterConnectMock.mockReturnValue(of(false));
 
     fixture.destroy();
     fixture = TestBed.createComponent(TerminalViewComponent);
