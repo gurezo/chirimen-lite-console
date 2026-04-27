@@ -25,6 +25,7 @@ import {
   of,
   shareReplay,
   switchMap,
+  take,
   tap,
   throwError,
 } from 'rxjs';
@@ -48,17 +49,23 @@ export class PiZeroSerialBootstrapService {
   ) {}
 
   /**
-   * 接続セッションごとに1回、シェル到達（必要ならログイン）と接続直後の初期化を行う。
+   * 接続セッションごとに1回、初期化パイプラインを走らせるか。
+   * 状態の参照は {@link SerialFacadeService#isConnected$} のみ。
    */
-  shouldRunAfterConnect(): boolean {
-    if (!this.serial.isConnected()) {
-      return false;
-    }
-    const epoch = this.serial.getConnectionEpoch();
-    if (epoch === this.lastBootstrappedEpoch) {
-      return false;
-    }
-    return true;
+  shouldRunAfterConnect$(): Observable<boolean> {
+    return this.serial.isConnected$.pipe(
+      take(1),
+      map((connected) => {
+        if (!connected) {
+          return false;
+        }
+        const epoch = this.serial.getConnectionEpoch();
+        if (epoch === this.lastBootstrappedEpoch) {
+          return false;
+        }
+        return true;
+      }),
+    );
   }
 
   /**
@@ -69,44 +76,55 @@ export class PiZeroSerialBootstrapService {
   ): Observable<void> {
     const log = onStatus ?? (() => undefined);
 
-    if (!this.shouldRunAfterConnect()) {
-      return of(undefined);
-    }
-    const epoch = this.serial.getConnectionEpoch();
-
-    if (
-      this.activeBootstrap$ !== null &&
-      this.activeBootstrapEpoch === epoch
-    ) {
-      return this.activeBootstrap$;
-    }
-
-    this.activeBootstrapEpoch = epoch;
-
-    this.activeBootstrap$ = defer(() => this.runPipeline$(log)).pipe(
-      tap(() => {
-        if (this.serial.isConnected()) {
-          this.lastBootstrappedEpoch = epoch;
-          this.shellReadiness.setReady(true);
+    return this.shouldRunAfterConnect$().pipe(
+      switchMap((shouldRun) => {
+        if (!shouldRun) {
+          return of(undefined);
         }
-      }),
-      map(() => undefined),
-      catchError((error: unknown) => {
-        const message =
-          error instanceof Error ? error.message : String(error);
-        log(`[コンソール] 接続後の初期化に失敗しました: ${message}`);
-        return throwError(() => error);
-      }),
-      finalize(() => {
-        if (this.activeBootstrapEpoch === epoch) {
-          this.activeBootstrap$ = null;
-          this.activeBootstrapEpoch = null;
+        const epoch = this.serial.getConnectionEpoch();
+
+        if (
+          this.activeBootstrap$ !== null &&
+          this.activeBootstrapEpoch === epoch
+        ) {
+          return this.activeBootstrap$;
         }
+
+        this.activeBootstrapEpoch = epoch;
+
+        this.activeBootstrap$ = defer(() => this.runPipeline$(log)).pipe(
+          switchMap(() =>
+            this.serial.isConnected$.pipe(
+              take(1),
+              tap((connected) => {
+                if (connected) {
+                  this.lastBootstrappedEpoch = epoch;
+                  this.shellReadiness.setReady(true);
+                }
+              }),
+              map(() => undefined),
+            ),
+          ),
+          catchError((error: unknown) => {
+            const message =
+              error instanceof Error ? error.message : String(error);
+            log(
+              `[コンソール] 接続後の初期化に失敗しました: ${message}`,
+            );
+            return throwError(() => error);
+          }),
+          finalize(() => {
+            if (this.activeBootstrapEpoch === epoch) {
+              this.activeBootstrap$ = null;
+              this.activeBootstrapEpoch = null;
+            }
+          }),
+          shareReplay({ bufferSize: 1, refCount: true }),
+        );
+
+        return this.activeBootstrap$;
       }),
-      shareReplay({ bufferSize: 1, refCount: true }),
     );
-
-    return this.activeBootstrap$;
   }
 
   private runPipeline$(log: PiZeroBootstrapStatusHandler): Observable<void> {
