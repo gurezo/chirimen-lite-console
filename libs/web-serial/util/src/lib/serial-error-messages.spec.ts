@@ -2,7 +2,6 @@ import { SerialError, SerialErrorCode } from '@gurezo/web-serial-rxjs';
 import {
   getConnectionErrorMessage,
   getReadErrorMessage,
-  getRaspberryPiZeroError,
   getWriteErrorMessage,
 } from './serial-error-messages';
 
@@ -81,14 +80,6 @@ describe('serial-error-messages', () => {
 
     it('should return Unknown write error for unknown', () => {
       expect(getWriteErrorMessage(null)).toBe('Unknown write error');
-    });
-  });
-
-  describe('getRaspberryPiZeroError', () => {
-    it('should return fixed message', () => {
-      expect(getRaspberryPiZeroError()).toBe(
-        'Web Serial is not Raspberry Pi Zero'
-      );
     });
   });
 });
