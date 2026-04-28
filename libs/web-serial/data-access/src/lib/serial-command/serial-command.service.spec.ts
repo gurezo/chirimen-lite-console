@@ -1,12 +1,12 @@
 import { describe, expect, it, vi } from 'vitest';
 import { Observable, Subject, firstValueFrom } from 'rxjs';
-import { CommandQueueService } from './serial-command/command-queue.service';
-import { SerialCommandService } from './serial-command/command-runner.service';
 import {
   PI_ZERO_PROMPT,
   PI_ZERO_SERIAL_LOGIN_LINE_PATTERN,
 } from '@libs-web-serial-util';
-import type { SerialTransportService } from './serial-transport.service';
+import type { SerialTransportService } from '../serial-transport.service';
+import { CommandQueueService } from './command-queue.service';
+import { SerialCommandService } from './command-runner.service';
 
 /** チャンク入力の代わりに、改行区切りで 1 行ずつ emit（getReadStream＝lines$ 相当）。 */
 function emitAsLines(subject: Subject<string>, raw: string): void {
