@@ -67,8 +67,8 @@ export class SerialFacadeService {
   }
 
   /**
-   * データストリーム (Observable)
-   * 未接続時は購読時にエラーとなる（{@link SerialTransportService#getReadStream}）。
+   * 受信行ストリーム（{@link SerialTransportService#getReadStream} と同等、1 行ずつ）。
+   * 未接続時は購読時にエラーとなる。
    */
   get data$() {
     return this.transport.getReadStream();
@@ -139,7 +139,7 @@ export class SerialFacadeService {
   }
 
   /**
-   * 1 チャンクだけ読み取る（Observable）
+   * 行を 1 本だけ読み取る（Observable）。
    */
   read$(): Observable<string> {
     return this.transport.getReadStream().pipe(take(1));
