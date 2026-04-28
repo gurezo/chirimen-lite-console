@@ -29,6 +29,24 @@ export class SerialValidatorService {
   }
 
   /**
+   * 同期 `portInfo` または `SerialPort#getInfo()` で Pi Zero 相当か判定する。
+   * {@link SerialTransportService} 等、ポート取得 API を持つオブジェクト向け。
+   */
+  async isRaspberryPiZeroSerialAccess(access: {
+    getPortInfo(): SerialPortInfo | null;
+    getPort(): SerialPort | undefined;
+  }): Promise<boolean> {
+    if (this.isPiZeroPortInfo(access.getPortInfo())) {
+      return true;
+    }
+    const port = access.getPort();
+    if (!port) {
+      return false;
+    }
+    return this.isRaspberryPiZero(port);
+  }
+
+  /**
    * Raspberry Pi Zero かどうかを検証
    * @param port SerialPort
    * @returns Raspberry Pi Zero の場合 true

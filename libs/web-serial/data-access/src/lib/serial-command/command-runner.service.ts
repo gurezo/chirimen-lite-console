@@ -18,6 +18,10 @@ import {
   throwError,
   timeout,
 } from 'rxjs';
+import {
+  SERIAL_TIMEOUT,
+  type SerialExecOptions,
+} from '@libs-web-serial-util';
 import { stripLineForPromptDetection } from './ansi-strip.util';
 import { CommandQueueService } from './command-queue.service';
 import { matchesPrompt } from './prompt-detector.util';
@@ -192,6 +196,54 @@ export class SerialCommandService {
       );
     });
     return this.withPromptAttemptRetries(attempt$, retryCount);
+  }
+
+  private serialOptionsToConfig(
+    options: SerialExecOptions,
+  ): CommandExecutionConfig {
+    const {
+      prompt,
+      timeout = SERIAL_TIMEOUT.DEFAULT,
+      retry = 0,
+    } = options;
+    return { prompt, timeout, retry };
+  }
+
+  /**
+   * {@link SerialExecOptions}（timeout / retry の既定あり）でコマンド実行
+   */
+  execWithSerialOptions$(
+    cmd: string,
+    options: SerialExecOptions,
+    onAttemptStart?: () => void,
+  ): Observable<CommandResult> {
+    return this.exec$(
+      cmd,
+      this.serialOptionsToConfig(options),
+      onAttemptStart,
+    );
+  }
+
+  execRawWithSerialOptions$(
+    cmdRaw: string,
+    options: SerialExecOptions,
+    onAttemptStart?: () => void,
+  ): Observable<CommandResult> {
+    return this.execRaw$(
+      cmdRaw,
+      this.serialOptionsToConfig(options),
+      onAttemptStart,
+    );
+  }
+
+  readUntilPromptWithSerialOptions$(
+    options: SerialExecOptions,
+    onAttemptStart?: () => void,
+  ): Observable<CommandResult> {
+    return this.readUntilPrompt$(
+      this.serialOptionsToConfig(options),
+      onAttemptStart,
+    );
   }
 
   /**
