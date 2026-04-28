@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import { Observable, Subject, firstValueFrom } from 'rxjs';
+import { CommandQueueService } from './serial-command/command-queue.service';
 import { SerialCommandService } from './serial-command.service';
 import {
   PI_ZERO_PROMPT,
@@ -27,8 +28,10 @@ function createService() {
         })
     ),
   };
+  const queue = new CommandQueueService();
   const service = new SerialCommandService(
-    transport as unknown as SerialTransportService
+    transport as unknown as SerialTransportService,
+    queue,
   );
   service.startReadLoop();
   return { service, lines, transport };

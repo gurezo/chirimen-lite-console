@@ -7,11 +7,8 @@ import {
   Subscription,
   TimeoutError,
   catchError,
-  concatMap,
   defer,
-  EMPTY,
   filter,
-  finalize,
   map,
   mergeMap,
   of,
@@ -22,6 +19,7 @@ import {
   timeout,
 } from 'rxjs';
 import { stripLineForPromptDetection } from './serial-command/ansi-strip.util';
+import { CommandQueueService } from './serial-command/command-queue.service';
 import { matchesPrompt } from './serial-command/prompt-detector.util';
 import { SerialTransportService } from './serial-transport.service';
 
@@ -62,26 +60,11 @@ export class SerialCommandService {
   private readSubscription: Subscription | null = null;
   /** 受信行でバッファが更新されたことを Observable 側の待機に伝える */
   private readonly bufferNotify$ = new Subject<void>();
-  /** コマンド実行を直列化（複数 exec$ が同時に走らない） */
-  private readonly executionQueue$ = new Subject<Observable<unknown>>();
-  /** cancelAllCommands 用。enqueue 時点の世代と異なれば実行を打ち切る */
-  private generation = 0;
-  private pendingCount = 0;
 
-  constructor(private readonly transport: SerialTransportService) {
-    this.executionQueue$
-      .pipe(
-        concatMap((work) =>
-          work.pipe(
-            catchError((err: unknown) => {
-              console.error('Serial command queue work error:', err);
-              return EMPTY;
-            }),
-          ),
-        ),
-      )
-      .subscribe();
-  }
+  constructor(
+    private readonly transport: SerialTransportService,
+    private readonly commandQueue: CommandQueueService,
+  ) {}
 
   /**
    * 接続後に呼び出し、{@link SerialTransportService#getReadStream}（行単位）を購読し
@@ -121,36 +104,6 @@ export class SerialCommandService {
     this.readBuffer = '';
   }
 
-  private enqueueCommand$<T>(
-    factory: (enqueuedGen: number) => Observable<T>,
-  ): Observable<T> {
-    return new Observable<T>((subscriber) => {
-      const enqueuedGen = this.generation;
-      this.pendingCount++;
-      this.executionQueue$.next(
-        defer(() => {
-          if (this.generation !== enqueuedGen) {
-            return throwError(() => new Error('All commands cancelled'));
-          }
-          return factory(enqueuedGen);
-        }).pipe(
-          finalize(() => {
-            this.pendingCount--;
-          }),
-          mergeMap((value) => {
-            subscriber.next(value as T);
-            subscriber.complete();
-            return EMPTY;
-          }),
-          catchError((err: unknown) => {
-            subscriber.error(err);
-            return EMPTY;
-          }),
-        ),
-      );
-    });
-  }
-
   private waitForPromptMatch$(
     config: CommandExecutionConfig,
     enqueuedGen: number,
@@ -158,7 +111,7 @@ export class SerialCommandService {
     return this.bufferNotify$.pipe(
       startWith(undefined),
       map(() => {
-        if (this.generation !== enqueuedGen) {
+        if (!this.commandQueue.isGenerationActive(enqueuedGen)) {
           throw new Error('All commands cancelled');
         }
         return this.readBuffer;
@@ -188,7 +141,7 @@ export class SerialCommandService {
   ): Observable<CommandResult> {
     const retryCount = config.retry ?? 0;
     const attempt$ = defer(() => {
-      if (this.generation !== enqueuedGen) {
+      if (!this.commandQueue.isGenerationActive(enqueuedGen)) {
         return throwError(() => new Error('All commands cancelled'));
       }
       onAttemptStart?.();
@@ -208,7 +161,7 @@ export class SerialCommandService {
   ): Observable<CommandResult> {
     const retryCount = config.retry ?? 0;
     const attempt$ = defer(() => {
-      if (this.generation !== enqueuedGen) {
+      if (!this.commandQueue.isGenerationActive(enqueuedGen)) {
         return throwError(() => new Error('All commands cancelled'));
       }
       onAttemptStart?.();
@@ -232,7 +185,7 @@ export class SerialCommandService {
     config: CommandExecutionConfig,
     onAttemptStart?: () => void,
   ): Observable<CommandResult> {
-    return this.enqueueCommand$((enqueuedGen) =>
+    return this.commandQueue.enqueueCommand$((enqueuedGen) =>
       this.buildExecPipeline$(cmd + '\n', config, enqueuedGen, onAttemptStart),
     );
   }
@@ -245,7 +198,7 @@ export class SerialCommandService {
     config: CommandExecutionConfig,
     onAttemptStart?: () => void,
   ): Observable<CommandResult> {
-    return this.enqueueCommand$((enqueuedGen) =>
+    return this.commandQueue.enqueueCommand$((enqueuedGen) =>
       this.buildExecPipeline$(cmdRaw, config, enqueuedGen, onAttemptStart),
     );
   }
@@ -257,7 +210,7 @@ export class SerialCommandService {
     config: CommandExecutionConfig,
     onAttemptStart?: () => void,
   ): Observable<CommandResult> {
-    return this.enqueueCommand$((enqueuedGen) =>
+    return this.commandQueue.enqueueCommand$((enqueuedGen) =>
       this.buildReadUntilPromptPipeline$(
         config,
         enqueuedGen,
@@ -274,10 +227,10 @@ export class SerialCommandService {
   }
 
   cancelAllCommands(): void {
-    this.generation++;
+    this.commandQueue.cancelAllCommands();
   }
 
   getPendingCommandCount(): number {
-    return this.pendingCount;
+    return this.commandQueue.getPendingCommandCount();
   }
 }
