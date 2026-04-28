@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import { Observable, Subject, firstValueFrom } from 'rxjs';
 import { CommandQueueService } from './serial-command/command-queue.service';
-import { SerialCommandService } from './serial-command.service';
+import { SerialCommandService } from './serial-command/command-runner.service';
 import {
   PI_ZERO_PROMPT,
   PI_ZERO_SERIAL_LOGIN_LINE_PATTERN,
