@@ -59,7 +59,7 @@ export interface CommandResult {
 export class SerialCommandService {
   private readBuffer = '';
   private readSubscription: Subscription | null = null;
-  /** 受信チャンクでバッファが更新されたことを Observable 側の待機に伝える */
+  /** 受信行でバッファが更新されたことを Observable 側の待機に伝える */
   private readonly bufferNotify$ = new Subject<void>();
   /** コマンド実行を直列化（複数 exec$ が同時に走らない） */
   private readonly executionQueue$ = new Subject<Observable<unknown>>();
@@ -91,14 +91,17 @@ export class SerialCommandService {
   }
 
   /**
-   * 接続後に呼び出し、シリアル読み取りを購読してバッファに蓄積する
+   * 接続後に呼び出し、{@link SerialTransportService#getReadStream}（行単位）を購読し
+   * プロンプト検出用バッファに蓄積する（行ごとに改行を復元）。
    */
   startReadLoop(): void {
     this.readBuffer = '';
     this.readSubscription?.unsubscribe();
     this.readSubscription = this.transport.getReadStream().subscribe({
-      next: (chunk) => {
-        this.readBuffer += stripSerialAnsiForPrompt(chunk);
+      next: (line) => {
+        this.readBuffer +=
+          stripSerialAnsiForPrompt(line) +
+          '\n';
         this.bufferNotify$.next();
       },
       error: (err) => console.error('Serial read stream error:', err),
