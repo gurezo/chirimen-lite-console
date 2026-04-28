@@ -104,6 +104,10 @@ export class SerialCommandService {
     this.readBuffer = '';
   }
 
+  /**
+   * 1 試行あたりのプロンプト待ち。
+   * 受信バッファがプロンプトに一致するまで待ち、**初回一致まで**が `config.timeout` で打ち切られる。
+   */
   private waitForPromptMatch$(
     config: CommandExecutionConfig,
     enqueuedGen: number,
@@ -124,13 +128,26 @@ export class SerialCommandService {
         return stdout;
       }),
       timeout({ first: config.timeout }),
-      catchError((err: unknown) => {
-        if (err instanceof TimeoutError) {
-          return throwError(() => new Error('Command execution timeout'));
-        }
-        return throwError(() => err);
-      }),
+      catchError((err: unknown) => this.mapPromptWaitError$(err)),
     );
+  }
+
+  private mapPromptWaitError$(err: unknown): Observable<never> {
+    if (err instanceof TimeoutError) {
+      return throwError(() => new Error('Command execution timeout'));
+    }
+    return throwError(() => err);
+  }
+
+  /**
+   * `retry({ count })` はこの Observable をエラー時に再購読する。
+   * `defer` 内が毎回やり直されるため、**送信・バッファクリア・プロンプト待ちが 1 試行単位**で繰り返される。
+   */
+  private withPromptAttemptRetries<T>(
+    attempt$: Observable<T>,
+    retryCount: number,
+  ): Observable<T> {
+    return attempt$.pipe(retry({ count: retryCount }));
   }
 
   private buildExecPipeline$(
@@ -151,7 +168,7 @@ export class SerialCommandService {
         map((stdout) => ({ stdout })),
       );
     });
-    return attempt$.pipe(retry({ count: retryCount }));
+    return this.withPromptAttemptRetries(attempt$, retryCount);
   }
 
   private buildReadUntilPromptPipeline$(
@@ -174,7 +191,7 @@ export class SerialCommandService {
         map((stdout) => ({ stdout })),
       );
     });
-    return attempt$.pipe(retry({ count: retryCount }));
+    return this.withPromptAttemptRetries(attempt$, retryCount);
   }
 
   /**
