@@ -7,10 +7,18 @@ import {
 } from '@libs-web-serial-util';
 import type { SerialTransportService } from './serial-transport.service';
 
+/** チャンク入力の代わりに、改行区切りで 1 行ずつ emit（getReadStream＝lines$ 相当）。 */
+function emitAsLines(subject: Subject<string>, raw: string): void {
+  const normalized = raw.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
+  for (const line of normalized.split('\n')) {
+    subject.next(line);
+  }
+}
+
 function createService() {
-  const chunks = new Subject<string>();
+  const lines = new Subject<string>();
   const transport = {
-    getReadStream: () => chunks.asObservable(),
+    getReadStream: () => lines.asObservable(),
     write: vi.fn(
       () =>
         new Observable<void>((subscriber) => {
@@ -23,12 +31,12 @@ function createService() {
     transport as unknown as SerialTransportService
   );
   service.startReadLoop();
-  return { service, chunks, transport };
+  return { service, lines, transport };
 }
 
 describe('SerialCommandService', () => {
   it('exec resolves when prompt matches', async () => {
-    const { service, chunks, transport } = createService();
+    const { service, lines, transport } = createService();
 
     let releaseWrite: (() => void) | undefined;
     transport.write = vi.fn(
@@ -46,7 +54,7 @@ describe('SerialCommandService', () => {
     );
 
     releaseWrite?.();
-    chunks.next(`ls\r\noutput\r\n${PI_ZERO_PROMPT}`);
+    emitAsLines(lines, `ls\r\noutput\r\n${PI_ZERO_PROMPT}`);
 
     const result = await execPromise;
     expect(result.stdout).toContain(PI_ZERO_PROMPT);
@@ -54,7 +62,7 @@ describe('SerialCommandService', () => {
   });
 
   it('readUntilPrompt resolves without writing', async () => {
-    const { service, chunks } = createService();
+    const { service, lines } = createService();
 
     const readPromise = firstValueFrom(
       service.readUntilPrompt$({
@@ -65,7 +73,7 @@ describe('SerialCommandService', () => {
     );
 
     queueMicrotask(() => {
-      chunks.next(`welcome\r\n${PI_ZERO_PROMPT}`);
+      emitAsLines(lines, `welcome\r\n${PI_ZERO_PROMPT}`);
     });
 
     const result = await readPromise;
@@ -73,8 +81,8 @@ describe('SerialCommandService', () => {
   });
 
   it('readUntilPrompt sees data already buffered before the wait starts', async () => {
-    const { service, chunks } = createService();
-    chunks.next('Raspberry Pi OS\r\n\r\nraspberrypi login: ');
+    const { service, lines } = createService();
+    emitAsLines(lines, 'Raspberry Pi OS\r\n\r\nraspberrypi login: ');
     const result = await firstValueFrom(
       service.readUntilPrompt$({
         prompt: PI_ZERO_SERIAL_LOGIN_LINE_PATTERN,
@@ -86,8 +94,8 @@ describe('SerialCommandService', () => {
   });
 
   it('readUntilPrompt matches Japanese login prompt in buffer', async () => {
-    const { service, chunks } = createService();
-    chunks.next('ホスト名 ログイン: ');
+    const { service, lines } = createService();
+    emitAsLines(lines, 'ホスト名 ログイン: ');
     const result = await firstValueFrom(
       service.readUntilPrompt$({
         prompt: PI_ZERO_SERIAL_LOGIN_LINE_PATTERN,
@@ -98,9 +106,9 @@ describe('SerialCommandService', () => {
     expect(result.stdout).toMatch(/ログイン/);
   });
 
-  it('readUntilPrompt matches login when chunk contains ANSI escape sequences', async () => {
-    const { service, chunks } = createService();
-    chunks.next('\u001b[2J\u001b[Hraspberrypi login: ');
+  it('readUntilPrompt matches login when line contains ANSI escape sequences', async () => {
+    const { service, lines } = createService();
+    emitAsLines(lines, '\u001b[2J\u001b[Hraspberrypi login: ');
     const result = await firstValueFrom(
       service.readUntilPrompt$({
         prompt: PI_ZERO_SERIAL_LOGIN_LINE_PATTERN,
@@ -112,7 +120,7 @@ describe('SerialCommandService', () => {
   });
 
   it('supports RegExp prompt', async () => {
-    const { service, chunks, transport } = createService();
+    const { service, lines, transport } = createService();
 
     let releaseWrite: (() => void) | undefined;
     transport.write = vi.fn(
@@ -135,14 +143,14 @@ describe('SerialCommandService', () => {
     );
 
     releaseWrite?.();
-    chunks.next(`echo hi\r\nhi\r\n${PI_ZERO_PROMPT}`);
+    emitAsLines(lines, `echo hi\r\nhi\r\n${PI_ZERO_PROMPT}`);
 
     const result = await execPromise;
     expect(result.stdout).toContain('hi');
   });
 
   it('exec$ resolves via firstValueFrom like exec', async () => {
-    const { service, chunks, transport } = createService();
+    const { service, lines, transport } = createService();
 
     let releaseWrite: (() => void) | undefined;
     transport.write = vi.fn(
@@ -160,7 +168,7 @@ describe('SerialCommandService', () => {
     );
 
     releaseWrite?.();
-    chunks.next(`ls\r\noutput\r\n${PI_ZERO_PROMPT}`);
+    emitAsLines(lines, `ls\r\noutput\r\n${PI_ZERO_PROMPT}`);
 
     const result = await resultPromise;
     expect(result.stdout).toContain(PI_ZERO_PROMPT);

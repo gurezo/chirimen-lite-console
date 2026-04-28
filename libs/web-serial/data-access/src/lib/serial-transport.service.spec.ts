@@ -7,8 +7,10 @@ import {
 import {
   BehaviorSubject,
   EMPTY,
+  type Observable,
   firstValueFrom,
   of,
+  Subject,
   take,
 } from 'rxjs';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
@@ -25,7 +27,10 @@ vi.mock('@gurezo/web-serial-rxjs', async (importOriginal) => {
   };
 });
 
-function buildMockSession(port: SerialPort | null): SerialSession {
+function buildMockSession(
+  port: SerialPort | null,
+  lines$?: Observable<string>,
+): SerialSession {
   const state$ = new BehaviorSubject<SerialSessionState>(
     SerialSessionState.Connecting
   );
@@ -55,8 +60,7 @@ function buildMockSession(port: SerialPort | null): SerialSession {
     getCurrentPort,
     errors$: EMPTY,
     receive$: EMPTY,
-    receiveReplay$: of('chunk'),
-    lines$: of('line1'),
+    lines$: lines$ ?? of('line1'),
     send$: vi.fn(() => of(undefined)),
   } as unknown as SerialSession;
 }
@@ -132,5 +136,18 @@ describe('SerialTransportService', () => {
     await firstValueFrom(service.connect$());
     const line = await firstValueFrom(service.lines$.pipe(take(1)));
     expect(line).toBe('line1');
+  });
+
+  it('getReadStream should emit line strings from lines$', async () => {
+    const mockPort = {} as SerialPort;
+    const lineSubject = new Subject<string>();
+    mockCreateSerialSession.mockReturnValue(
+      buildMockSession(mockPort, lineSubject.asObservable()),
+    );
+
+    await firstValueFrom(service.connect$());
+    const readPromise = firstValueFrom(service.getReadStream().pipe(take(1)));
+    queueMicrotask(() => lineSubject.next('expected-line'));
+    expect(await readPromise).toBe('expected-line');
   });
 });
