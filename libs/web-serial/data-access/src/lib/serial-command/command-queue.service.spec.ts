@@ -2,10 +2,12 @@ import { describe, expect, it } from 'vitest';
 import {
   Observable,
   Subject,
+  delay,
   firstValueFrom,
   map,
   of,
   take,
+  timer,
 } from 'rxjs';
 import { CommandQueueService } from './command-queue.service';
 
@@ -29,6 +31,31 @@ describe('CommandQueueService', () => {
           sub.next('b');
           sub.complete();
         });
+      }),
+    );
+    const [a, b] = await Promise.all([p1, p2]);
+    expect(a).toBe('a');
+    expect(b).toBe('b');
+    expect(order).toEqual([1, 2]);
+  });
+
+  it('runs first delayed job to completion before starting the second', async () => {
+    const queue = new CommandQueueService();
+    const order: number[] = [];
+    const p1 = firstValueFrom(
+      queue.enqueueCommand$(() =>
+        timer(25).pipe(
+          map(() => {
+            order.push(1);
+            return 'a';
+          }),
+        ),
+      ),
+    );
+    const p2 = firstValueFrom(
+      queue.enqueueCommand$(() => {
+        order.push(2);
+        return of('b').pipe(delay(0));
       }),
     );
     const [a, b] = await Promise.all([p1, p2]);

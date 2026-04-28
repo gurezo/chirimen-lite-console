@@ -176,4 +176,75 @@ describe('SerialCommandService', () => {
     const result = await resultPromise;
     expect(result.stdout).toContain(PI_ZERO_PROMPT);
   });
+
+  it('exec rejects when prompt never appears before timeout', async () => {
+    const { service, transport } = createService();
+    transport.write = vi.fn(
+      () =>
+        new Observable<void>((subscriber) => {
+          subscriber.next();
+          subscriber.complete();
+        }),
+    );
+    const p = firstValueFrom(
+      service.exec$('ls', {
+        prompt: PI_ZERO_PROMPT,
+        timeout: 40,
+        retry: 0,
+      }),
+    );
+    await expect(p).rejects.toThrow('Command execution timeout');
+  });
+
+  it('exec retries after timeout and succeeds on second attempt', async () => {
+    const { service, lines, transport } = createService();
+    let writeCount = 0;
+    transport.write = vi.fn(
+      () =>
+        new Observable<void>((subscriber) => {
+          writeCount++;
+          subscriber.next();
+          subscriber.complete();
+        }),
+    );
+    const execPromise = firstValueFrom(
+      service.exec$('ls', {
+        prompt: PI_ZERO_PROMPT,
+        timeout: 50,
+        retry: 1,
+      }),
+    );
+    await new Promise((r) => setTimeout(r, 70));
+    emitAsLines(lines, `out\r\n${PI_ZERO_PROMPT}`);
+    const result = await execPromise;
+    expect(result.stdout).toContain(PI_ZERO_PROMPT);
+    expect(writeCount).toBe(2);
+  });
+
+  it('exec rejects after retries are exhausted', async () => {
+    const { service, transport } = createService();
+    transport.write = vi.fn(
+      () =>
+        new Observable<void>((subscriber) => {
+          subscriber.next();
+          subscriber.complete();
+        }),
+    );
+    const outcome = await new Promise<unknown>((resolve) => {
+      service
+        .exec$('ls', {
+          prompt: PI_ZERO_PROMPT,
+          timeout: 35,
+          retry: 1,
+        })
+        .subscribe({
+          next: (v) =>
+            resolve(new Error(`unexpected next: ${JSON.stringify(v)}`)),
+          error: (e) => resolve(e),
+          complete: () => resolve(new Error('unexpected complete')),
+        });
+    });
+    expect(outcome).toBeInstanceOf(Error);
+    expect((outcome as Error).message).toContain('Command execution timeout');
+  });
 });
