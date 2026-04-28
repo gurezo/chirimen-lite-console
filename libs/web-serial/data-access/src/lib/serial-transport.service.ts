@@ -39,9 +39,9 @@ import {
  * 本サービスは `activeSession$` のみで「どのセッションを流すか」を切り替え、
  * ライブラリの Observable を重ねて二重管理しない。
  *
- * 受信はチャンク単位: `createSerialSession({ receiveReplay: { enabled: true } })` により
- * {@link SerialSession.receiveReplay$} を使い、同一接続内で遅延購読者（例: ターミナル）へ
- * 直近バッファを引き渡す。行単位が欲しい場合はライブラリの `lines$` を別経路で購読する（シェル exec はチャンク蓄積が必要なため従来どおり `receiveReplay$` + Command バッファ）。
+ * 読み取りストリーム {@link #getReadStream} は {@link SerialSession.lines$} を橋渡しする
+ * （行単位。区切りはライブラリ側の改行処理に従う）。チャンク生データは
+ * {@link SerialSession.receive$} を直接使用する必要がある場合のみ利用する。
  */
 @Injectable({
   providedIn: 'root',
@@ -118,7 +118,6 @@ export class SerialTransportService {
             usbProductId: RASPBERRY_PI_ZERO_INFO.usbProductId,
           },
         ],
-        receiveReplay: { enabled: true, bufferSize: 512 },
       });
       this.session = session;
       this.activeSession$.next(session);
@@ -172,8 +171,8 @@ export class SerialTransportService {
   }
 
   /**
-   * 読み取りストリーム（文字列）を取得
-   * 未接続時またはエラー時は throwError
+   * 読み取りストリーム（**1 改行区切りごとに 1 エミット**する行文字列）を取得。
+   * 未接続時または未接続状態で呼び出した場合は throwError
    */
   getReadStream(): Observable<string> {
     return defer(() => {
@@ -185,7 +184,7 @@ export class SerialTransportService {
         take(1),
         switchMap((connected) =>
           connected
-            ? s.receiveReplay$.pipe(
+            ? s.lines$.pipe(
                 catchError((err: unknown) =>
                   throwError(() => new Error(getReadErrorMessage(err)))
                 ),
