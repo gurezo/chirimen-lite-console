@@ -21,7 +21,7 @@ import {
   throwError,
   timeout,
 } from 'rxjs';
-import { stripSerialAnsiForPrompt } from '@libs-web-serial-util';
+import { stripLineForPromptDetection } from './serial-command/ansi-strip.util';
 import { matchesPrompt } from './serial-command/prompt-detector.util';
 import { SerialTransportService } from './serial-transport.service';
 
@@ -93,7 +93,7 @@ export class SerialCommandService {
     this.readSubscription = this.transport.getReadStream().subscribe({
       next: (line) => {
         this.readBuffer +=
-          stripSerialAnsiForPrompt(line) +
+          stripLineForPromptDetection(line) +
           '\n';
         this.bufferNotify$.next();
       },
