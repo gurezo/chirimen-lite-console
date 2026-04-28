@@ -22,6 +22,7 @@ import {
   timeout,
 } from 'rxjs';
 import { stripSerialAnsiForPrompt } from '@libs-web-serial-util';
+import { matchesPrompt } from './serial-command/prompt-detector.util';
 import { SerialTransportService } from './serial-transport.service';
 
 /**
@@ -80,14 +81,6 @@ export class SerialCommandService {
         ),
       )
       .subscribe();
-  }
-
-  private matchesPrompt(input: string, prompt: string | RegExp): boolean {
-    if (typeof prompt === 'string') {
-      return input.includes(prompt);
-    }
-    prompt.lastIndex = 0;
-    return prompt.test(input);
   }
 
   /**
@@ -170,7 +163,7 @@ export class SerialCommandService {
         }
         return this.readBuffer;
       }),
-      filter((buf) => this.matchesPrompt(buf, config.prompt)),
+      filter((buf) => matchesPrompt(buf, config.prompt)),
       take(1),
       map((buf) => {
         const stdout = buf;
@@ -219,7 +212,7 @@ export class SerialCommandService {
         return throwError(() => new Error('All commands cancelled'));
       }
       onAttemptStart?.();
-      if (this.matchesPrompt(this.readBuffer, config.prompt)) {
+      if (matchesPrompt(this.readBuffer, config.prompt)) {
         const stdout = this.readBuffer;
         this.readBuffer = '';
         return of<CommandResult>({ stdout });
