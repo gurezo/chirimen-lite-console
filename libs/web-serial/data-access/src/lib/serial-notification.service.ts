@@ -29,27 +29,4 @@ export class SerialNotificationService {
       }
     );
   }
-
-  /**
-   * Web Serial切断時の通知
-   */
-  notifyDisconnection(): void {
-    this.toastr.info('Web Serial接続が切断されました', '切断', {
-      timeOut: 3000,
-    });
-  }
-
-  /**
-   * Web Serialデバイス検出時の通知
-   * @param deviceName デバイス名
-   */
-  notifyDeviceDetected(deviceName: string): void {
-    this.toastr.success(
-      `デバイスを検出しました: ${deviceName}`,
-      'デバイス検出',
-      {
-        timeOut: 3000,
-      }
-    );
-  }
 }
