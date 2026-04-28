@@ -95,12 +95,3 @@ export function getWriteErrorMessage(error: unknown): string {
   }
   return 'Unknown write error';
 }
-
-/**
- * Raspberry Pi Zero 検証エラーメッセージを返す
- * @returns エラーメッセージ
- */
-export function getRaspberryPiZeroError(): string {
-  return 'Web Serial is not Raspberry Pi Zero';
-}
-
