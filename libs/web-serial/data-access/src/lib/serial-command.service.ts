@@ -1,2 +1,2 @@
-export type { CommandExecutionConfig, CommandResult } from './serial-command/command-runner.service';
-export { SerialCommandService } from './serial-command/command-runner.service';
+export type { CommandExecutionConfig, CommandResult } from './serial-command/serial-command-facade.service';
+export { SerialCommandService } from './serial-command/serial-command-facade.service';

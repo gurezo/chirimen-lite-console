@@ -9,11 +9,11 @@ import {
   take,
   timer,
 } from 'rxjs';
-import { CommandQueueService } from './command-queue.service';
+import { SerialCommandQueueService } from './serial-command-queue.service';
 
-describe('CommandQueueService', () => {
+describe('SerialCommandQueueService', () => {
   it('runs enqueued work serially', async () => {
-    const queue = new CommandQueueService();
+    const queue = new SerialCommandQueueService();
     const order: number[] = [];
     const p1 = firstValueFrom(
       queue.enqueueCommand$(() => {
@@ -40,7 +40,7 @@ describe('CommandQueueService', () => {
   });
 
   it('runs first delayed job to completion before starting the second', async () => {
-    const queue = new CommandQueueService();
+    const queue = new SerialCommandQueueService();
     const order: number[] = [];
     const p1 = firstValueFrom(
       queue.enqueueCommand$(() =>
@@ -65,7 +65,7 @@ describe('CommandQueueService', () => {
   });
 
   it('increments pending count while work runs', async () => {
-    const queue = new CommandQueueService();
+    const queue = new SerialCommandQueueService();
     expect(queue.getPendingCommandCount()).toBe(0);
     const done = firstValueFrom(
       queue.enqueueCommand$(() => {
@@ -81,7 +81,7 @@ describe('CommandQueueService', () => {
   });
 
   it('rejects work when generation was cancelled before run', async () => {
-    const queue = new CommandQueueService();
+    const queue = new SerialCommandQueueService();
     const blocker = new Subject<void>();
     const p1 = firstValueFrom(
       queue.enqueueCommand$(() =>
@@ -102,7 +102,7 @@ describe('CommandQueueService', () => {
   });
 
   it('isGenerationActive is false after cancelAllCommands', () => {
-    const queue = new CommandQueueService();
+    const queue = new SerialCommandQueueService();
     const genAtEnqueue = 0;
     expect(queue.isGenerationActive(genAtEnqueue)).toBe(true);
     queue.cancelAllCommands();
