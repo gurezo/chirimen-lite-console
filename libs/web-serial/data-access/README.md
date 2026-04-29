@@ -2,6 +2,8 @@
 
 Angular 向けのシリアル（Web Serial + `@gurezo/web-serial-rxjs`）データアクセス層。
 
+**リポジトリ間の責務分界**（ライブラリ一般と本アプリの対応、`SerialSession` を正とする方針など）: [docs/serial-architecture.md](../../../docs/serial-architecture.md)（[#568](https://github.com/gurezo/chirimen-lite-console/issues/568)）。
+
 ## 受信ストリームの使い分け（`SerialSession` / `SerialTransportService`）
 
 アプリでは `@gurezo/web-serial-rxjs` の `SerialSession` が提供する受信 Observable を、用途に応じて次のように使い分ける（[#559](https://github.com/gurezo/chirimen-lite-console/issues/559)）。
