@@ -1,5 +1,5 @@
 import { TestBed } from '@angular/core/testing';
-import { defaultIfEmpty, firstValueFrom, of } from 'rxjs';
+import { defaultIfEmpty, EMPTY, firstValueFrom, of, Subject } from 'rxjs';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   PiZeroSessionService,
@@ -26,6 +26,7 @@ describe('TerminalConsoleOrchestrationService', () => {
             exec$: execMock,
             isConnected$: of(true),
             connectionEstablished$: of(undefined),
+            terminalOutput$: EMPTY,
           },
         },
         {
@@ -58,6 +59,7 @@ describe('TerminalConsoleOrchestrationService', () => {
         exec$: execMock,
         isConnected$: of(false),
         connectionEstablished$: of(undefined),
+        terminalOutput$: EMPTY,
       },
     });
     const svc = TestBed.inject(TerminalConsoleOrchestrationService);
@@ -85,5 +87,31 @@ describe('TerminalConsoleOrchestrationService', () => {
       'prefix 初期化済みのためスキップします。',
     );
     expect(write).toHaveBeenCalledWith('$ ');
+  });
+
+  it('pipeTerminalOutputToSink$ forwards terminalOutput$ chunks to sink.write', async () => {
+    const chunks = new Subject<string>();
+    TestBed.overrideProvider(SerialFacadeService, {
+      useValue: {
+        exec$: execMock,
+        isConnected$: of(true),
+        connectionEstablished$: of(undefined),
+        terminalOutput$: chunks.asObservable(),
+      },
+    });
+    TestBed.overrideProvider(PiZeroSessionService, {
+      useValue: {
+        shouldRunAfterConnect$: () => of(true),
+        runAfterConnect$: () => of(undefined),
+      },
+    });
+    const write = vi.fn();
+    const svc = TestBed.inject(TerminalConsoleOrchestrationService);
+    const sub = svc.pipeTerminalOutputToSink$({ write }).subscribe();
+    chunks.next('a');
+    chunks.next('b');
+    expect(write).toHaveBeenNthCalledWith(1, 'a');
+    expect(write).toHaveBeenNthCalledWith(2, 'b');
+    sub.unsubscribe();
   });
 });
