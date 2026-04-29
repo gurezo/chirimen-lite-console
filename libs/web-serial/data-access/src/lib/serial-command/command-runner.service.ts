@@ -288,13 +288,6 @@ export class SerialCommandService {
     );
   }
 
-  /**
-   * 単一の待機 ID によるキャンセルはサポートしない（世代ベースの cancelAllCommands を利用）。
-   */
-  cancelCommand(commandId: string): void {
-    void commandId;
-  }
-
   cancelAllCommands(): void {
     this.commandQueue.cancelAllCommands();
   }
