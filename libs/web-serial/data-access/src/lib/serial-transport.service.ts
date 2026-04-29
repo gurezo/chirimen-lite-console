@@ -19,7 +19,6 @@ import {
   Observable,
   of,
   switchMap,
-  take,
   tap,
   throwError,
 } from 'rxjs';
@@ -39,9 +38,9 @@ import {
  * 本サービスは `activeSession$` のみで「どのセッションを流すか」を切り替え、
  * ライブラリの Observable を重ねて二重管理しない。
  *
- * 読み取りストリーム {@link #getReadStream} は {@link SerialSession.lines$} を橋渡しする
- * （行単位。区切りはライブラリ側の改行処理に従う）。チャンク生データは
- * {@link SerialSession.receive$} を直接使用する必要がある場合のみ利用する。
+ * {@link #lines$} / {@link #getReadStream} は {@link SerialSession.lines$} を橋渡しする
+ * （行単位）。生チャンクは {@link #receive$}、後から購読する用途は
+ * {@link #receiveReplay$}（セッション作成時の replay 設定に従う）。
  */
 @Injectable({
   providedIn: 'root',
@@ -81,6 +80,24 @@ export class SerialTransportService {
   readonly lines$ = this.activeSession$.pipe(
     switchMap((s) => (s ? s.lines$ : NEVER))
   );
+
+  /**
+   * ライブラリ {@link SerialSession.receive$}。未接続時は空ストリーム。
+   */
+  get receive$(): Observable<string> {
+    return this.activeSession$.pipe(
+      switchMap((s) => s?.receive$ ?? EMPTY)
+    );
+  }
+
+  /**
+   * ライブラリ {@link SerialSession.receiveReplay$}。未接続時は空ストリーム。
+   */
+  get receiveReplay$(): Observable<string> {
+    return this.activeSession$.pipe(
+      switchMap((s) => s?.receiveReplay$ ?? EMPTY)
+    );
+  }
 
   /**
    * I/O エラー（`SerialError`）のライブラリ本流。未接続時は空ストリーム。
@@ -171,8 +188,8 @@ export class SerialTransportService {
   }
 
   /**
-   * 読み取りストリーム（**1 改行区切りごとに 1 エミット**する行文字列）を取得。
-   * 未接続時または未接続状態で呼び出した場合は throwError
+   * 読み取りストリーム（**1 改行区切りごとに 1 エミット**する行文字列）。
+   * {@link SerialSession.lines$} へ委譲。セッションが無い場合は throwError。
    */
   getReadStream(): Observable<string> {
     return defer(() => {
@@ -180,24 +197,17 @@ export class SerialTransportService {
       if (!s) {
         return throwError(() => new Error('Serial port not connected'));
       }
-      return s.isConnected$.pipe(
-        take(1),
-        switchMap((connected) =>
-          connected
-            ? s.lines$.pipe(
-                catchError((err: unknown) =>
-                  throwError(() => new Error(getReadErrorMessage(err)))
-                ),
-              )
-            : throwError(() => new Error('Serial port not connected'))
+      return s.lines$.pipe(
+        catchError((err: unknown) =>
+          throwError(() => new Error(getReadErrorMessage(err)))
         )
       );
     });
   }
 
   /**
-   * データを書き込む
-   * 未接続時またはエラー時は throwError
+   * データを書き込む。{@link SerialSession.send$} へ委譲（未接続時はライブラリが fail fast）。
+   * セッションが無い場合のみ throwError（`Serial port not connected`）。
    */
   write(data: string): Observable<void> {
     return defer(() => {
@@ -205,18 +215,9 @@ export class SerialTransportService {
       if (!s) {
         return throwError(() => new Error('Serial port not connected'));
       }
-      return s.isConnected$.pipe(
-        take(1),
-        switchMap((connected) =>
-          connected
-            ? s.send$(data).pipe(
-                catchError((error) =>
-                  throwError(
-                    () => new Error(getWriteErrorMessage(error)),
-                  )
-                )
-              )
-            : throwError(() => new Error('Serial port not connected'))
+      return s.send$(data).pipe(
+        catchError((error) =>
+          throwError(() => new Error(getWriteErrorMessage(error)))
         )
       );
     });
