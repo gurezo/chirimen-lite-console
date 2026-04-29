@@ -21,7 +21,7 @@ vi.mock('@xterm/addon-fit', () => ({
   },
 }));
 import {
-  PiZeroSerialBootstrapService,
+  PiZeroSessionService,
   SerialFacadeService,
 } from '@libs-web-serial-data-access';
 import { PI_ZERO_PROMPT, SERIAL_TIMEOUT } from '@libs-web-serial-util';
@@ -52,10 +52,12 @@ describe('TerminalViewComponent', () => {
           getConnectionEpoch: () => 1,
         },
       })
-      .overrideProvider(PiZeroSerialBootstrapService, {
+      .overrideProvider(PiZeroSessionService, {
         useValue: {
-          shouldRunAfterConnect$: shouldRunAfterConnectMock,
-          runAfterConnect$: runAfterConnectMock,
+          bootstrap: {
+            shouldRunAfterConnect$: shouldRunAfterConnectMock,
+            runAfterConnect$: runAfterConnectMock,
+          },
         },
       })
       .compileComponents();
