@@ -2,7 +2,7 @@ import '@angular/compiler';
 import { Injector } from '@angular/core';
 import { SerialSessionState } from '@gurezo/web-serial-rxjs';
 import { type SerialExecOptions } from '@libs-web-serial-util';
-import { EMPTY, firstValueFrom, of } from 'rxjs';
+import { EMPTY, firstValueFrom, of, take } from 'rxjs';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { SerialCommandService } from './serial-command.service';
 import { SerialConnectionOrchestrationService } from './serial-connection-orchestration.service';
@@ -23,6 +23,8 @@ describe('SerialFacadeService', () => {
       isConnected$: of(false),
       errors$: EMPTY,
       portInfo$: of(null),
+      receiveReplay$: EMPTY,
+      commandResultLines$: of('line'),
       getReadStream: vi.fn(() => of('line')),
       write: vi.fn(() => of(undefined)),
       getPort: vi.fn(() => undefined),
@@ -105,6 +107,17 @@ describe('SerialFacadeService', () => {
   it('read$ takes one line from transport.getReadStream', async () => {
     const line = await firstValueFrom(facade.read$());
     expect(transport.getReadStream).toHaveBeenCalled();
+    expect(line).toBe('line');
+  });
+
+  it('terminalOutput$ delegates to transport.receiveReplay$', async () => {
+    transport.receiveReplay$ = of('chunk');
+    const chunk = await firstValueFrom(facade.terminalOutput$.pipe(take(1)));
+    expect(chunk).toBe('chunk');
+  });
+
+  it('commandResultLines$ delegates to transport.commandResultLines$', async () => {
+    const line = await firstValueFrom(facade.commandResultLines$.pipe(take(1)));
     expect(line).toBe('line');
   });
 
