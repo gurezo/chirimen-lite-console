@@ -23,6 +23,7 @@ import {
 } from 'rxjs';
 import { SerialPromptDetectorService } from './serial-command/serial-prompt-detector.service';
 import { SerialFacadeService } from './serial-facade.service';
+import type { CommandResult } from './serial-command/serial-command-types';
 
 export type PiZeroBootstrapStatusHandler = (line: string) => void;
 
@@ -95,36 +96,59 @@ export class PiZeroSerialBootstrapService {
     return this.serial
       .readUntilPrompt$({
         prompt: '',
-        promptMatch: (buf) => this.promptDetector.isLoginPrompt(buf),
-        // 起動直後のログ出しが続くと login: 行が遅延することがある
+        promptMatch: (buf) =>
+          this.promptDetector.isAwaitingLoginName(buf) ||
+          this.promptDetector.isAwaitingPasswordInput(buf),
+        // 起動直後のログ出しが続くと login: 行が遅延することがある。
+        // Password のみ提示済みでもマッチさせる。
         timeout: SERIAL_TIMEOUT.LONG,
       })
       .pipe(
-        tap(() => {
+        switchMap((result: CommandResult) => {
+          const stdout =
+            typeof result.stdout === 'string' ? result.stdout : '';
+          const pwdOnly =
+            this.promptDetector.isAwaitingPasswordInput(stdout) &&
+            !this.promptDetector.isAwaitingLoginName(stdout);
+          if (pwdOnly) {
+            log(
+              '[コンソール] パスワード入力画面を検出しました（ユーザー名入力は省略します）。',
+            );
+            log('[コンソール] パスワードを送信中（画面には表示しません）...');
+            return this.serial.exec$(PI_ZERO_LOGIN_PASSWORD, {
+              prompt: '',
+              promptMatch: (buf) => this.promptDetector.isShellPrompt(buf),
+              timeout: SERIAL_TIMEOUT.LONG,
+              retry: 1,
+            }).pipe(tap(() => log('[コンソール] ログインが完了しました。')));
+          }
           log(
             `[コンソール] ログインユーザー「${PI_ZERO_LOGIN_USER}」を送信中...`,
           );
+          return this.serial
+            .exec$(PI_ZERO_LOGIN_USER, {
+              prompt: '',
+              promptMatch: (buf) => this.promptDetector.isPasswordPrompt(buf),
+              timeout: SERIAL_TIMEOUT.DEFAULT,
+              retry: 1,
+            })
+            .pipe(
+              tap(() => {
+                log(
+                  '[コンソール] パスワードを送信中（画面には表示しません）...',
+                );
+              }),
+              switchMap(() =>
+                this.serial.exec$(PI_ZERO_LOGIN_PASSWORD, {
+                  prompt: '',
+                  promptMatch: (buf) => this.promptDetector.isShellPrompt(buf),
+                  timeout: SERIAL_TIMEOUT.LONG,
+                  retry: 1,
+                }),
+              ),
+              tap(() => log('[コンソール] ログインが完了しました。')),
+            );
         }),
-        switchMap(() =>
-          this.serial.exec$(PI_ZERO_LOGIN_USER, {
-            prompt: '',
-            promptMatch: (buf) => this.promptDetector.isPasswordPrompt(buf),
-            timeout: SERIAL_TIMEOUT.DEFAULT,
-            retry: 1,
-          }),
-        ),
-        tap(() => {
-          log('[コンソール] パスワードを送信中（画面には表示しません）...');
-        }),
-        switchMap(() =>
-          this.serial.exec$(PI_ZERO_LOGIN_PASSWORD, {
-            prompt: '',
-            promptMatch: (buf) => this.promptDetector.isShellPrompt(buf),
-            timeout: SERIAL_TIMEOUT.LONG,
-            retry: 1,
-          }),
-        ),
-        tap(() => log('[コンソール] ログインが完了しました。')),
         map(() => undefined),
       );
   }
