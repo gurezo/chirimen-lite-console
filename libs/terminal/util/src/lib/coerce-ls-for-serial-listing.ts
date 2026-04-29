@@ -1,10 +1,11 @@
 /**
  * シリアル経由の擬似 TTY では `ls` が \\r / \\t / 端末幅で列を再描画し、xterm に階段状に見える。
- * `LC_ALL` / `TERM=dumb` に加え、`2>&1 | cat` で疑似 TTY 出力を避ける（列揃え・\\r 再描画が消えやすい）。
+ * `LC_ALL` / `TERM=dumb` / 単一列に加え、`</dev/null` でstdinを切り、パイプ経由で非 TTY とし、
+ * POSIX `sed` で行頭ホワイトのみ落とす（段状の先頭スペース）。
  */
 function wrapLsForSerial(innerLsCommand: string): string {
   const env = 'LC_ALL=C LANG=C TERM=dumb LS_COLORS= ';
-  return `${env}${innerLsCommand} 2>&1 | cat`;
+  return `${env}${innerLsCommand} </dev/null 2>&1 | sed 's/^[[:blank:]]*//' | cat`;
 }
 
 export function coerceLsForSerialListing(cmd: string): string {

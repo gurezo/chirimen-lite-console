@@ -32,9 +32,8 @@ export interface TerminalConsoleSink {
  *
  * ### 対話コンソールの表示モードと [example-angular](https://github.com/gurezo/web-serial-rxjs/tree/main/apps/example-angular)
  *
- * upstream のサンプルは `send$` と組み込み `lines$` のみであり、recv を行ごとに連結している。
- * 本アプリは `exec$` とバッファ集約になるため、その差を **`sanitizeSerialStdout(..., 'lineStreamMirrored')`**
- * で `lines$` と近い並びに寄せる。
+ * upstream のサンプルは `send$` と組み込み `lines$` のみ。`sanitizeSerialStdout(..., 'lineStreamMirrored')` は並びだけをそれに寄せられるが、
+ * `ls -l` 等の論理行内 `\r` やタブによる段状ずれ対策には **`default`**（CR セグメント折り畳み・dedent を含む）を使う。
  */
 @Injectable({
   providedIn: 'root',
@@ -70,7 +69,7 @@ export class TerminalConsoleOrchestrationService {
           timeout: SERIAL_TIMEOUT.DEFAULT,
         }),
       );
-      return sanitizeSerialStdout(stdout, send, remotePrompt, 'lineStreamMirrored');
+      return sanitizeSerialStdout(stdout, send, remotePrompt);
     });
   }
 
@@ -100,7 +99,7 @@ export class TerminalConsoleOrchestrationService {
             timeout: SERIAL_TIMEOUT.DEFAULT,
           }),
         );
-        const output = sanitizeSerialStdout(stdout, send, remotePrompt, 'lineStreamMirrored');
+        const output = sanitizeSerialStdout(stdout, send, remotePrompt);
         return { status: 'success', output };
       } catch (error: unknown) {
         const message =
