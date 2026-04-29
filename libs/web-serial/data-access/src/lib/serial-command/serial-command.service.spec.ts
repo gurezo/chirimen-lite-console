@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { Observable, Subject, firstValueFrom } from 'rxjs';
+import { Observable, Subject, firstValueFrom, take } from 'rxjs';
 import {
   PI_ZERO_PROMPT,
 } from '@libs-web-serial-util';
@@ -253,5 +253,105 @@ describe('SerialCommandService', () => {
     });
     expect(outcome).toBeInstanceOf(Error);
     expect((outcome as Error).message).toContain('Command execution timeout');
+  });
+
+  it('respects timeoutMs as alias for timeout', async () => {
+    const { service, transport } = createService();
+    transport.write = vi.fn(
+      () =>
+        new Observable<void>((subscriber) => {
+          subscriber.next();
+          subscriber.complete();
+        }),
+    );
+    const p = firstValueFrom(
+      service.execWithSerialOptions$('ls', {
+        prompt: PI_ZERO_PROMPT,
+        timeoutMs: 40,
+        retryCount: 0,
+      }),
+    );
+    await expect(p).rejects.toThrow('Command execution timeout');
+  });
+
+  it('exec with waitForPrompt false completes without prompt in output', async () => {
+    const { service, transport } = createService();
+
+    let releaseWrite: (() => void) | undefined;
+    transport.write = vi.fn(
+      () =>
+        new Observable<void>((subscriber) => {
+          releaseWrite = () => {
+            subscriber.next();
+            subscriber.complete();
+          };
+        }),
+    );
+
+    const execPromise = firstValueFrom(
+      service.execWithSerialOptions$('ls', {
+        prompt: PI_ZERO_PROMPT,
+        timeout: 5000,
+        waitForPrompt: false,
+      }),
+    );
+
+    releaseWrite?.();
+    const result = await execPromise;
+    expect(result.stdout).toBe('');
+    expect(transport.write).toHaveBeenCalled();
+  });
+
+  it('cancelPrevious drops pending exec but not running', async () => {
+    const { service, lines, transport } = createService();
+    const finishFirst = new Subject<void>();
+    let writeCall = 0;
+    transport.write = vi.fn(
+      () =>
+        new Observable<void>((s) => {
+          writeCall++;
+          if (writeCall === 1) {
+            finishFirst.pipe(take(1)).subscribe(() => {
+              s.next();
+              s.complete();
+            });
+            return;
+          }
+          s.next();
+          s.complete();
+        }),
+    );
+
+    const p1 = firstValueFrom(
+      service.execWithSerialOptions$('a', {
+        prompt: PI_ZERO_PROMPT,
+        timeout: 5000,
+      }),
+    );
+    const p2 = firstValueFrom(
+      service.execWithSerialOptions$('b', {
+        prompt: PI_ZERO_PROMPT,
+        timeout: 5000,
+      }),
+    );
+    const p3 = firstValueFrom(
+      service.execWithSerialOptions$('c', {
+        prompt: PI_ZERO_PROMPT,
+        timeout: 5000,
+        cancelPrevious: true,
+      }),
+    );
+
+    finishFirst.next();
+    finishFirst.complete();
+    emitAsLines(lines, `${PI_ZERO_PROMPT}`);
+
+    await expect(p2).rejects.toThrow('All commands cancelled');
+
+    emitAsLines(lines, `${PI_ZERO_PROMPT}`);
+
+    const [r1, r3] = await Promise.all([p1, p3]);
+    expect(r1.stdout).toContain(PI_ZERO_PROMPT);
+    expect(r3.stdout).toContain(PI_ZERO_PROMPT);
   });
 });
