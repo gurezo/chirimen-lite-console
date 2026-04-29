@@ -52,9 +52,16 @@ export interface CommandResult {
 }
 
 /**
- * Serial コマンド実行サービス
+ * Serial 上のコマンド実行・プロンプト待ち。
  *
- * 読み取りバッファ・ストリーム購読・プロンプト待ち・書き込みを担当
+ * ### 受信（issue #559）
+ *
+ * {@link SerialTransportService#getReadStream}（= `SerialSession.lines$` と同根の**行**ストリーム）のみを購読する。
+ * プロンプト・ログイン判定は **行単位**に strip したテキストを {@link readBuffer} に連結して行い、`receive$` / `receiveReplay$` の
+ * チャンク境界には依存しない（ANSI 除去は {@link stripLineForPromptDetection}）。
+ *
+ * ライブラリの行分割と役割が重なるが、`readBuffer` は「複数行にまたがるマッチ」とコマンド境界でのクリアに必須であり、
+ * ライブラリ内バッファとの二重ではない。
  */
 @Injectable({
   providedIn: 'root',
@@ -71,8 +78,8 @@ export class SerialCommandService {
   ) {}
 
   /**
-   * 接続後に呼び出し、{@link SerialTransportService#getReadStream}（行単位）を購読し
-   * プロンプト検出用バッファに蓄積する（行ごとに改行を復元）。
+   * 接続後に呼び出し、`lines$` 経路（{@link SerialTransportService#getReadStream}）だけを購読する。
+   * 各エミットは 1 行。プロンプト検出用に {@link stripLineForPromptDetection} 後の行＋改行を {@link readBuffer} へ蓄積する。
    */
   startReadLoop(): void {
     this.readBuffer = '';
