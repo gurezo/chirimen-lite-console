@@ -24,17 +24,20 @@ import {
 } from '@libs-console-shell-ui';
 import { SetupPageComponent } from '@libs-chirimen-setup-feature';
 import { RemotePageComponent } from '@libs-remote-feature';
-import {
-  SerialFacadeService,
-  SerialNotificationService,
-} from '@libs-web-serial-data-access';
+import { SerialConnectionViewModelFacade } from '@libs-web-serial-data-access';
 import { DialogService } from '@libs-dialogs-util';
-import { filter, pairwise, startWith, Subscription, take } from 'rxjs';
+import {
+  distinctUntilChanged,
+  filter,
+  map,
+  pairwise,
+  startWith,
+  Subscription,
+} from 'rxjs';
 import {
   buildConsoleShellBreadcrumbSegments,
   ConsoleShellStore,
 } from '@libs-console-shell-util';
-import { TerminalCommandRequestService } from '@libs-terminal-util';
 
 @Component({
   selector: 'lib-console-shell',
@@ -66,16 +69,17 @@ export class ConsoleShellComponent implements OnInit, OnDestroy {
   /** Narrow rail when the PIN panel is collapsed (px); keeps toggle + pin chrome visible. */
   private static readonly RIGHT_RAIL_COLLAPSED_WIDTH_PX = 48;
 
-  private serial = inject(SerialFacadeService);
-  private serialNotification = inject(SerialNotificationService);
+  private connectionVm = inject(SerialConnectionViewModelFacade);
   private shellStore = inject(ConsoleShellStore);
   private dialogService = inject(DialogService);
-  private terminalCommands = inject(TerminalCommandRequestService);
   private router = inject(Router);
   private route = inject(ActivatedRoute);
 
-  /** Web Serial 接続状態（`@gurezo/web-serial-rxjs` の isConnected$ 経由） */
-  connected$ = this.serial.isConnected$;
+  /** Web Serial の接続可否（単一ビューモデル {@link SerialConnectionViewModelFacade#vm$} を参照）。 */
+  connected$ = this.connectionVm.vm$.pipe(
+    map((v) => v.isConnected),
+    distinctUntilChanged(),
+  );
 
   readonly activePanel = this.shellStore.activePanel;
   readonly leftNavOpen = this.shellStore.leftNavOpen;
@@ -117,8 +121,9 @@ export class ConsoleShellComponent implements OnInit, OnDestroy {
     );
 
     this.subscriptions.add(
-      this.serial.isConnected$
+      this.connectionVm.vm$
         .pipe(
+          map((v) => v.isConnected),
           startWith(false),
           pairwise(),
           filter(([prev, next]) => prev !== next),
@@ -152,25 +157,11 @@ export class ConsoleShellComponent implements OnInit, OnDestroy {
   }
 
   onConnect() {
-    this.serial
-      .connect$()
-      .pipe(take(1))
-      .subscribe((result) => {
-        if (result.ok) {
-          this.serialNotification.notifyConnectionSuccess();
-        } else {
-          this.serialNotification.notifyConnectionError(result.errorMessage);
-        }
-      });
+    this.connectionVm.connect();
   }
 
   onDisConnect() {
-    this.serial
-      .disconnect$()
-      .pipe(take(1))
-      .subscribe({
-        error: (err: unknown) => console.error('Disconnect error', err),
-      });
+    this.connectionVm.disconnect();
   }
 
   onToggleLeftSidebar() {
@@ -198,7 +189,7 @@ export class ConsoleShellComponent implements OnInit, OnDestroy {
       this.shellStore.closeDialog();
       this.dialogService.closeAll();
       void this.router.navigate(['terminal'], { relativeTo: this.route });
-      this.terminalCommands.requestCommand('i2cdetect -y 1');
+      this.connectionVm.sendCommand('i2cdetect -y 1');
       return;
     }
 

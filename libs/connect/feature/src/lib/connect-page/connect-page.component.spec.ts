@@ -1,44 +1,47 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { SerialFacadeService, SerialNotificationService } from '@libs-web-serial-data-access';
-import { BehaviorSubject, firstValueFrom, of } from 'rxjs';
+import {
+  type SerialConnectionViewModel,
+  SerialConnectionViewModelFacade,
+} from '@libs-web-serial-data-access';
+import { BehaviorSubject, firstValueFrom } from 'rxjs';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { ConnectPageComponent } from './connect-page.component';
+
+function vmBase(
+  overrides: Partial<SerialConnectionViewModel> = {},
+): SerialConnectionViewModel {
+  return {
+    isBrowserSupported: true,
+    isConnected: false,
+    isConnecting: false,
+    isLoggedIn: false,
+    isInitializing: false,
+    errorMessage: null,
+    ...overrides,
+  };
+}
 
 describe('ConnectPageComponent', () => {
   let component: ConnectPageComponent;
   let fixture: ComponentFixture<ConnectPageComponent>;
-  let isConnected: BehaviorSubject<boolean>;
-  let connectResult: { ok: true } | { ok: false; errorMessage: string };
-  let connect$: ReturnType<typeof vi.fn>;
-  let notifySuccess: ReturnType<typeof vi.fn>;
-  let notifyError: ReturnType<typeof vi.fn>;
+  let vmSubject: BehaviorSubject<SerialConnectionViewModel>;
+  let connect: ReturnType<typeof vi.fn>;
+  let clearError: ReturnType<typeof vi.fn>;
 
   beforeEach(async () => {
-    isConnected = new BehaviorSubject<boolean>(false);
-    connectResult = { ok: true };
-    connect$ = vi.fn();
-    notifySuccess = vi.fn();
-    notifyError = vi.fn();
-
-    connect$.mockImplementation(() => of(connectResult));
+    vmSubject = new BehaviorSubject(vmBase());
+    connect = vi.fn();
+    clearError = vi.fn();
 
     await TestBed.configureTestingModule({
       imports: [ConnectPageComponent],
       providers: [
         {
-          provide: SerialFacadeService,
+          provide: SerialConnectionViewModelFacade,
           useValue: {
-            get isConnected$() {
-              return isConnected.asObservable();
-            },
-            connect$,
-          },
-        },
-        {
-          provide: SerialNotificationService,
-          useValue: {
-            notifyConnectionSuccess: notifySuccess,
-            notifyConnectionError: notifyError,
+            vm$: vmSubject.asObservable(),
+            connect,
+            clearError,
           },
         },
       ],
@@ -53,37 +56,27 @@ describe('ConnectPageComponent', () => {
     expect(component).toBeTruthy();
   });
 
-  it('should call connect$ when onConnect is called', () => {
-    connect$.mockClear();
+  it('should call facade connect when onConnect is called', () => {
+    connect.mockClear();
     component.onConnect();
-    expect(connect$).toHaveBeenCalledTimes(1);
+    expect(connect).toHaveBeenCalledTimes(1);
   });
 
-  it('should map connectionStatus$ to disconnected when not connected', async () => {
-    isConnected.next(false);
-    const status = await firstValueFrom(component.connectionStatus$);
-    expect(status).toBe('disconnected');
+  it('reports disconnected when vm is not connected', async () => {
+    vmSubject.next(vmBase({ isConnected: false }));
+    const vm = await firstValueFrom(component.vm$);
+    expect(vm.isConnected).toBe(false);
   });
 
-  it('should map connectionStatus$ to connected when connected', async () => {
-    isConnected.next(true);
-    const status = await firstValueFrom(component.connectionStatus$);
-    expect(status).toBe('connected');
+  it('reports connected when vm is connected', async () => {
+    vmSubject.next(vmBase({ isConnected: true }));
+    const vm = await firstValueFrom(component.vm$);
+    expect(vm.isConnected).toBe(true);
   });
 
-  it('should notify on successful connect from onConnect', () => {
-    connectResult = { ok: true };
-    connect$.mockImplementation(() => of(connectResult));
-    component.onConnect();
-    expect(notifySuccess).toHaveBeenCalledTimes(1);
-    expect(notifyError).not.toHaveBeenCalled();
-  });
-
-  it('should notify on failed connect from onConnect', () => {
-    connectResult = { ok: false, errorMessage: 'failed' };
-    connect$.mockImplementation(() => of(connectResult));
-    component.onConnect();
-    expect(notifyError).toHaveBeenCalledWith('failed');
-    expect(notifySuccess).not.toHaveBeenCalled();
+  it('calls facade clearError from onClearError', () => {
+    clearError.mockClear();
+    component.onClearError();
+    expect(clearError).toHaveBeenCalledTimes(1);
   });
 });
