@@ -53,6 +53,18 @@ describe('TerminalConsoleOrchestrationService', () => {
     });
   });
 
+  it('coerces ls to dumb TERM and single-column for serial exec', async () => {
+    const svc = TestBed.inject(TerminalConsoleOrchestrationService);
+    await svc.runInteractiveCommand('ls -la', PI_ZERO_PROMPT);
+    expect(execMock).toHaveBeenCalledWith(
+      'LC_ALL=C LANG=C TERM=dumb LS_COLORS= ls -1 -la 2>&1 | cat',
+      {
+        prompt: PI_ZERO_PROMPT,
+        timeout: SERIAL_TIMEOUT.DEFAULT,
+      },
+    );
+  });
+
   it('runToolbarCommand reports not_connected when serial is down', async () => {
     TestBed.overrideProvider(SerialFacadeService, {
       useValue: {

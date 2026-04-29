@@ -4,7 +4,7 @@ import {
   SerialFacadeService,
 } from '@libs-web-serial-data-access';
 import { SERIAL_TIMEOUT } from '@libs-web-serial-util';
-import { sanitizeSerialStdout } from '@libs-terminal-util';
+import { coerceLsForSerialListing, sanitizeSerialStdout } from '@libs-terminal-util';
 import {
   EMPTY,
   Observable,
@@ -29,6 +29,12 @@ export interface TerminalConsoleSink {
  *
  * シリアルからの **ライブ表示** 専用は {@link SerialFacadeService#terminalOutput$} のみを購読する。
  * {@link #pipeTerminalOutputToSink$} がその経路。`exec` の stdout 整形表示と二重にならないよう UI 側で使い分けること。
+ *
+ * ### 対話コンソールの表示モードと [example-angular](https://github.com/gurezo/web-serial-rxjs/tree/main/apps/example-angular)
+ *
+ * upstream のサンプルは `send$` と組み込み `lines$` のみであり、recv を行ごとに連結している。
+ * 本アプリは `exec$` とバッファ集約になるため、その差を **`sanitizeSerialStdout(..., 'lineStreamMirrored')`**
+ * で `lines$` と近い並びに寄せる。
  */
 @Injectable({
   providedIn: 'root',
@@ -57,13 +63,14 @@ export class TerminalConsoleOrchestrationService {
    */
   runInteractiveCommand(command: string, remotePrompt: string): Promise<string> {
     return this.enqueueExec(async () => {
+      const send = coerceLsForSerialListing(command);
       const { stdout } = await firstValueFrom(
-        this.serial.exec$(command, {
+        this.serial.exec$(send, {
           prompt: remotePrompt,
           timeout: SERIAL_TIMEOUT.DEFAULT,
         }),
       );
-      return sanitizeSerialStdout(stdout, command, remotePrompt);
+      return sanitizeSerialStdout(stdout, send, remotePrompt, 'lineStreamMirrored');
     });
   }
 
@@ -86,13 +93,14 @@ export class TerminalConsoleOrchestrationService {
         return { status: 'not_connected' };
       }
       try {
+        const send = coerceLsForSerialListing(cmd);
         const { stdout } = await firstValueFrom(
-          this.serial.exec$(cmd, {
+          this.serial.exec$(send, {
             prompt: remotePrompt,
             timeout: SERIAL_TIMEOUT.DEFAULT,
           }),
         );
-        const output = sanitizeSerialStdout(stdout, cmd, remotePrompt);
+        const output = sanitizeSerialStdout(stdout, send, remotePrompt, 'lineStreamMirrored');
         return { status: 'success', output };
       } catch (error: unknown) {
         const message =
