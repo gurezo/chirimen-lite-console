@@ -44,8 +44,8 @@ chirimen-lite-console（本リポジトリ）
 
 詳細な対応表は [`libs/web-serial/data-access/README.md`](../libs/web-serial/data-access/README.md) を正とする。要約すると次のとおり。
 
-- **ターミナル表示（xterm 等・生データのライブ／リプレイ表示）**  
-  - `receiveReplay$` 相当（ファサードでは `terminalOutput$`）。
+- **ターミナル表示（xterm 等・terminal helper で整形したライブ表示）**  
+  - `createTerminalBuffer(session.receive$).text$` 相当（ファサードでは `terminalText$`）。
 - **コマンド実行・プロンプト待ち・ログイン判定など「行」単位の処理**  
   - `lines$` と同根の **`commandResultLines$` / `getReadStream()`**（複数購読で行が取り合いにならないようマルチキャスト）。**プロンプト検出に `receiveReplay$` 単体は寄せない**（チャンク境界と ANSI・行処理の齟齬を避ける）。
 - **単一購読で `SerialSession.lines$` をそのまま見たい場合**  
