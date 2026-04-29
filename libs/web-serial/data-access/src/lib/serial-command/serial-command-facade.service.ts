@@ -29,7 +29,7 @@ export class SerialCommandService {
   ) {}
 
   /**
-   * 接続後に呼び出し、`lines$` 経路だけを購読する。
+   * 接続後に呼び出し、{@link SerialTransportService#getReadStream}（= `commandResultLines$`）だけを購読する。
    */
   startReadLoop(): void {
     this.runner.startReadLoop();

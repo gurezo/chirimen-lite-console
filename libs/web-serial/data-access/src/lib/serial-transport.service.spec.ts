@@ -159,6 +159,22 @@ describe('SerialTransportService', () => {
     expect(await readPromise).toBe('expected-line');
   });
 
+  it('getReadStream should multicast commandResultLines$ for multiple subscribers', async () => {
+    const mockPort = {} as SerialPort;
+    const lineSubject = new Subject<string>();
+    mockCreateSerialSession.mockReturnValue(
+      buildMockSession(mockPort, lineSubject.asObservable()),
+    );
+
+    await firstValueFrom(service.connect$());
+    const p1 = firstValueFrom(service.getReadStream().pipe(take(1)));
+    const p2 = firstValueFrom(service.getReadStream().pipe(take(1)));
+    queueMicrotask(() => lineSubject.next('shared-line'));
+    const [a, b] = await Promise.all([p1, p2]);
+    expect(a).toBe('shared-line');
+    expect(b).toBe('shared-line');
+  });
+
   it('should emit from receive$ and receiveReplay$ when session is active', async () => {
     const mockPort = {} as SerialPort;
     const chunkSubject = new Subject<string>();
