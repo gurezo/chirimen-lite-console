@@ -57,7 +57,7 @@ describe('TerminalConsoleOrchestrationService', () => {
     const svc = TestBed.inject(TerminalConsoleOrchestrationService);
     await svc.runInteractiveCommand('ls -la', PI_ZERO_PROMPT);
     expect(execMock).toHaveBeenCalledWith(
-      'LC_ALL=C LANG=C TERM=dumb LS_COLORS= ls -1 -la 2>&1 | cat',
+      "LC_ALL=C LANG=C TERM=dumb LS_COLORS= ls -1 -la </dev/null 2>&1 | sed 's/^[[:blank:]]*//' | cat",
       {
         prompt: PI_ZERO_PROMPT,
         timeout: SERIAL_TIMEOUT.DEFAULT,
