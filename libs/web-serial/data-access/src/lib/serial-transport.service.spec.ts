@@ -27,6 +27,9 @@ vi.mock('@gurezo/web-serial-rxjs', async (importOriginal) => {
   return {
     ...actual,
     createSerialSession: () => mockCreateSerialSession(),
+    createTerminalBuffer: (source$: Observable<string>) => ({
+      text$: source$,
+    }),
   };
 });
 
@@ -189,6 +192,19 @@ describe('SerialTransportService', () => {
     queueMicrotask(() => chunkSubject.next('raw-chunk'));
     expect(await receivePromise).toBe('raw-chunk');
     expect(await replayPromise).toBe('raw-chunk');
+  });
+
+  it('should emit terminalText$ created from session.receive$', async () => {
+    const mockPort = {} as SerialPort;
+    const chunkSubject = new Subject<string>();
+    mockCreateSerialSession.mockReturnValue(
+      buildMockSession(mockPort, undefined, chunkSubject.asObservable()),
+    );
+
+    await firstValueFrom(service.connect$());
+    const textPromise = firstValueFrom(service.terminalText$.pipe(take(1)));
+    queueMicrotask(() => chunkSubject.next('terminal-text'));
+    expect(await textPromise).toBe('terminal-text');
   });
 
   it('write should delegate to session send$', async () => {
