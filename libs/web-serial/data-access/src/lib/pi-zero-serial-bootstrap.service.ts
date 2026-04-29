@@ -14,125 +14,67 @@ import {
   catchError,
   concatMap,
   defaultIfEmpty,
-  defer,
-  finalize,
   from,
   ignoreElements,
   map,
   of,
-  shareReplay,
   switchMap,
-  take,
   tap,
-  throwError,
 } from 'rxjs';
-import { PiZeroShellReadinessService } from './pi-zero-shell-readiness.service';
 import { SerialPromptDetectorService } from './serial-command/serial-prompt-detector.service';
 import { SerialFacadeService } from './serial-facade.service';
 
 export type PiZeroBootstrapStatusHandler = (line: string) => void;
 
 /**
- * Pi Zero / CHIRIMEN 向けシリアル接続後のログイン・初期化（issue #557）。
- * 汎用の送受信は {@link SerialFacadeService}、プロンプト判定は {@link SerialPromptDetectorService}。
+ * Pi Zero / CHIRIMEN 向けのログイン・環境初期化パイプライン（シリアル送受信は {@link SerialFacadeService}）。
+ *
+ * 接続単位での「一度だけ実行」などのオーケストレーションは {@link PiZeroSessionService}。
  */
 @Injectable({
   providedIn: 'root',
 })
 export class PiZeroSerialBootstrapService {
-  private lastBootstrappedEpoch = -1;
-  /** 同一 connectionEpoch でのブートストラップ多重起動を防ぐ */
-  private activeBootstrap$: Observable<void> | null = null;
-  private activeBootstrapEpoch: number | null = null;
-
   constructor(
     private readonly serial: SerialFacadeService,
-    private readonly shellReadiness: PiZeroShellReadinessService,
     private readonly promptDetector: SerialPromptDetectorService,
   ) {}
 
   /**
-   * 接続セッションごとに1回、初期化パイプラインを走らせるか。
-   * 状態の参照は {@link SerialFacadeService#isConnected$} のみ。
+   * シェルプロンプト到達確認。未到達ならログイン（ID / Password）まで実行する。
    */
-  shouldRunAfterConnect$(): Observable<boolean> {
-    return this.serial.isConnected$.pipe(
-      take(1),
-      map((connected) => {
-        if (!connected) {
-          return false;
-        }
-        const epoch = this.serial.getConnectionEpoch();
-        if (epoch === this.lastBootstrappedEpoch) {
-          return false;
-        }
-        return true;
-      }),
-    );
-  }
-
-  /**
-   * 接続セッション内で未初期化の場合のみ初期化パイプラインを実行する。
-   */
-  runAfterConnect$(
+  loginIfNeeded$(
     onStatus?: PiZeroBootstrapStatusHandler,
   ): Observable<void> {
     const log = onStatus ?? (() => undefined);
+    return this.loginPhase$(log);
+  }
 
-    return this.shouldRunAfterConnect$().pipe(
-      switchMap((shouldRun) => {
-        if (!shouldRun) {
-          return of(undefined);
-        }
-        const epoch = this.serial.getConnectionEpoch();
+  /**
+   * タイムゾーン等の初期化コマンドを実行する（シェル到達済みを前提）。
+   */
+  setupEnvironment$(
+    onStatus?: PiZeroBootstrapStatusHandler,
+  ): Observable<void> {
+    const log = onStatus ?? (() => undefined);
+    const client = createConnectClient();
+    return this.timezoneSequence$(log, client);
+  }
 
-        if (
-          this.activeBootstrap$ !== null &&
-          this.activeBootstrapEpoch === epoch
-        ) {
-          return this.activeBootstrap$;
-        }
-
-        this.activeBootstrapEpoch = epoch;
-
-        this.activeBootstrap$ = defer(() => this.runPipeline$(log)).pipe(
-          switchMap(() =>
-            this.serial.isConnected$.pipe(
-              take(1),
-              tap((connected) => {
-                if (connected) {
-                  this.lastBootstrappedEpoch = epoch;
-                  this.shellReadiness.setReady(true);
-                }
-              }),
-              map(() => undefined),
-            ),
-          ),
-          catchError((error: unknown) => {
-            const message =
-              error instanceof Error ? error.message : String(error);
-            log(
-              `[コンソール] 接続後の初期化に失敗しました: ${message}`,
-            );
-            return throwError(() => error);
-          }),
-          finalize(() => {
-            if (this.activeBootstrapEpoch === epoch) {
-              this.activeBootstrap$ = null;
-              this.activeBootstrapEpoch = null;
-            }
-          }),
-          shareReplay({ bufferSize: 1, refCount: true }),
-        );
-
-        return this.activeBootstrap$;
-      }),
+  /**
+   * ログイン（必要なら）後に環境セットアップを続けて実行する。
+   * 接続エポックの重複抑止は {@link PiZeroSessionService#runAfterConnect$} 側。
+   */
+  runPostConnectPipeline$(
+    onStatus?: PiZeroBootstrapStatusHandler,
+  ): Observable<void> {
+    const log = onStatus ?? (() => undefined);
+    return this.loginPhase$(log).pipe(
+      switchMap(() => this.setupEnvironment$(onStatus)),
     );
   }
 
-  private runPipeline$(log: PiZeroBootstrapStatusHandler): Observable<void> {
-    const client = createConnectClient();
-
+  private loginPhase$(log: PiZeroBootstrapStatusHandler): Observable<void> {
     return this.serial
       .readUntilPrompt$({
         prompt: '',
@@ -140,13 +82,12 @@ export class PiZeroSerialBootstrapService {
         timeout: SERIAL_TIMEOUT.SHELL_PROMPT_PROBE,
       })
       .pipe(
-      map(() => true),
-      catchError(() => of(false)),
-      switchMap((atShell) =>
-        atShell ? of(undefined) : this.loginSequence$(log),
-      ),
-      switchMap(() => this.timezoneSequence$(log, client)),
-    );
+        map(() => true),
+        catchError(() => of(false)),
+        switchMap((atShell) =>
+          atShell ? of(undefined) : this.loginSequence$(log),
+        ),
+      );
   }
 
   private loginSequence$(log: PiZeroBootstrapStatusHandler): Observable<void> {
