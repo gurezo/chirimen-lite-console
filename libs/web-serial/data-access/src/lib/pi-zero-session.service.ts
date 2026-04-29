@@ -1,7 +1,9 @@
 import { Injectable } from '@angular/core';
 import {
+  BehaviorSubject,
   catchError,
   defer,
+  distinctUntilChanged,
   finalize,
   map,
   type Observable,
@@ -30,6 +32,13 @@ export class PiZeroSessionService {
   private lastBootstrappedEpoch = -1;
   private activeBootstrap$: Observable<void> | null = null;
   private activeBootstrapEpoch: number | null = null;
+
+  private readonly initializingSubject = new BehaviorSubject(false);
+
+  /**
+   * 接続後の Pi Zero 初期化パイプライン（ログイン・環境セットアップ等）実行中。
+   */
+  readonly initializing$ = this.initializingSubject.pipe(distinctUntilChanged());
 
   constructor(
     private readonly serial: SerialFacadeService,
@@ -100,9 +109,10 @@ export class PiZeroSessionService {
 
         this.activeBootstrapEpoch = epoch;
 
-        this.activeBootstrap$ = defer(() =>
-          this.bootstrap.runPostConnectPipeline$(onStatus),
-        ).pipe(
+        this.activeBootstrap$ = defer(() => {
+          this.initializingSubject.next(true);
+          return this.bootstrap.runPostConnectPipeline$(onStatus);
+        }).pipe(
           switchMap(() =>
             this.serial.isConnected$.pipe(
               take(1),
@@ -122,6 +132,7 @@ export class PiZeroSessionService {
             return throwError(() => error);
           }),
           finalize(() => {
+            this.initializingSubject.next(false);
             if (this.activeBootstrapEpoch === epoch) {
               this.activeBootstrap$ = null;
               this.activeBootstrapEpoch = null;
