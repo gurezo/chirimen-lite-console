@@ -51,4 +51,18 @@ describe('SerialPromptDetectorService', () => {
     expect(detector.isCommandCompleted('pi@raspberrypi:~$ ')).toBe(true);
     expect(detector.isCommandCompleted('running…')).toBe(false);
   });
+
+  it('isAwaitingLoginName uses trailing line only', () => {
+    expect(detector.isAwaitingLoginName('boot\nfoo login: ')).toBe(true);
+    expect(
+      detector.isAwaitingLoginName('foo login:\nPassword: '),
+    ).toBe(false);
+  });
+
+  it('isAwaitingPasswordInput uses trailing line only', () => {
+    expect(detector.isAwaitingPasswordInput('Password: ')).toBe(true);
+    expect(
+      detector.isAwaitingPasswordInput('foo login:\nPassword: '),
+    ).toBe(true);
+  });
 });
