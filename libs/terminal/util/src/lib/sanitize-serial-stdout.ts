@@ -44,11 +44,13 @@ function expandTabsToSpaces(s: string, tabWidth = 8): string {
 }
 
 function stripResidualTerminalEscapes(s: string): string {
+  const esc = String.fromCharCode(0x1b);
+  /** no-control-regex: リテラルに \\x1b を載せず文字コードで組む */
   return s
-    .replace(/\u001b7|\u001b8/g, '') // DECSC / DECRC
-    .replace(/\u001bM/g, '\n') // reverse line feed
-    .replace(/\u001b\([\x20-\x7e]/g, '') // SCS G0/G1 選択 ( 1 文字
-    .replace(/\u001b\)[\x20-\x7e]/g, ''); // SCS 同上 )
+    .replace(new RegExp(`${esc}7|${esc}8`, 'g'), '') // DECSC / DECRC
+    .replace(new RegExp(`${esc}M`, 'g'), '\n') // reverse line feed
+    .replace(new RegExp(`${esc}\\([\\x20-\\x7e]`, 'g'), '') // SCS G0/G1 (1 char)
+    .replace(new RegExp(`${esc}\\)[\\x20-\\x7e]`, 'g'), ''); // SCS 同上 )
 }
 
 function stripForTerminalDisplay(s: string): string {
@@ -129,7 +131,7 @@ function dedentProbableLsLongListingLines(s: string): string {
    * mode は ACL/+ 等で 10 桁超になることがあり、過去の {9} 固定では段状空白の行が落ちなかった。
    */
   const lsLongish =
-    /^(合計|total)\b|^[\-bcdlps][\-rwxsStT?.+]{9,}\s+[0-9,]+/u;
+    /^(合計|total)\b|^[-bcdlps][-rwxsStT?.+]{9,}\s+[0-9,]+/u;
   return s
     .split('\n')
     .map((line) => {

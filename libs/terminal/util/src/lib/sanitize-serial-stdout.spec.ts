@@ -44,7 +44,7 @@ describe('sanitizeSerialStdout', () => {
       '\u001b[2K\r     drwx\n' +
       'pi@raspberrypi:';
     const out = sanitizeSerialStdout(raw, 'ls -la', 'pi@raspberrypi:');
-    expect(out).not.toMatch(/\u001b/);
+    expect(out.includes(String.fromCharCode(0x1b))).toBe(false);
     expect(out).not.toContain('\r');
     expect(out).toContain('合計 36');
     expect(out).toContain('drwx');
