@@ -3,6 +3,10 @@ import { Terminal } from '@xterm/xterm';
 type CommandHandler = (command: string) => Promise<string>;
 type InputEnabledHandler = () => boolean;
 
+function toXtermCrLf(text: string): string {
+  return text.replace(/\r?\n/g, '\r\n');
+}
+
 /**
  * Attaches key input handling to an xterm Terminal instance.
  * Handles Enter, Backspace, and printable characters.
@@ -43,7 +47,7 @@ export function attachTerminalInput(
       void onCommand(command)
         .then((stdout) => {
           if (stdout) {
-            terminal.write(stdout);
+            terminal.write(toXtermCrLf(stdout));
           }
           terminal.write('\r\n$ ');
         })
