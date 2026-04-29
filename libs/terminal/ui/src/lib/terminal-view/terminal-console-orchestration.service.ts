@@ -13,6 +13,7 @@ import {
   firstValueFrom,
   switchMap,
   take,
+  tap,
 } from 'rxjs';
 
 export interface TerminalConsoleSink {
@@ -23,6 +24,11 @@ export interface TerminalConsoleSink {
 /**
  * ターミナル画面向けにシリアル接続・Pi Zero bootstrap・exec を束ねる（issue #563）。
  * prompt / timeout / sanitize はここに集約し、component は表示用 sink と購読のみに寄せる。
+ *
+ * ### 生受信ミラー（issue #566）
+ *
+ * シリアルからの **ライブ表示** 専用は {@link SerialFacadeService#terminalOutput$} のみを購読する。
+ * {@link #pipeTerminalOutputToSink$} がその経路。`exec` の stdout 整形表示と二重にならないよう UI 側で使い分けること。
  */
 @Injectable({
   providedIn: 'root',
@@ -116,5 +122,15 @@ export class TerminalConsoleOrchestrationService {
       catchError(() => EMPTY),
       finalize(() => sink.write('$ ')),
     );
+  }
+
+  /**
+   * {@link SerialFacadeService#terminalOutput$}（replay 生受信）を xterm 等へ流す（issue #566）。
+   * プロンプト判定・コマンド結果の行処理には使わないこと。
+   */
+  pipeTerminalOutputToSink$(
+    sink: Pick<TerminalConsoleSink, 'write'>,
+  ): Observable<string> {
+    return this.serial.terminalOutput$.pipe(tap((chunk) => sink.write(chunk)));
   }
 }
