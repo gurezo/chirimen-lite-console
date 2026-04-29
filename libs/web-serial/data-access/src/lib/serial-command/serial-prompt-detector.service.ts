@@ -59,17 +59,44 @@ export class SerialPromptDetectorService {
   /**
    * 対話シェル到達とみなせるプロンプト（`pi@` に限らない）。
    * 既にログイン済みなのに getty 待ちへ進みタイムアウトする誤判定を防ぐ。
+   * Last login や MOTD のあとにある `pi@...$` は末尾行でなくとも検出する。
    */
   isLikelyLoggedInShellPrompt(text: string): boolean {
     if (this.isShellPrompt(text)) {
       return true;
     }
-    const line = this.trailingNonEmptyLine(text);
+    const normalized = text.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
+    // パス省略で `pi@host:$` になるとき `.+` は一致しない（`.` は 0 回以上にする）
+    if (/(?:^|[\n])[\t ]*[^\s]+@[^:]+:.*[$#%]/m.test(normalized)) {
+      return true;
+    }
+    const lines = normalized.split('\n');
+    const windowSize = Math.min(lines.length, 128);
+    for (let j = lines.length - 1; j >= lines.length - windowSize; j--) {
+      const line = (lines[j] ?? '').trimEnd().trim();
+      if (line.length === 0) {
+        continue;
+      }
+      if (this.lineLooksLikeSerialAuthPrompt(line)) {
+        continue;
+      }
+      if (/^[^\s]+@[^:]+:.*[$#%]\s*$/.test(line)) {
+        return true;
+      }
+    }
+    const line = this.trailingNonEmptyLine(normalized);
     if (!line) {
       return false;
     }
-    // user@host:path $ / # / %（bash / zsh 等で一般的な末尾）
-    return /^[^\s]+@[^:]+:.+[$#%]\s*$/.test(line);
+    return /^[^\s]+@[^:]+:.*[$#%]\s*$/.test(line);
+  }
+
+  /** login: / Password: 単独行のときはシェル到達とはみなさない */
+  private lineLooksLikeSerialAuthPrompt(trimmedSingleLine: string): boolean {
+    return (
+      /(?:[Ll]ogin|ログイン)\s*:\s*$/u.test(trimmedSingleLine) ||
+      /[Pp]assword\s*:\s*$/.test(trimmedSingleLine)
+    );
   }
 
   /**
@@ -103,12 +130,46 @@ export class SerialPromptDetectorService {
 
   /**
    * 任意の文字列／正規表現による一致（汎用コマンド実行の `prompt` オプション用）。
+   *
+   * `user@host:…` を部分文字列のみでなく **末尾が入力待ち** のときだけ真にする（issue: エコー行
+   * `pi@…:$ ls -la` に含まれる `pi@…:` が即一致し、実行結果を待たずに完了扱いになる）。
    */
   matchesPrompt(input: string, prompt: string | RegExp): boolean {
     if (typeof prompt === 'string') {
-      return input.includes(prompt);
+      return this.matchesStringPrompt(input, prompt);
     }
     prompt.lastIndex = 0;
     return prompt.test(input);
+  }
+
+  private matchesStringPrompt(input: string, prompt: string): boolean {
+    if (!prompt.length) {
+      return false;
+    }
+
+    /** `pi@raspberrypi:` のようなユーザー@ホストプリフィックスのみ厳しく扱う */
+    const isUserHostColonPrefix = /^[^\s]+@[^\s:]+:/.test(prompt);
+
+    if (isUserHostColonPrefix) {
+      if (!input.includes(prompt)) {
+        return false;
+      }
+      const line = this.trailingNonEmptyLine(
+        input.replace(/\r\n/g, '\n').replace(/\r/g, '\n'),
+      );
+      return (
+        line.includes(prompt) && this.idleInteractiveShellTrailingLine(line)
+      );
+    }
+
+    return input.includes(prompt);
+  }
+
+  /**
+   * エコー中の `…$ ls` / `…# command` ではなく、シェルが入力待ちで行末がプロンプトで終わるか。
+   */
+  private idleInteractiveShellTrailingLine(line: string): boolean {
+    const t = line.trimEnd();
+    return /[$#%]\s*$/.test(t);
   }
 }

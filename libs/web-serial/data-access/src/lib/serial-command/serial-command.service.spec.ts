@@ -9,6 +9,8 @@ import { SerialCommandRunnerService } from './serial-command-runner.service';
 import { SerialPromptDetectorService } from './serial-prompt-detector.service';
 import { SerialCommandService } from './serial-command-facade.service';
 
+/** モックの入力待ち行（実機 PS1 で `matchesPrompt` が厳格になる）。単独の `pi@…:` だけでは終了しない。 */
+const MOCK_PS1_TAIL = `${PI_ZERO_PROMPT}~$`;
 /** チャンク入力の代わりに、改行区切りで 1 行ずつ emit（getReadStream＝lines$ 相当）。 */
 function emitAsLines(subject: Subject<string>, raw: string): void {
   const normalized = raw.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
@@ -19,8 +21,10 @@ function emitAsLines(subject: Subject<string>, raw: string): void {
 
 function createService() {
   const lines = new Subject<string>();
+  const receiveChunks = new Subject<string>();
   const transport = {
     getReadStream: () => lines.asObservable(),
+    receive$: receiveChunks.asObservable(),
     write: vi.fn(
       () =>
         new Observable<void>((subscriber) => {
@@ -38,7 +42,7 @@ function createService() {
   );
   const service = new SerialCommandService(runner, queue);
   service.startReadLoop();
-  return { service, lines, transport, promptDetector };
+  return { service, lines, receiveChunks, transport, promptDetector };
 }
 
 describe('SerialCommandService', () => {
@@ -61,7 +65,7 @@ describe('SerialCommandService', () => {
     );
 
     releaseWrite?.();
-    emitAsLines(lines, `ls\r\noutput\r\n${PI_ZERO_PROMPT}`);
+    emitAsLines(lines, `ls\r\noutput\r\n${MOCK_PS1_TAIL}`);
 
     const result = await execPromise;
     expect(result.stdout).toContain(PI_ZERO_PROMPT);
@@ -80,11 +84,33 @@ describe('SerialCommandService', () => {
     );
 
     queueMicrotask(() => {
-      emitAsLines(lines, `welcome\r\n${PI_ZERO_PROMPT}`);
+      emitAsLines(lines, `welcome\r\n${MOCK_PS1_TAIL}`);
     });
 
     const result = await readPromise;
     expect(result.stdout).toContain(PI_ZERO_PROMPT);
+  });
+
+  it('readUntilPrompt matches shell prompt that arrives only on receive$ chunks (no newline yet)', async () => {
+    const { service, receiveChunks } = createService();
+
+    const readPromise = firstValueFrom(
+      service.readUntilPrompt$({
+        prompt: '',
+        promptMatch: (buf) =>
+          buf.includes(`${PI_ZERO_PROMPT}~`) && /\$\s*$/.test(buf.trimEnd()),
+        timeout: 1000,
+        retry: 0,
+      }),
+    );
+
+    queueMicrotask(() => {
+      receiveChunks.next(`${PI_ZERO_PROMPT}~`);
+      receiveChunks.next('$ ');
+    });
+
+    const result = await readPromise;
+    expect(result.stdout).toContain(`${PI_ZERO_PROMPT}~$`);
   });
 
   it('readUntilPrompt sees data already buffered before the wait starts', async () => {
@@ -153,7 +179,7 @@ describe('SerialCommandService', () => {
     );
 
     releaseWrite?.();
-    emitAsLines(lines, `echo hi\r\nhi\r\n${PI_ZERO_PROMPT}`);
+    emitAsLines(lines, `echo hi\r\nhi\r\n${MOCK_PS1_TAIL}`);
 
     const result = await execPromise;
     expect(result.stdout).toContain('hi');
@@ -178,7 +204,7 @@ describe('SerialCommandService', () => {
     );
 
     releaseWrite?.();
-    emitAsLines(lines, `ls\r\noutput\r\n${PI_ZERO_PROMPT}`);
+    emitAsLines(lines, `ls\r\noutput\r\n${MOCK_PS1_TAIL}`);
 
     const result = await resultPromise;
     expect(result.stdout).toContain(PI_ZERO_PROMPT);
@@ -222,7 +248,7 @@ describe('SerialCommandService', () => {
       }),
     );
     await new Promise((r) => setTimeout(r, 70));
-    emitAsLines(lines, `out\r\n${PI_ZERO_PROMPT}`);
+    emitAsLines(lines, `out\r\n${MOCK_PS1_TAIL}`);
     const result = await execPromise;
     expect(result.stdout).toContain(PI_ZERO_PROMPT);
     expect(writeCount).toBe(2);
@@ -344,11 +370,11 @@ describe('SerialCommandService', () => {
 
     finishFirst.next();
     finishFirst.complete();
-    emitAsLines(lines, `${PI_ZERO_PROMPT}`);
+    emitAsLines(lines, `${MOCK_PS1_TAIL}`);
 
     await expect(p2).rejects.toThrow('All commands cancelled');
 
-    emitAsLines(lines, `${PI_ZERO_PROMPT}`);
+    emitAsLines(lines, `${MOCK_PS1_TAIL}`);
 
     const [r1, r3] = await Promise.all([p1, p3]);
     expect(r1.stdout).toContain(PI_ZERO_PROMPT);

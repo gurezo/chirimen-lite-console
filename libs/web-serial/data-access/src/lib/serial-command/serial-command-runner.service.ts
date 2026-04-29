@@ -21,6 +21,7 @@ import {
 import {
   DEFAULT_SERIAL_EXEC_OPTIONS,
   mergeSerialExecOptions,
+  stripSerialAnsiForPrompt,
   type SerialExecOptions,
 } from '@libs-web-serial-util';
 import { stripLineForPromptDetection } from './ansi-strip.util';
@@ -37,16 +38,24 @@ import { SerialTransportService } from '../serial-transport.service';
  *
  * ### 受信（issue #559）
  *
- * {@link SerialTransportService#getReadStream}（= {@link SerialTransportService#commandResultLines$} / `SerialSession.lines$` と同根の**行**ストリーム）のみを購読する。
- * プロンプト・ログイン判定は **行単位**に strip したテキストを {@link readBuffer} に連結して行い、
- * 判定は {@link SerialPromptDetectorService} に委ねる。
+ * {@link SerialTransportService#getReadStream}（行）と {@link SerialTransportService#receive$}（生チャンク）を購読する。
+ *
+ * ### 行未完（issue: Web Serial でプロンプトが lone \\r で改行しない）
+ *
+ * `lines$` だけだと未完行が {@link readBuffer} に載らずプロンプト待ちがタイムアウトする場合があるため、
+ * `receive$` の末尾のみ（最大 {@link RECEIVE_TAIL_MAX_LEN}）を strip 後に別バッファに保持し、
+ * プロンプト照合対象として {@link readBuffer} と連結する。
  */
 @Injectable({
   providedIn: 'root',
 })
 export class SerialCommandRunnerService {
+  private static readonly RECEIVE_TAIL_MAX_LEN = 6_144;
+
   private readBuffer = '';
   private readSubscription: Subscription | null = null;
+  private rawReceiveTail = '';
+  private receiveSubscription: Subscription | null = null;
   /** 受信行でバッファが更新されたことを Observable 側の待機に伝える */
   private readonly bufferNotify$ = new Subject<void>();
 
@@ -57,12 +66,13 @@ export class SerialCommandRunnerService {
   ) {}
 
   /**
-   * 接続後に呼び出し、`commandResultLines$` 経路（{@link SerialTransportService#getReadStream}）だけを購読する。
-   * 各エミットは 1 行。プロンプト検出用に {@link stripLineForPromptDetection} 後の行＋改行を {@link readBuffer} へ蓄積する。
+   * 接続後に呼び出し、`getReadStream`（行）と `receive$` を購読する。
    */
   startReadLoop(): void {
     this.readBuffer = '';
+    this.rawReceiveTail = '';
     this.readSubscription?.unsubscribe();
+    this.receiveSubscription?.unsubscribe();
     this.readSubscription = this.transport.getReadStream().subscribe({
       next: (line) => {
         this.readBuffer +=
@@ -72,6 +82,19 @@ export class SerialCommandRunnerService {
       },
       error: (err) => console.error('Serial read stream error:', err),
     });
+    this.receiveSubscription = this.transport.receive$.subscribe({
+      next: (chunk) => {
+        if (!chunk?.length) {
+          return;
+        }
+        const cleaned = stripSerialAnsiForPrompt(chunk);
+        this.rawReceiveTail = (
+          this.rawReceiveTail + cleaned
+        ).slice(-SerialCommandRunnerService.RECEIVE_TAIL_MAX_LEN);
+        this.bufferNotify$.next();
+      },
+      error: (err: unknown) => console.error('Serial receive stream error:', err),
+    });
   }
 
   /**
@@ -80,18 +103,44 @@ export class SerialCommandRunnerService {
   stopReadLoop(): void {
     this.readSubscription?.unsubscribe();
     this.readSubscription = null;
+    this.receiveSubscription?.unsubscribe();
+    this.receiveSubscription = null;
     this.readBuffer = '';
+    this.rawReceiveTail = '';
   }
 
   /**
    * 読み取りストリームを購読中か
    */
   isReading(): boolean {
-    return this.readSubscription != null && !this.readSubscription.closed;
+    return (
+      this.readSubscription != null &&
+      !this.readSubscription.closed &&
+      this.receiveSubscription != null &&
+      !this.receiveSubscription.closed
+    );
   }
 
   private clearReadBuffer(): void {
     this.readBuffer = '';
+    this.rawReceiveTail = '';
+  }
+
+  /**
+   * getty が `\r` のみで行を終わらせたり、chunks が `\r` / `\r\n` 混在だとプロンプト正規表現がずれる。
+   * 行バッファと受信テールを連結した直後に適用する。
+   */
+  private normalizeInspectionBufferText(s: string): string {
+    return s.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
+  }
+
+  /** lines$ の完了行 + receive$ の未完テキスト末尾（プロンプト照合用） */
+  private promptInspectionBuffer(): string {
+    const raw =
+      this.readBuffer.length > 0
+        ? `${this.readBuffer}${this.rawReceiveTail}`
+        : this.rawReceiveTail;
+    return this.normalizeInspectionBufferText(raw);
   }
 
   /**
@@ -108,13 +157,14 @@ export class SerialCommandRunnerService {
         if (!this.commandQueue.isGenerationActive(enqueuedGen)) {
           throw new Error('All commands cancelled');
         }
-        return this.readBuffer;
+        return this.promptInspectionBuffer();
       }),
       filter((buf) => this.bufferMatchesPrompt(buf, config)),
       take(1),
       map((buf) => {
         const stdout = buf;
         this.readBuffer = '';
+        this.rawReceiveTail = '';
         return stdout;
       }),
       timeout({ first: config.timeout }),
@@ -179,13 +229,13 @@ export class SerialCommandRunnerService {
       }
       onAttemptStart?.();
       if (config.waitForPrompt === false) {
-        const stdout = this.readBuffer;
-        this.readBuffer = '';
+        const stdout = this.promptInspectionBuffer();
+        this.clearReadBuffer();
         return of<CommandResult>({ stdout });
       }
-      if (this.bufferMatchesPrompt(this.readBuffer, config)) {
-        const stdout = this.readBuffer;
-        this.readBuffer = '';
+      if (this.bufferMatchesPrompt(this.promptInspectionBuffer(), config)) {
+        const stdout = this.promptInspectionBuffer();
+        this.clearReadBuffer();
         return of<CommandResult>({ stdout });
       }
       return this.waitForPromptMatch$(config, enqueuedGen).pipe(

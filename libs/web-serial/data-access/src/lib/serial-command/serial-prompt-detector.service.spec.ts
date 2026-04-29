@@ -13,6 +13,24 @@ describe('SerialPromptDetectorService', () => {
     );
   });
 
+  it('matchesPrompt rejects user@host: on echoed command line (text after $)', () => {
+    expect(
+      detector.matchesPrompt(
+        'pi@raspberrypi:~$ ls -la',
+        'pi@raspberrypi:',
+      ),
+    ).toBe(false);
+  });
+
+  it('matchesPrompt accepts idle user@host: line after command output', () => {
+    expect(
+      detector.matchesPrompt(
+        'total 1\ndir\npi@raspberrypi:~$ ',
+        'pi@raspberrypi:',
+      ),
+    ).toBe(true);
+  });
+
   it('matches RegExp prompt', () => {
     const re = /login:\s*$/i;
     expect(detector.matchesPrompt('raspberrypi login: ', re)).toBe(true);
@@ -55,6 +73,20 @@ describe('SerialPromptDetectorService', () => {
       detector.isLikelyLoggedInShellPrompt('boot\nroot@raspberrypi:~# '),
     ).toBe(true);
     expect(detector.isLikelyLoggedInShellPrompt('kernel: blah')).toBe(false);
+  });
+
+  it('isLikelyLoggedInShellPrompt finds pi@ line after Last login motd', () => {
+    expect(
+      detector.isLikelyLoggedInShellPrompt(
+        'Last login: Mon Jan 01 00:00:00 2024\nLinux raspberrypi\npi@raspberrypi:~$ ',
+      ),
+    ).toBe(true);
+  });
+
+  it('isLikelyLoggedInShellPrompt accepts empty path pi@host:$', () => {
+    expect(detector.isLikelyLoggedInShellPrompt('foo\npi@raspberrypi:$')).toBe(
+      true,
+    );
   });
 
   it('isCommandCompleted matches shell prompt return', () => {
