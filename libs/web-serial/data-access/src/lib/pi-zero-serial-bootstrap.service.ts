@@ -79,7 +79,8 @@ export class PiZeroSerialBootstrapService {
     return this.serial
       .readUntilPrompt$({
         prompt: '',
-        promptMatch: (buf) => this.promptDetector.isShellPrompt(buf),
+        promptMatch: (buf) =>
+          this.promptDetector.isLikelyLoggedInShellPrompt(buf),
         timeout: SERIAL_TIMEOUT.SHELL_PROMPT_PROBE,
       })
       .pipe(
@@ -98,9 +99,10 @@ export class PiZeroSerialBootstrapService {
         prompt: '',
         promptMatch: (buf) =>
           this.promptDetector.isAwaitingLoginName(buf) ||
-          this.promptDetector.isAwaitingPasswordInput(buf),
-        // 起動直後のログ出しが続くと login: 行が遅延することがある。
-        // Password のみ提示済みでもマッチさせる。
+          this.promptDetector.isAwaitingPasswordInput(buf) ||
+          this.promptDetector.isLoginPrompt(buf) ||
+          this.promptDetector.isPasswordPrompt(buf),
+        // getty の(login:/Password:) が末尾行だけに現れず、バッファ内にのみある場合にも一致させる。
         timeout: SERIAL_TIMEOUT.LONG,
       })
       .pipe(
@@ -117,7 +119,8 @@ export class PiZeroSerialBootstrapService {
             log('[コンソール] パスワードを送信中（画面には表示しません）...');
             return this.serial.exec$(PI_ZERO_LOGIN_PASSWORD, {
               prompt: '',
-              promptMatch: (buf) => this.promptDetector.isShellPrompt(buf),
+              promptMatch: (buf) =>
+                this.promptDetector.isLikelyLoggedInShellPrompt(buf),
               timeout: SERIAL_TIMEOUT.LONG,
               retry: 1,
             }).pipe(tap(() => log('[コンソール] ログインが完了しました。')));
@@ -141,7 +144,8 @@ export class PiZeroSerialBootstrapService {
               switchMap(() =>
                 this.serial.exec$(PI_ZERO_LOGIN_PASSWORD, {
                   prompt: '',
-                  promptMatch: (buf) => this.promptDetector.isShellPrompt(buf),
+                  promptMatch: (buf) =>
+                    this.promptDetector.isLikelyLoggedInShellPrompt(buf),
                   timeout: SERIAL_TIMEOUT.LONG,
                   retry: 1,
                 }),
@@ -164,7 +168,8 @@ export class PiZeroSerialBootstrapService {
         return this.serial
           .exec$(step.command, {
             prompt: '',
-            promptMatch: (buf) => this.promptDetector.isShellPrompt(buf),
+            promptMatch: (buf) =>
+              this.promptDetector.isLikelyLoggedInShellPrompt(buf),
             timeout: SERIAL_TIMEOUT.SHORT,
           })
           .pipe(
