@@ -3,11 +3,11 @@ import {
   type ConnectClient,
   createConnectClient,
 } from '@libs-connect-util';
-import { sanitizeSerialStdout } from '@libs-terminal-util';
 import {
   PI_ZERO_LOGIN_PASSWORD,
   PI_ZERO_LOGIN_USER,
   SERIAL_TIMEOUT,
+  stripSerialAnsiForPrompt,
 } from '@libs-web-serial-util';
 import type { Observable } from 'rxjs';
 import {
@@ -26,6 +26,16 @@ import { SerialFacadeService } from './serial-facade.service';
 import type { CommandResult } from './serial-command/serial-command-types';
 
 export type PiZeroBootstrapStatusHandler = (line: string) => void;
+
+/**
+ * `sanitizeSerialStdout`（ls エコー除去・広い dedent）は重く、イベントループや将来の変更でログイン処理に波及しうるため、
+ * ステータス行のログのみ CR/LF 正規化＋弱 ANSI 除去に留める。
+ */
+function formatExecStdoutForStatusLog(stdout: string): string {
+  let s = stdout.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
+  s = stripSerialAnsiForPrompt(s);
+  return s.replace(/\u001b7|\u001b8/g, '');
+}
 
 /**
  * Pi Zero / CHIRIMEN 向けのログイン・環境初期化パイプライン（シリアル送受信は {@link SerialFacadeService}）。
@@ -94,65 +104,80 @@ export class PiZeroSerialBootstrapService {
 
   private loginSequence$(log: PiZeroBootstrapStatusHandler): Observable<void> {
     log('[コンソール] ログイン画面を検出しました。');
+    // getty はプロンプト末尾を CR のみにすることが多く、web-serial-rxjs の行分割では
+    // 末尾が lone \r のとき行が emit されない。改行を送って確定させる。
+    return this.serial.write$('\r\n').pipe(
+      switchMap(() =>
+        this.serial.readUntilPrompt$({
+          prompt: '',
+          promptMatch: (buf) =>
+            this.promptDetector.isAwaitingLoginName(buf) ||
+            this.promptDetector.isAwaitingPasswordInput(buf) ||
+            this.promptDetector.isLoginPrompt(buf) ||
+            this.promptDetector.isPasswordPrompt(buf),
+          // getty が遅い／MOTD が長いと LONG では間に合わないことがある。lone \r で行が未完の間も検出できるよう時間に余裕を持つ。
+          timeout: SERIAL_TIMEOUT.FILE_TRANSFER,
+        }),
+      ),
+      switchMap((result: CommandResult) => {
+        const stdout = typeof result.stdout === 'string' ? result.stdout : '';
+        const pwdOnly =
+          this.promptDetector.isAwaitingPasswordInput(stdout) &&
+          !this.promptDetector.isAwaitingLoginName(stdout);
+        if (pwdOnly) {
+          log(
+            '[コンソール] パスワード入力画面を検出しました（ユーザー名入力は省略します）。',
+          );
+          log('[コンソール] パスワードを送信中（画面には表示しません）...');
+          return this.awaitLoggedInInteractiveShellPromptAfterSendingPassword$().pipe(
+            tap(() => log('[コンソール] ログインが完了しました。')),
+          );
+        }
+        log(`[コンソール] ログインユーザー「${PI_ZERO_LOGIN_USER}」を送信中...`);
+        return this.serial
+          .exec$(PI_ZERO_LOGIN_USER, {
+            prompt: '',
+            promptMatch: (buf) => this.promptDetector.isPasswordPrompt(buf),
+            /** getty／MOTD が長いとき Password: が遅れることがあるため DEFAULT より長く取る */
+            timeout: SERIAL_TIMEOUT.LONG,
+            retry: 1,
+          })
+          .pipe(
+            tap(() => {
+              log('[コンソール] パスワードを送信中（画面には表示しません）...');
+            }),
+            switchMap(() =>
+              this.awaitLoggedInInteractiveShellPromptAfterSendingPassword$(),
+            ),
+            tap(() => log('[コンソール] ログインが完了しました。')),
+          );
+      }),
+      map(() => undefined),
+    );
+  }
+
+  /**
+   * パスワード送出後、その行だけでは pi@ が lines$ に乗らない場合があるので
+   * wait を切り、続けて改行送信で getty が出したログイン／シェルを行としてフラッシュしたうえで検出する。
+   */
+  private awaitLoggedInInteractiveShellPromptAfterSendingPassword$(): Observable<void> {
     return this.serial
-      .readUntilPrompt$({
+      .exec$(PI_ZERO_LOGIN_PASSWORD, {
         prompt: '',
-        promptMatch: (buf) =>
-          this.promptDetector.isAwaitingLoginName(buf) ||
-          this.promptDetector.isAwaitingPasswordInput(buf) ||
-          this.promptDetector.isLoginPrompt(buf) ||
-          this.promptDetector.isPasswordPrompt(buf),
-        // getty の(login:/Password:) が末尾行だけに現れず、バッファ内にのみある場合にも一致させる。
-        timeout: SERIAL_TIMEOUT.LONG,
+        promptMatch: () => false,
+        waitForPrompt: false,
+        timeout: SERIAL_TIMEOUT.SHORT,
       })
       .pipe(
-        switchMap((result: CommandResult) => {
-          const stdout =
-            typeof result.stdout === 'string' ? result.stdout : '';
-          const pwdOnly =
-            this.promptDetector.isAwaitingPasswordInput(stdout) &&
-            !this.promptDetector.isAwaitingLoginName(stdout);
-          if (pwdOnly) {
-            log(
-              '[コンソール] パスワード入力画面を検出しました（ユーザー名入力は省略します）。',
-            );
-            log('[コンソール] パスワードを送信中（画面には表示しません）...');
-            return this.serial.exec$(PI_ZERO_LOGIN_PASSWORD, {
-              prompt: '',
-              promptMatch: (buf) =>
-                this.promptDetector.isLikelyLoggedInShellPrompt(buf),
-              timeout: SERIAL_TIMEOUT.LONG,
-              retry: 1,
-            }).pipe(tap(() => log('[コンソール] ログインが完了しました。')));
-          }
-          log(
-            `[コンソール] ログインユーザー「${PI_ZERO_LOGIN_USER}」を送信中...`,
-          );
-          return this.serial
-            .exec$(PI_ZERO_LOGIN_USER, {
-              prompt: '',
-              promptMatch: (buf) => this.promptDetector.isPasswordPrompt(buf),
-              timeout: SERIAL_TIMEOUT.DEFAULT,
-              retry: 1,
-            })
-            .pipe(
-              tap(() => {
-                log(
-                  '[コンソール] パスワードを送信中（画面には表示しません）...',
-                );
-              }),
-              switchMap(() =>
-                this.serial.exec$(PI_ZERO_LOGIN_PASSWORD, {
-                  prompt: '',
-                  promptMatch: (buf) =>
-                    this.promptDetector.isLikelyLoggedInShellPrompt(buf),
-                  timeout: SERIAL_TIMEOUT.LONG,
-                  retry: 1,
-                }),
-              ),
-              tap(() => log('[コンソール] ログインが完了しました。')),
-            );
-        }),
+        switchMap(() => this.serial.write$('\r\n')),
+        switchMap(() =>
+          this.serial.readUntilPrompt$({
+            prompt: '',
+            promptMatch: (buf) =>
+              this.promptDetector.isLikelyLoggedInShellPrompt(buf),
+            timeout: SERIAL_TIMEOUT.FILE_TRANSFER,
+          }),
+        ),
         map(() => undefined),
       );
   }
@@ -174,13 +199,11 @@ export class PiZeroSerialBootstrapService {
           })
           .pipe(
             tap(({ stdout }) => {
-              const cleaned = sanitizeSerialStdout(
+              const cleaned = formatExecStdoutForStatusLog(
                 typeof stdout === 'string' ? stdout : '',
-                step.command,
-                client.prompt,
               );
-              for (const line of cleaned.split(/\r?\n/)) {
-                if (line.length > 0) {
+              for (const line of cleaned.split(/\n/)) {
+                if (line.trim().length > 0) {
                   log(line);
                 }
               }
