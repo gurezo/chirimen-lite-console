@@ -25,6 +25,22 @@ export class SerialPromptDetectorService {
    */
   private readonly shellPromptLinePattern = /pi@[^:\r\n]+:/;
 
+  /**
+   * getty の入力待ちを **末尾の非空行** で見る（バッファ先頭に `login:` が残っていても
+   * 実際には `Password:` 待ち、などを区別するため）。
+   */
+  private trailingNonEmptyLine(text: string): string {
+    const normalized = text.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
+    const lines = normalized.split('\n');
+    for (let i = lines.length - 1; i >= 0; i--) {
+      const t = lines[i]?.trim();
+      if (t && t.length > 0) {
+        return t;
+      }
+    }
+    return '';
+  }
+
   isLoginPrompt(text: string): boolean {
     this.loginLinePattern.lastIndex = 0;
     return this.loginLinePattern.test(text);
@@ -38,6 +54,28 @@ export class SerialPromptDetectorService {
   isShellPrompt(text: string): boolean {
     this.shellPromptLinePattern.lastIndex = 0;
     return this.shellPromptLinePattern.test(text);
+  }
+
+  /**
+   * 末尾行がユーザー名入力待ちの `login:` / `ログイン:`（getty の現在のプロンプト）
+   */
+  isAwaitingLoginName(text: string): boolean {
+    const line = this.trailingNonEmptyLine(text);
+    if (!line) {
+      return false;
+    }
+    return /(?:[Ll]ogin|ログイン)\s*:\s*$/.test(line);
+  }
+
+  /**
+   * 末尾がパスワード入力待ち（接続直後ですでに `Password:` のみ、など）。
+   */
+  isAwaitingPasswordInput(text: string): boolean {
+    const line = this.trailingNonEmptyLine(text);
+    if (!line) {
+      return false;
+    }
+    return /[Pp]assword:\s*$/.test(line);
   }
 
   /**
