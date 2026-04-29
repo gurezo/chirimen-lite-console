@@ -3,11 +3,11 @@ import {
   type ConnectClient,
   createConnectClient,
 } from '@libs-connect-util';
+import { sanitizeSerialStdout } from '@libs-terminal-util';
 import {
   PI_ZERO_LOGIN_PASSWORD,
   PI_ZERO_LOGIN_USER,
   SERIAL_TIMEOUT,
-  stripSerialAnsiForPrompt,
 } from '@libs-web-serial-util';
 import type { Observable } from 'rxjs';
 import {
@@ -26,16 +26,6 @@ import { SerialFacadeService } from './serial-facade.service';
 import type { CommandResult } from './serial-command/serial-command-types';
 
 export type PiZeroBootstrapStatusHandler = (line: string) => void;
-
-/**
- * `sanitizeSerialStdout`（ls エコー除去・広い dedent）は重く、イベントループや将来の変更でログイン処理に波及しうるため、
- * ステータス行のログのみ CR/LF 正規化＋弱 ANSI 除去に留める。
- */
-function formatExecStdoutForStatusLog(stdout: string): string {
-  let s = stdout.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
-  s = stripSerialAnsiForPrompt(s);
-  return s.replace(/\u001b7|\u001b8/g, '');
-}
 
 /**
  * Pi Zero / CHIRIMEN 向けのログイン・環境初期化パイプライン（シリアル送受信は {@link SerialFacadeService}）。
@@ -199,8 +189,12 @@ export class PiZeroSerialBootstrapService {
           })
           .pipe(
             tap(({ stdout }) => {
-              const cleaned = formatExecStdoutForStatusLog(
+              // コンソールログ: 送信コマンドと末尾プロンプト除去。xterm の強 dedent は lineStream で避ける
+              const cleaned = sanitizeSerialStdout(
                 typeof stdout === 'string' ? stdout : '',
+                step.command,
+                client.prompt,
+                'lineStreamMirrored',
               );
               for (const line of cleaned.split(/\n/)) {
                 if (line.trim().length > 0) {
