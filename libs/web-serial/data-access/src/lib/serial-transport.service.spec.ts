@@ -30,12 +30,14 @@ vi.mock('@gurezo/web-serial-rxjs', async (importOriginal) => {
 function buildMockSession(
   port: SerialPort | null,
   lines$?: Observable<string>,
+  receive$?: Observable<string>,
 ): SerialSession {
   const state$ = new BehaviorSubject<SerialSessionState>(
     SerialSessionState.Connecting
   );
   const isConnected$ = new BehaviorSubject(false);
   const getCurrentPort = vi.fn<[], SerialPort | null>(() => port);
+  const receiveStream = receive$ ?? EMPTY;
 
   return {
     isBrowserSupported: () => true,
@@ -59,7 +61,8 @@ function buildMockSession(
     getPortInfo: vi.fn(() => null),
     getCurrentPort,
     errors$: EMPTY,
-    receive$: EMPTY,
+    receive$: receiveStream,
+    receiveReplay$: receiveStream,
     lines$: lines$ ?? of('line1'),
     send$: vi.fn(() => of(undefined)),
   } as unknown as SerialSession;
@@ -149,5 +152,32 @@ describe('SerialTransportService', () => {
     const readPromise = firstValueFrom(service.getReadStream().pipe(take(1)));
     queueMicrotask(() => lineSubject.next('expected-line'));
     expect(await readPromise).toBe('expected-line');
+  });
+
+  it('should emit from receive$ and receiveReplay$ when session is active', async () => {
+    const mockPort = {} as SerialPort;
+    const chunkSubject = new Subject<string>();
+    mockCreateSerialSession.mockReturnValue(
+      buildMockSession(mockPort, undefined, chunkSubject.asObservable()),
+    );
+
+    await firstValueFrom(service.connect$());
+
+    const receivePromise = firstValueFrom(service.receive$.pipe(take(1)));
+    const replayPromise = firstValueFrom(service.receiveReplay$.pipe(take(1)));
+    queueMicrotask(() => chunkSubject.next('raw-chunk'));
+    expect(await receivePromise).toBe('raw-chunk');
+    expect(await replayPromise).toBe('raw-chunk');
+  });
+
+  it('write should delegate to session send$', async () => {
+    const mockPort = {} as SerialPort;
+    const session = buildMockSession(mockPort);
+    mockCreateSerialSession.mockReturnValue(session);
+
+    await firstValueFrom(service.connect$());
+    await firstValueFrom(service.write('hello'));
+
+    expect(session.send$).toHaveBeenCalledWith('hello');
   });
 });
