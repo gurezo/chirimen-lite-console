@@ -31,6 +31,10 @@ import {
   templateUrl: './terminal-view.component.html',
 })
 export class TerminalViewComponent implements AfterViewInit, OnDestroy {
+  private static toXtermCrLf(text: string): string {
+    return text.replace(/\r?\n/g, '\r\n');
+  }
+
   /**
    * シリアル側のシェルプロンプト（サービス側の prompt 待機に渡す）
    */
@@ -147,7 +151,7 @@ export class TerminalViewComponent implements AfterViewInit, OnDestroy {
             }
             const out = result.output;
             if (out) {
-              this.xterminal.write(out);
+              this.xterminal.write(TerminalViewComponent.toXtermCrLf(out));
             }
             this.xterminal.write('\r\n$ ');
           },
