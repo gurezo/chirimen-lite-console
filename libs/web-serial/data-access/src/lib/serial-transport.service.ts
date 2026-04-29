@@ -19,6 +19,7 @@ import {
   NEVER,
   Observable,
   of,
+  share,
   shareReplay,
   switchMap,
   tap,
@@ -93,15 +94,17 @@ export class SerialTransportService {
     switchMap((s) => (s ? s.lines$ : NEVER))
   );
 
+  /** 生チャンク（共有化済み）。複数購読でも session.receive$ は 1 本に保つ。 */
+  readonly receive$ = this.activeSession$.pipe(
+    switchMap((s) => s?.receive$ ?? EMPTY),
+    share()
+  );
+
   /**
    * terminal helper で整形済みの表示向けテキスト。
-   * `createTerminalBuffer(session.receive$).text$` をそのまま公開する。
+   * `createTerminalBuffer(session.receive$).text$` を shared な receive$ 上で公開する。
    */
-  readonly terminalText$ = this.activeSession$.pipe(
-    switchMap((s) =>
-      s ? createTerminalBuffer(s.receive$).text$ : NEVER
-    )
-  );
+  readonly terminalText$ = createTerminalBuffer(this.receive$).text$;
 
   /**
    * コマンド実行・プロンプト判定用の **行** ストリーム（`SerialSession.lines$` と同根、issue #566）。
@@ -115,15 +118,6 @@ export class SerialTransportService {
         : NEVER
     )
   );
-
-  /**
-   * ライブラリ {@link SerialSession.receive$}。未接続時は空ストリーム。
-   */
-  get receive$(): Observable<string> {
-    return this.activeSession$.pipe(
-      switchMap((s) => s?.receive$ ?? EMPTY)
-    );
-  }
 
   /**
    * ライブラリ {@link SerialSession.receiveReplay$}。未接続時は空ストリーム。
