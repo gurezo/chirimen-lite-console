@@ -27,7 +27,7 @@ import {
 } from '@libs-terminal-util';
 import { attachTerminalInput } from '../terminal-input';
 import {
-  PiZeroSerialBootstrapService,
+  PiZeroSessionService,
   SerialFacadeService,
 } from '@libs-web-serial-data-access';
 import { PI_ZERO_PROMPT, SERIAL_TIMEOUT } from '@libs-web-serial-util';
@@ -49,7 +49,7 @@ export class TerminalViewComponent implements AfterViewInit, OnDestroy {
   private consoleDomRef?: ElementRef<HTMLElement>;
 
   private serial = inject(SerialFacadeService);
-  private piZeroBootstrap = inject(PiZeroSerialBootstrapService);
+  private piZeroSession = inject(PiZeroSessionService);
   private commandRequests = inject(TerminalCommandRequestService);
   private destroyRef = inject(DestroyRef);
 
@@ -192,7 +192,7 @@ export class TerminalViewComponent implements AfterViewInit, OnDestroy {
   }
 
   private bootstrapAfterConnect$(prefixMessage: string) {
-    return this.piZeroBootstrap.shouldRunAfterConnect$().pipe(
+    return this.piZeroSession.bootstrap.shouldRunAfterConnect$().pipe(
       switchMap((should) => {
         if (!should) {
           this.xterminal.writeln(
@@ -202,7 +202,7 @@ export class TerminalViewComponent implements AfterViewInit, OnDestroy {
           return EMPTY;
         }
         this.xterminal.writeln(`${prefixMessage} 初期化しています...`);
-        return this.piZeroBootstrap.runAfterConnect$((line) =>
+        return this.piZeroSession.bootstrap.runAfterConnect$((line) =>
           this.xterminal.writeln(line),
         );
       }),
