@@ -18,6 +18,10 @@
 | 基盤 | web-serial | Web Serial API のラップ・状態管理 |
 | その他 | page-not-found, unsupported-browser | 404・非対応ブラウザ表示 |
 
+## Web Serial と外部ライブラリの境界
+
+汎用パッケージ [@gurezo/web-serial-rxjs](https://www.npmjs.com/package/@gurezo/web-serial-rxjs) と本リポジトリの役割分担、`receive$` / `receiveReplay$` / `lines$` の使い分け、新機能の置き場所の目安は [docs/serial-architecture.md](docs/serial-architecture.md) を参照する。実装レイヤの詳細は [libs/web-serial/data-access/README.md](libs/web-serial/data-access/README.md) にある。
+
 ## 依存関係
 
 - アプリ (`apps/console`) は必要な lib を `tsconfig.base.json` の path エイリアス（`@libs-*`）でインポートする。
