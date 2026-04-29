@@ -38,9 +38,18 @@ import {
  * 本サービスは `activeSession$` のみで「どのセッションを流すか」を切り替え、
  * ライブラリの Observable を重ねて二重管理しない。
  *
- * {@link #lines$} / {@link #getReadStream} は {@link SerialSession.lines$} を橋渡しする
- * （行単位）。生チャンクは {@link #receive$}、後から購読する用途は
- * {@link #receiveReplay$}（セッション作成時の replay 設定に従う）。
+ * ### 受信ストリームの使い分け（issue #559）
+ *
+ * | 用途 | stream |
+ * | --- | --- |
+ * | ターミナル表示（replay で取りこぼしにくい生受信） | {@link #receiveReplay$} |
+ * | 通常の行単位ログ | {@link #lines$} |
+ * | prompt / login / password 判定 | `receiveReplay$` または専用 stream。本アプリでは {@link #lines$} / {@link #getReadStream} の行＋`SerialCommandService` のプロンプト用バッファで判定 |
+ * | コマンド結果の行処理 | {@link #lines$} / {@link #getReadStream} |
+ * | 生チャンク | {@link #receive$} |
+ *
+ * `receiveReplay$` はチャンク単位のため、プロンプト検出をそこに寄せると行境界・ANSI 処理と齟齬が出やすい。
+ * {@link #lines$} / {@link #getReadStream} は {@link SerialSession.lines$} への橋渡し（改行区切りの行文字列）。
  */
 @Injectable({
   providedIn: 'root',
@@ -189,15 +198,15 @@ export class SerialTransportService {
 
   /**
    * 読み取りストリーム（**1 改行区切りごとに 1 エミット**する行文字列）。
-   * {@link SerialSession.lines$} へ委譲。セッションが無い場合は throwError。
+   * {@link #lines$} と同じ {@link SerialSession.lines$} 源。接続済みチェックのため
+   * セッション欠如時は throwError（{@link #lines$} は未接続時 `NEVER`）。
    */
   getReadStream(): Observable<string> {
     return defer(() => {
-      const s = this.session;
-      if (!s) {
+      if (!this.session) {
         return throwError(() => new Error('Serial port not connected'));
       }
-      return s.lines$.pipe(
+      return this.lines$.pipe(
         catchError((err: unknown) =>
           throwError(() => new Error(getReadErrorMessage(err)))
         )
