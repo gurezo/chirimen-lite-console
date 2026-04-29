@@ -1,18 +1,41 @@
 <section
   class="flex h-full min-h-0 flex-col items-center justify-center gap-4 text-center"
 >
-  @if (connectionStatus$ | async; as status) {
-    <lib-connection-status
-      [status]="status"
-      [message]="disconnectedMessage"
-      [imageSrc]="imageSrc"
-      [imageAlt]="imageAlt"
-    />
-    @if (status === 'disconnected') {
-      <lib-connect-button
-        [label]="connectButtonLabel"
-        (connect)="onConnect()"
+  @if (vm$ | async; as vm) {
+    @if (!vm.isBrowserSupported) {
+      <p class="text-red-600">
+        このブラウザは Web Serial API に対応していません。Chromium
+        系ブラウザをご利用ください。
+      </p>
+    } @else {
+      @let status =
+        vm.isConnecting
+          ? 'connecting'
+          : vm.isConnected
+            ? 'connected'
+            : 'disconnected';
+      <lib-connection-status
+        [status]="status"
+        [message]="disconnectedMessage"
+        [imageSrc]="imageSrc"
+        [imageAlt]="imageAlt"
       />
+      @if (vm.errorMessage) {
+        <p class="text-sm text-red-600" role="alert">{{ vm.errorMessage }}</p>
+        <button
+          type="button"
+          class="text-sm underline"
+          (click)="onClearError()"
+        >
+          エラーを閉じる
+        </button>
+      }
+      @if (status === 'disconnected') {
+        <lib-connect-button
+          [label]="connectButtonLabel"
+          (connect)="onConnect()"
+        />
+      }
     }
   }
 </section>

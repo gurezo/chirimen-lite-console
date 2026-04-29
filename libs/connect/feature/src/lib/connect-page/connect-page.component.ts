@@ -3,13 +3,8 @@ import { Component, inject } from '@angular/core';
 import {
   ConnectButtonComponent,
   ConnectionStatusComponent,
-  type ConnectStatus,
 } from '@libs-connect-ui';
-import {
-  SerialFacadeService,
-  SerialNotificationService,
-} from '@libs-web-serial-data-access';
-import { map, take } from 'rxjs';
+import { SerialConnectionViewModelFacade } from '@libs-web-serial-data-access';
 
 @Component({
   selector: 'lib-connect-page',
@@ -18,32 +13,21 @@ import { map, take } from 'rxjs';
   templateUrl: './connect-page.component.html',
 })
 export class ConnectPageComponent {
-  private serial = inject(SerialFacadeService);
-  private serialNotification = inject(SerialNotificationService);
+  private readonly connectionVm = inject(SerialConnectionViewModelFacade);
+
+  readonly vm$ = this.connectionVm.vm$;
 
   disconnectedMessage =
-    'Raspberry Pi Zero と PC を USB で繋いだ後、Connect ボタンをクリックして、Web Serail を接続して下さい';
+    'Raspberry Pi Zero と PC を USB で繋いだ後、Connect ボタンをクリックして、Web Serial を接続して下さい';
   imageSrc = '/PiZeroW_OTG.jpg';
   imageAlt = 'PiZeroW_OTG';
   connectButtonLabel = 'Web Serial Connect';
 
-  connectionStatus$ = this.serial.isConnected$.pipe(
-    map(
-      (connected): ConnectStatus =>
-        connected ? 'connected' : 'disconnected',
-    ),
-  );
-
   onConnect(): void {
-    this.serial
-      .connect$()
-      .pipe(take(1))
-      .subscribe((result) => {
-        if (result.ok) {
-          this.serialNotification.notifyConnectionSuccess();
-        } else {
-          this.serialNotification.notifyConnectionError(result.errorMessage);
-        }
-      });
+    this.connectionVm.connect();
+  }
+
+  onClearError(): void {
+    this.connectionVm.clearError();
   }
 }

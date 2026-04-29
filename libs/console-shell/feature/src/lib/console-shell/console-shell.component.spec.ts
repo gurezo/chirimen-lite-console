@@ -1,51 +1,58 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { By } from '@angular/platform-browser';
 import { ActivatedRoute, Router } from '@angular/router';
+import {
+  SerialConnectionViewModelFacade,
+  type SerialConnectionViewModel,
+} from '@libs-web-serial-data-access';
 import { DialogService } from '@libs-dialogs-util';
 import { ConsoleShellStore } from '@libs-console-shell-util';
-import {
-  SerialFacadeService,
-  SerialNotificationService,
-} from '@libs-web-serial-data-access';
-import { TerminalCommandRequestService } from '@libs-terminal-util';
-import { SerialSessionState } from '@gurezo/web-serial-rxjs';
-import { BehaviorSubject, EMPTY, of } from 'rxjs';
+import { EMPTY, BehaviorSubject, of } from 'rxjs';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { ConsoleShellComponent } from './console-shell.component';
 
-function createSerialFacadeMock(isConnected: BehaviorSubject<boolean>) {
-  const connect$ = vi
-    .fn()
-    .mockReturnValue(of<{ ok: true } | { ok: false; errorMessage: string }>({ ok: true }));
-  const disconnect$ = vi.fn().mockReturnValue(of(undefined));
+function vmDefaults(
+  overrides: Partial<SerialConnectionViewModel> = {},
+): SerialConnectionViewModel {
   return {
-    get isConnected$() {
-      return isConnected.asObservable();
-    },
-    state$: of(SerialSessionState.Idle),
-    errors$: EMPTY,
-    get portInfo$() {
-      return of(null);
-    },
-    connect$,
-    disconnect$,
+    isBrowserSupported: true,
+    isConnected: false,
+    isConnecting: false,
+    isLoggedIn: false,
+    isInitializing: false,
+    errorMessage: null,
+    ...overrides,
   };
+}
+
+function createConnectionFacadeMock(initialConnected = false) {
+  const vmSubject = new BehaviorSubject(vmDefaults({ isConnected: initialConnected }));
+  const connect = vi.fn();
+  const disconnect = vi.fn();
+  const sendCommand = vi.fn();
+
+  const facade = {
+    vm$: vmSubject.asObservable(),
+    connect,
+    disconnect,
+    sendCommand,
+  };
+
+  return { facade, vmSubject };
 }
 
 describe('ConsoleShellComponent', () => {
   let component: ConsoleShellComponent;
   let fixture: ComponentFixture<ConsoleShellComponent>;
-  let connect$: ReturnType<typeof vi.fn>;
-  let disconnect$: ReturnType<typeof vi.fn>;
-  let notifyConnectionSuccess: ReturnType<typeof vi.fn>;
-  let notifyConnectionError: ReturnType<typeof vi.fn>;
+  let connect: ReturnType<typeof vi.fn>;
+  let disconnect: ReturnType<typeof vi.fn>;
+  let sendCommand: ReturnType<typeof vi.fn>;
+  let vmSubject: BehaviorSubject<SerialConnectionViewModel>;
   let openDialog: ReturnType<typeof vi.fn>;
   let closeAllDialog: ReturnType<typeof vi.fn>;
   let setActivePanel: ReturnType<typeof vi.fn>;
   let closeDialog: ReturnType<typeof vi.fn>;
   let openShellDialog: ReturnType<typeof vi.fn>;
-  let requestTerminalCommand: ReturnType<typeof vi.fn>;
-  let isConnected$: BehaviorSubject<boolean>;
   let applyConnectedLayout: ReturnType<typeof vi.fn>;
   let resetLayoutAfterDisconnect: ReturnType<typeof vi.fn>;
   let navigateSpy: ReturnType<typeof vi.fn>;
@@ -56,21 +63,20 @@ describe('ConsoleShellComponent', () => {
     activatedRouteMock = {
       firstChild: { snapshot: { url: [{ path: 'terminal' }] } },
     } as unknown as ActivatedRoute;
-    isConnected$ = new BehaviorSubject(false);
-    const serial = createSerialFacadeMock(isConnected$);
-    connect$ = serial.connect$;
-    disconnect$ = serial.disconnect$;
+
+    const { facade, vmSubject: vm } = createConnectionFacadeMock(false);
+    vmSubject = vm;
+    connect = facade.connect;
+    disconnect = facade.disconnect;
+    sendCommand = facade.sendCommand;
     applyConnectedLayout = vi.fn();
     resetLayoutAfterDisconnect = vi.fn();
 
-    notifyConnectionSuccess = vi.fn();
-    notifyConnectionError = vi.fn();
     openDialog = vi.fn().mockReturnValue({ closed: of(undefined) });
     closeAllDialog = vi.fn();
     setActivePanel = vi.fn();
     closeDialog = vi.fn();
     openShellDialog = vi.fn();
-    requestTerminalCommand = vi.fn();
 
     await TestBed.configureTestingModule({
       imports: [ConsoleShellComponent],
@@ -80,13 +86,9 @@ describe('ConsoleShellComponent', () => {
           useValue: { navigate: navigateSpy, events: EMPTY },
         },
         { provide: ActivatedRoute, useValue: activatedRouteMock },
-        { provide: SerialFacadeService, useValue: serial },
         {
-          provide: SerialNotificationService,
-          useValue: {
-            notifyConnectionSuccess,
-            notifyConnectionError,
-          },
+          provide: SerialConnectionViewModelFacade,
+          useValue: facade,
         },
         {
           provide: DialogService,
@@ -109,10 +111,6 @@ describe('ConsoleShellComponent', () => {
             resetLayoutAfterDisconnect,
           },
         },
-        {
-          provide: TerminalCommandRequestService,
-          useValue: { requestCommand: requestTerminalCommand },
-        },
       ],
     }).compileComponents();
 
@@ -125,16 +123,16 @@ describe('ConsoleShellComponent', () => {
     expect(component).toBeTruthy();
   });
 
-  it('should call connect$ when onConnect is called', () => {
-    connect$.mockClear();
+  it('should call facade connect when onConnect is called', () => {
+    connect.mockClear();
     component.onConnect();
-    expect(connect$).toHaveBeenCalledTimes(1);
+    expect(connect).toHaveBeenCalledTimes(1);
   });
 
-  it('should call disconnect$ when onDisConnect is called', () => {
-    disconnect$.mockClear();
+  it('should call facade disconnect when onDisConnect is called', () => {
+    disconnect.mockClear();
     component.onDisConnect();
-    expect(disconnect$).toHaveBeenCalledTimes(1);
+    expect(disconnect).toHaveBeenCalledTimes(1);
   });
 
   it('should switch pane when editor action is clicked', () => {
@@ -159,7 +157,7 @@ describe('ConsoleShellComponent', () => {
     expect(openDialog).not.toHaveBeenCalled();
   });
 
-  it('should request i2cdetect in terminal when i2c action is clicked', () => {
+  it('should sendCommand i2cdetect in terminal when i2c action is clicked', () => {
     component.onToolbarAction('i2c');
 
     expect(closeDialog).toHaveBeenCalledTimes(1);
@@ -167,7 +165,7 @@ describe('ConsoleShellComponent', () => {
     expect(navigateSpy).toHaveBeenCalledWith(['terminal'], {
       relativeTo: activatedRouteMock,
     });
-    expect(requestTerminalCommand).toHaveBeenCalledWith('i2cdetect -y 1');
+    expect(sendCommand).toHaveBeenCalledWith('i2cdetect -y 1');
     expect(openShellDialog).not.toHaveBeenCalled();
     expect(openDialog).not.toHaveBeenCalled();
   });
@@ -181,7 +179,7 @@ describe('ConsoleShellComponent', () => {
   it('should apply connected layout when isConnected becomes true', () => {
     navigateSpy.mockClear();
     applyConnectedLayout.mockClear();
-    isConnected$.next(true);
+    vmSubject.next(vmDefaults({ isConnected: true }));
     expect(applyConnectedLayout).toHaveBeenCalledTimes(1);
     expect(navigateSpy).toHaveBeenCalledWith(['terminal'], {
       relativeTo: activatedRouteMock,
@@ -189,10 +187,10 @@ describe('ConsoleShellComponent', () => {
   });
 
   it('should reset layout when isConnected becomes false after connected', () => {
-    isConnected$.next(true);
+    vmSubject.next(vmDefaults({ isConnected: true }));
     navigateSpy.mockClear();
     resetLayoutAfterDisconnect.mockClear();
-    isConnected$.next(false);
+    vmSubject.next(vmDefaults({ isConnected: false }));
     expect(resetLayoutAfterDisconnect).toHaveBeenCalledTimes(1);
     expect(navigateSpy).toHaveBeenCalledWith(['terminal'], {
       relativeTo: activatedRouteMock,
@@ -205,8 +203,7 @@ describe('ConsoleShellComponent gridTemplateColumns when right nav closed', () =
   let fixture: ComponentFixture<ConsoleShellComponent>;
 
   beforeEach(async () => {
-    const isConn = new BehaviorSubject(false);
-    const serial = createSerialFacadeMock(isConn);
+    const { facade } = createConnectionFacadeMock(false);
     const activatedRoute = {
       firstChild: { snapshot: { url: [{ path: 'terminal' }] } },
     } as unknown as ActivatedRoute;
@@ -216,17 +213,13 @@ describe('ConsoleShellComponent gridTemplateColumns when right nav closed', () =
       providers: [
         {
           provide: Router,
-          useValue: { navigate: vi.fn().mockResolvedValue(true), events: EMPTY },
-        },
-        { provide: ActivatedRoute, useValue: activatedRoute },
-        { provide: SerialFacadeService, useValue: serial },
-        {
-          provide: SerialNotificationService,
           useValue: {
-            notifyConnectionSuccess: vi.fn(),
-            notifyConnectionError: vi.fn(),
+            navigate: vi.fn().mockResolvedValue(true),
+            events: EMPTY,
           },
         },
+        { provide: ActivatedRoute, useValue: activatedRoute },
+        { provide: SerialConnectionViewModelFacade, useValue: facade },
         {
           provide: DialogService,
           useValue: { open: vi.fn(), closeAll: vi.fn() },
@@ -248,10 +241,6 @@ describe('ConsoleShellComponent gridTemplateColumns when right nav closed', () =
             resetLayoutAfterDisconnect: vi.fn(),
           },
         },
-        {
-          provide: TerminalCommandRequestService,
-          useValue: { requestCommand: vi.fn() },
-        },
       ],
     }).compileComponents();
 
@@ -267,15 +256,16 @@ describe('ConsoleShellComponent gridTemplateColumns when right nav closed', () =
 
 describe('ConsoleShellComponent layout DOM (connected vs disconnected)', () => {
   let fixture: ComponentFixture<ConsoleShellComponent>;
-  let isConnected$: BehaviorSubject<boolean>;
+  let vmSubject: BehaviorSubject<SerialConnectionViewModel>;
   let activatedRouteMock: ActivatedRoute;
 
   beforeEach(async () => {
     activatedRouteMock = {
       firstChild: { snapshot: { url: [{ path: 'terminal' }] } },
     } as unknown as ActivatedRoute;
-    isConnected$ = new BehaviorSubject(false);
-    const serial = createSerialFacadeMock(isConnected$);
+
+    const { facade, vmSubject: vm } = createConnectionFacadeMock(false);
+    vmSubject = vm;
 
     await TestBed.configureTestingModule({
       imports: [ConsoleShellComponent],
@@ -288,22 +278,11 @@ describe('ConsoleShellComponent layout DOM (connected vs disconnected)', () => {
           },
         },
         { provide: ActivatedRoute, useValue: activatedRouteMock },
-        { provide: SerialFacadeService, useValue: serial },
+        { provide: SerialConnectionViewModelFacade, useValue: facade },
         ConsoleShellStore,
-        {
-          provide: SerialNotificationService,
-          useValue: {
-            notifyConnectionSuccess: vi.fn(),
-            notifyConnectionError: vi.fn(),
-          },
-        },
         {
           provide: DialogService,
           useValue: { open: vi.fn(), closeAll: vi.fn() },
-        },
-        {
-          provide: TerminalCommandRequestService,
-          useValue: { requestCommand: vi.fn() },
         },
       ],
     }).compileComponents();
@@ -323,7 +302,7 @@ describe('ConsoleShellComponent layout DOM (connected vs disconnected)', () => {
   });
 
   it('shows toolbar, breadcrumb, three panes, and router outlet after connect', () => {
-    isConnected$.next(true);
+    vmSubject.next(vmDefaults({ isConnected: true }));
     fixture.detectChanges();
 
     const root = fixture.nativeElement as HTMLElement;
@@ -337,7 +316,7 @@ describe('ConsoleShellComponent layout DOM (connected vs disconnected)', () => {
   });
 
   it('keeps right sidebar mounted when right nav is collapsed after connect', () => {
-    isConnected$.next(true);
+    vmSubject.next(vmDefaults({ isConnected: true }));
     fixture.detectChanges();
 
     const shellStore = TestBed.inject(ConsoleShellStore);
@@ -353,7 +332,7 @@ describe('ConsoleShellComponent layout DOM (connected vs disconnected)', () => {
     const shellStore = TestBed.inject(ConsoleShellStore);
     shellStore.setActivePanel('editor');
 
-    isConnected$.next(true);
+    vmSubject.next(vmDefaults({ isConnected: true }));
     fixture.detectChanges();
 
     expect(shellStore.activePanel()).toBe('terminal');
