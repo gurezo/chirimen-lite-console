@@ -27,15 +27,19 @@ describe('PiZeroSerialBootstrapService', () => {
       stdout: `ready\r\n${PI_ZERO_PROMPT} `,
     });
     const exec = vi.fn().mockResolvedValue({ stdout: '' });
+    const write$ = vi.fn().mockReturnValue(of(undefined));
     const serial = {
       isConnected$: of(true),
       getConnectionEpoch: () => 1,
       readUntilPrompt$: (o: unknown) => from(readUntilPrompt(o)),
       exec$: (c: string, o: unknown) => from(exec(c, o)),
+      write$,
     } as unknown as SerialFacadeService;
 
     const service = createBootstrap(serial);
     await firstValueFrom(service.runPostConnectPipeline$());
+
+    expect(write$).not.toHaveBeenCalled();
 
     expect(readUntilPrompt).toHaveBeenCalledTimes(1);
     expect(readUntilPrompt).toHaveBeenCalledWith(
@@ -69,13 +73,22 @@ describe('PiZeroSerialBootstrapService', () => {
     const readUntilPrompt = vi
       .fn()
       .mockRejectedValueOnce(new Error('Command execution timeout'))
-      .mockResolvedValueOnce({ stdout: 'raspberrypi login: ' });
-    const exec = vi.fn().mockResolvedValue({ stdout: `Password: \r\n` });
+      .mockResolvedValueOnce({ stdout: 'raspberrypi login: ' })
+      .mockResolvedValueOnce({
+        stdout: `Last login: Mon Jan 01 00:00:00 2024 from ttyS0\n${PI_ZERO_PROMPT} `,
+      });
+    const exec = vi
+      .fn()
+      .mockResolvedValueOnce({ stdout: `Password: \r\n` })
+      .mockResolvedValueOnce({ stdout: '' })
+      .mockResolvedValue({ stdout: '' });
+    const write$ = vi.fn().mockReturnValue(of(undefined));
     const serial = {
       isConnected$: of(true),
       getConnectionEpoch: () => 1,
       readUntilPrompt$: (o: unknown) => from(readUntilPrompt(o)),
       exec$: (c: string, o: unknown) => from(exec(c, o)),
+      write$,
     } as unknown as SerialFacadeService;
 
     const service = createBootstrap(serial);
@@ -84,7 +97,10 @@ describe('PiZeroSerialBootstrapService', () => {
       service.runPostConnectPipeline$((line) => lines.push(line)),
     );
 
-    expect(readUntilPrompt).toHaveBeenCalledTimes(2);
+    expect(write$).toHaveBeenCalledTimes(2);
+    expect(write$).toHaveBeenCalledWith('\r\n');
+
+    expect(readUntilPrompt).toHaveBeenCalledTimes(3);
     expect(readUntilPrompt).toHaveBeenNthCalledWith(
       1,
       expect.objectContaining({
@@ -98,7 +114,15 @@ describe('PiZeroSerialBootstrapService', () => {
       expect.objectContaining({
         prompt: '',
         promptMatch: expect.any(Function),
-        timeout: SERIAL_TIMEOUT.LONG,
+        timeout: SERIAL_TIMEOUT.FILE_TRANSFER,
+      }),
+    );
+    expect(readUntilPrompt).toHaveBeenNthCalledWith(
+      3,
+      expect.objectContaining({
+        prompt: '',
+        promptMatch: expect.any(Function),
+        timeout: SERIAL_TIMEOUT.FILE_TRANSFER,
       }),
     );
     expect(exec).toHaveBeenNthCalledWith(
@@ -107,7 +131,7 @@ describe('PiZeroSerialBootstrapService', () => {
       expect.objectContaining({
         prompt: '',
         promptMatch: expect.any(Function),
-        timeout: SERIAL_TIMEOUT.DEFAULT,
+        timeout: SERIAL_TIMEOUT.LONG,
         retry: 1,
       }),
     );
@@ -117,8 +141,8 @@ describe('PiZeroSerialBootstrapService', () => {
       expect.objectContaining({
         prompt: '',
         promptMatch: expect.any(Function),
-        timeout: SERIAL_TIMEOUT.LONG,
-        retry: 1,
+        waitForPrompt: false,
+        timeout: SERIAL_TIMEOUT.SHORT,
       }),
     );
     expect(lines.some((l) => l.includes('ログインユーザー'))).toBe(true);
@@ -146,13 +170,21 @@ describe('PiZeroSerialBootstrapService', () => {
     const readUntilPrompt = vi
       .fn()
       .mockRejectedValueOnce(new Error('Command execution timeout'))
-      .mockResolvedValueOnce({ stdout: 'Password: ' });
-    const exec = vi.fn().mockResolvedValue({ stdout: `pi@raspberrypi:~$ ` });
+      .mockResolvedValueOnce({ stdout: 'Password: ' })
+      .mockResolvedValueOnce({
+        stdout: `Login OK\n${PI_ZERO_PROMPT} `,
+      });
+    const exec = vi
+      .fn()
+      .mockResolvedValueOnce({ stdout: '' })
+      .mockResolvedValue({ stdout: `${PI_ZERO_PROMPT} ` });
+    const write$ = vi.fn().mockReturnValue(of(undefined));
     const serial = {
       isConnected$: of(true),
       getConnectionEpoch: () => 1,
       readUntilPrompt$: (o: unknown) => from(readUntilPrompt(o)),
       exec$: (c: string, o: unknown) => from(exec(c, o)),
+      write$,
     } as unknown as SerialFacadeService;
 
     const lines: string[] = [];
@@ -161,14 +193,17 @@ describe('PiZeroSerialBootstrapService', () => {
       service.runPostConnectPipeline$((line) => lines.push(line)),
     );
 
+    expect(write$).toHaveBeenCalledTimes(2);
+    expect(write$).toHaveBeenCalledWith('\r\n');
+
     expect(exec).toHaveBeenNthCalledWith(
       1,
       PI_ZERO_LOGIN_PASSWORD,
       expect.objectContaining({
         prompt: '',
         promptMatch: expect.any(Function),
-        timeout: SERIAL_TIMEOUT.LONG,
-        retry: 1,
+        waitForPrompt: false,
+        timeout: SERIAL_TIMEOUT.SHORT,
       }),
     );
     expect(
@@ -198,11 +233,13 @@ describe('PiZeroSerialBootstrapService', () => {
       .mockResolvedValueOnce({
         stdout: `${TZ_STATUS_CMD}\r\n       Time zone: Asia/Tokyo (${PI_ZERO_PROMPT} `,
       });
+    const write$ = vi.fn().mockReturnValue(of(undefined));
     const serial = {
       isConnected$: of(true),
       getConnectionEpoch: () => 1,
       readUntilPrompt$: (o: unknown) => from(readUntilPrompt(o)),
       exec$: (c: string, o: unknown) => from(exec(c, o)),
+      write$,
     } as unknown as SerialFacadeService;
 
     const lines: string[] = [];
@@ -211,6 +248,7 @@ describe('PiZeroSerialBootstrapService', () => {
       service.runPostConnectPipeline$((line) => lines.push(line)),
     );
 
+    expect(write$).not.toHaveBeenCalled();
     expect(
       lines.some((l) => l.includes('Time zone: Asia/Tokyo')),
     ).toBe(true);
