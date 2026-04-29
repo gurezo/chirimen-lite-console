@@ -26,7 +26,7 @@ import {
 @Injectable({
   providedIn: 'root',
 })
-export class CommandQueueService {
+export class SerialCommandQueueService {
   private readonly executionQueue$ = new Subject<Observable<unknown>>();
   /** `cancelAllCommands` のたびに増加。enqueue 時点の世代と比較して実行可否を決める */
   private generation = 0;

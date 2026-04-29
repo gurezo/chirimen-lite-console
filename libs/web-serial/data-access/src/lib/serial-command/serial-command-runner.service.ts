@@ -23,50 +23,27 @@ import {
   type SerialExecOptions,
 } from '@libs-web-serial-util';
 import { stripLineForPromptDetection } from './ansi-strip.util';
-import { CommandQueueService } from './command-queue.service';
-import { matchesPrompt } from './prompt-detector.util';
+import type {
+  CommandExecutionConfig,
+  CommandResult,
+} from './serial-command-types';
+import { SerialPromptDetectorService } from './serial-prompt-detector.service';
+import { SerialCommandQueueService } from './serial-command-queue.service';
 import { SerialTransportService } from '../serial-transport.service';
 
 /**
- * コマンド実行設定
- */
-export interface CommandExecutionConfig {
-  /** 期待するプロンプト文字列 */
-  prompt: string | RegExp;
-  /** タイムアウト時間（ミリ秒） */
-  timeout: number;
-  /** タイムアウト等失敗時の再試行回数 */
-  retry?: number;
-}
-
-/**
- * シリアル上でのコマンド実行結果
- *
- * Web Serial の API では exit code や stderr を分離して取得できないため、
- * 現状は stdout 相当の文字列のみを格納します。
- */
-export interface CommandResult {
-  stdout: string;
-  stderr?: string;
-  exitCode?: number;
-}
-
-/**
- * Serial 上のコマンド実行・プロンプト待ち。
+ * シリアルへの送信・プロンプト待ち・タイムアウト・再試行（キューとは別層）。
  *
  * ### 受信（issue #559）
  *
  * {@link SerialTransportService#getReadStream}（= `SerialSession.lines$` と同根の**行**ストリーム）のみを購読する。
- * プロンプト・ログイン判定は **行単位**に strip したテキストを {@link readBuffer} に連結して行い、`receive$` / `receiveReplay$` の
- * チャンク境界には依存しない（ANSI 除去は {@link stripLineForPromptDetection}）。
- *
- * ライブラリの行分割と役割が重なるが、`readBuffer` は「複数行にまたがるマッチ」とコマンド境界でのクリアに必須であり、
- * ライブラリ内バッファとの二重ではない。
+ * プロンプト・ログイン判定は **行単位**に strip したテキストを {@link readBuffer} に連結して行い、
+ * 判定は {@link SerialPromptDetectorService} に委ねる。
  */
 @Injectable({
   providedIn: 'root',
 })
-export class SerialCommandService {
+export class SerialCommandRunnerService {
   private readBuffer = '';
   private readSubscription: Subscription | null = null;
   /** 受信行でバッファが更新されたことを Observable 側の待機に伝える */
@@ -74,7 +51,8 @@ export class SerialCommandService {
 
   constructor(
     private readonly transport: SerialTransportService,
-    private readonly commandQueue: CommandQueueService,
+    private readonly promptDetector: SerialPromptDetectorService,
+    private readonly commandQueue: SerialCommandQueueService,
   ) {}
 
   /**
@@ -131,7 +109,9 @@ export class SerialCommandService {
         }
         return this.readBuffer;
       }),
-      filter((buf) => matchesPrompt(buf, config.prompt)),
+      filter((buf) =>
+        this.promptDetector.matchesPrompt(buf, config.prompt),
+      ),
       take(1),
       map((buf) => {
         const stdout = buf;
@@ -161,7 +141,7 @@ export class SerialCommandService {
     return attempt$.pipe(retry({ count: retryCount }));
   }
 
-  private buildExecPipeline$(
+  buildExecPipeline$(
     sendData: string,
     config: CommandExecutionConfig,
     enqueuedGen: number,
@@ -182,7 +162,7 @@ export class SerialCommandService {
     return this.withPromptAttemptRetries(attempt$, retryCount);
   }
 
-  private buildReadUntilPromptPipeline$(
+  buildReadUntilPromptPipeline$(
     config: CommandExecutionConfig,
     enqueuedGen: number,
     onAttemptStart?: () => void,
@@ -193,7 +173,7 @@ export class SerialCommandService {
         return throwError(() => new Error('All commands cancelled'));
       }
       onAttemptStart?.();
-      if (matchesPrompt(this.readBuffer, config.prompt)) {
+      if (this.promptDetector.matchesPrompt(this.readBuffer, config.prompt)) {
         const stdout = this.readBuffer;
         this.readBuffer = '';
         return of<CommandResult>({ stdout });
@@ -205,101 +185,12 @@ export class SerialCommandService {
     return this.withPromptAttemptRetries(attempt$, retryCount);
   }
 
-  private serialOptionsToConfig(
-    options: SerialExecOptions,
-  ): CommandExecutionConfig {
+  serialOptionsToConfig(options: SerialExecOptions): CommandExecutionConfig {
     const {
       prompt,
       timeout = SERIAL_TIMEOUT.DEFAULT,
       retry = 0,
     } = options;
     return { prompt, timeout, retry };
-  }
-
-  /**
-   * {@link SerialExecOptions}（timeout / retry の既定あり）でコマンド実行
-   */
-  execWithSerialOptions$(
-    cmd: string,
-    options: SerialExecOptions,
-    onAttemptStart?: () => void,
-  ): Observable<CommandResult> {
-    return this.exec$(
-      cmd,
-      this.serialOptionsToConfig(options),
-      onAttemptStart,
-    );
-  }
-
-  execRawWithSerialOptions$(
-    cmdRaw: string,
-    options: SerialExecOptions,
-    onAttemptStart?: () => void,
-  ): Observable<CommandResult> {
-    return this.execRaw$(
-      cmdRaw,
-      this.serialOptionsToConfig(options),
-      onAttemptStart,
-    );
-  }
-
-  readUntilPromptWithSerialOptions$(
-    options: SerialExecOptions,
-    onAttemptStart?: () => void,
-  ): Observable<CommandResult> {
-    return this.readUntilPrompt$(
-      this.serialOptionsToConfig(options),
-      onAttemptStart,
-    );
-  }
-
-  /**
-   * コマンド実行（stdin に `cmd + '\n'` を送信し、prompt まで待機）
-   */
-  exec$(
-    cmd: string,
-    config: CommandExecutionConfig,
-    onAttemptStart?: () => void,
-  ): Observable<CommandResult> {
-    return this.commandQueue.enqueueCommand$((enqueuedGen) =>
-      this.buildExecPipeline$(cmd + '\n', config, enqueuedGen, onAttemptStart),
-    );
-  }
-
-  /**
-   * raw コマンド実行（stdin に `cmdRaw` をそのまま送信）
-   */
-  execRaw$(
-    cmdRaw: string,
-    config: CommandExecutionConfig,
-    onAttemptStart?: () => void,
-  ): Observable<CommandResult> {
-    return this.commandQueue.enqueueCommand$((enqueuedGen) =>
-      this.buildExecPipeline$(cmdRaw, config, enqueuedGen, onAttemptStart),
-    );
-  }
-
-  /**
-   * 読み取りのみ（送信せず prompt まで待機）
-   */
-  readUntilPrompt$(
-    config: CommandExecutionConfig,
-    onAttemptStart?: () => void,
-  ): Observable<CommandResult> {
-    return this.commandQueue.enqueueCommand$((enqueuedGen) =>
-      this.buildReadUntilPromptPipeline$(
-        config,
-        enqueuedGen,
-        onAttemptStart,
-      ),
-    );
-  }
-
-  cancelAllCommands(): void {
-    this.commandQueue.cancelAllCommands();
-  }
-
-  getPendingCommandCount(): number {
-    return this.commandQueue.getPendingCommandCount();
   }
 }

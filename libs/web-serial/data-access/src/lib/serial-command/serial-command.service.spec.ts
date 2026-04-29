@@ -5,8 +5,10 @@ import {
   PI_ZERO_SERIAL_LOGIN_LINE_PATTERN,
 } from '@libs-web-serial-util';
 import type { SerialTransportService } from '../serial-transport.service';
-import { CommandQueueService } from './command-queue.service';
-import { SerialCommandService } from './command-runner.service';
+import { SerialCommandQueueService } from './serial-command-queue.service';
+import { SerialCommandRunnerService } from './serial-command-runner.service';
+import { SerialPromptDetectorService } from './serial-prompt-detector.service';
+import { SerialCommandService } from './serial-command-facade.service';
 
 /** チャンク入力の代わりに、改行区切りで 1 行ずつ emit（getReadStream＝lines$ 相当）。 */
 function emitAsLines(subject: Subject<string>, raw: string): void {
@@ -25,14 +27,17 @@ function createService() {
         new Observable<void>((subscriber) => {
           subscriber.next();
           subscriber.complete();
-        })
+        }),
     ),
   };
-  const queue = new CommandQueueService();
-  const service = new SerialCommandService(
+  const queue = new SerialCommandQueueService();
+  const promptDetector = new SerialPromptDetectorService();
+  const runner = new SerialCommandRunnerService(
     transport as unknown as SerialTransportService,
+    promptDetector,
     queue,
   );
+  const service = new SerialCommandService(runner, queue);
   service.startReadLoop();
   return { service, lines, transport };
 }
@@ -49,7 +54,7 @@ describe('SerialCommandService', () => {
             subscriber.next();
             subscriber.complete();
           };
-        })
+        }),
     );
 
     const execPromise = firstValueFrom(
@@ -133,7 +138,7 @@ describe('SerialCommandService', () => {
             subscriber.next();
             subscriber.complete();
           };
-        })
+        }),
     );
 
     const escaped = PI_ZERO_PROMPT.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
@@ -163,7 +168,7 @@ describe('SerialCommandService', () => {
             subscriber.next();
             subscriber.complete();
           };
-        })
+        }),
     );
 
     const resultPromise = firstValueFrom(
