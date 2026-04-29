@@ -45,8 +45,8 @@ import {
  * | --- | --- |
  * | ターミナル表示（replay で取りこぼしにくい生受信） | {@link #receiveReplay$} |
  * | 通常の行単位ログ | {@link #lines$} |
- * | prompt / login / password 判定 | 本アプリでは {@link #commandResultLines$} / {@link #getReadStream} の行＋`SerialCommandService` のプロンプト用バッファで判定（チャンクの `receiveReplay$` には寄せない） |
- * | コマンド結果の行処理（プロンプト待ち含む） | {@link #commandResultLines$} / {@link #getReadStream} |
+ * | prompt / login / password 判定（SerialCommandRunner の exec バッファ） | {@link #receive$} のチャンク累積（`lines$` は lone `\\r` で断片が分離するためプロンプト照合に使わない） |
+ * | `lines$` でのログ・行入力（表示・他コンシューマ） | {@link #commandResultLines$} / {@link #getReadStream} |
  * | 生チャンク | {@link #receive$} |
  *
  * `receiveReplay$` はチャンク単位のため、プロンプト検出をそこに寄せると行境界・ANSI 処理と齟齬が出やすい。

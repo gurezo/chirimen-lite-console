@@ -35,7 +35,7 @@ export type SerialFacadeConnectResult = SerialConnectResult;
  * - {@link #receive$} … 生チャンク（replay なし）。
  * - {@link #receiveReplay$} … {@link #terminalOutput$} と同一の replay 付き生受信。
  *
- * プロンプト待ち・`exec$` は {@link SerialCommandService} が {@link SerialTransportService#getReadStream}（= {@link #commandResultLines$}）のみ購読する。
+ * プロンプト待ち・`exec$` は {@link SerialCommandService} が {@link SerialTransportService#receive$} を累積したバッファで照合する（`lines$` は使用しない）。
  */
 @Injectable({
   providedIn: 'root',

@@ -19,12 +19,12 @@ import {
   timeout,
 } from 'rxjs';
 import {
+  collapseCarriageRedrawsPerLine,
   DEFAULT_SERIAL_EXEC_OPTIONS,
   mergeSerialExecOptions,
   stripSerialAnsiForPrompt,
   type SerialExecOptions,
 } from '@libs-web-serial-util';
-import { stripLineForPromptDetection } from './ansi-strip.util';
 import type {
   CommandExecutionConfig,
   CommandResult,
@@ -38,25 +38,23 @@ import { SerialTransportService } from '../serial-transport.service';
  *
  * ### 受信（issue #559）
  *
- * {@link SerialTransportService#getReadStream}（行）と {@link SerialTransportService#receive$}（生チャンク）を購読する。
+ * プロンプト照合および exec の `stdout` は {@link SerialTransportService#receive$} の **生チャンク**のみを連結したバッファを使う。
  *
- * ### 行未完（issue: Web Serial でプロンプトが lone \\r で改行しない）
+ * **`lines$`（{@link SerialTransportService#getReadStream}）では使わない。**
  *
- * `lines$` だけだと未完行が {@link readBuffer} に載らずプロンプト待ちがタイムアウトする場合があるため、
- * `receive$` の末尾のみ（最大 {@link RECEIVE_TAIL_MAX_LEN}）を strip 後に別バッファに保持し、
- * プロンプト照合対象として {@link readBuffer} と連結する。
+ * `@gurezo/web-serial-rxjs` の {@link SerialSession.lines$} は内部 `line-buffer` が lone `\r` を「行終端」とみなし、
+ * TTY が同一論理出力で `\r` 再描画した断片を **複数論理「行」**として emit する。その結果 `readBuffer` に `\r` が残らず
+ * 「最終 `\r` セグメントへ収束」できず、`ls` 等が xterm で階段状に見える。
+ *
+ * 生チャンクを `\n`/`\r` が混じったまま累積し、{@link collapseCarriageRedrawsPerLine} で論理表示に収束させる。
  */
 @Injectable({
   providedIn: 'root',
 })
 export class SerialCommandRunnerService {
-  private static readonly RECEIVE_TAIL_MAX_LEN = 6_144;
-
   private readBuffer = '';
-  private readSubscription: Subscription | null = null;
-  private rawReceiveTail = '';
   private receiveSubscription: Subscription | null = null;
-  /** 受信行でバッファが更新されたことを Observable 側の待機に伝える */
+  /** 受信チャンクでバッファが更新されたことを Observable 側の待機に伝える */
   private readonly bufferNotify$ = new Subject<void>();
 
   constructor(
@@ -66,31 +64,17 @@ export class SerialCommandRunnerService {
   ) {}
 
   /**
-   * 接続後に呼び出し、`getReadStream`（行）と `receive$` を購読する。
+   * 接続後に呼び出し、`receive$` を購読して `readBuffer` に追記する。
    */
   startReadLoop(): void {
     this.readBuffer = '';
-    this.rawReceiveTail = '';
-    this.readSubscription?.unsubscribe();
     this.receiveSubscription?.unsubscribe();
-    this.readSubscription = this.transport.getReadStream().subscribe({
-      next: (line) => {
-        this.readBuffer +=
-          stripLineForPromptDetection(line) +
-          '\n';
-        this.bufferNotify$.next();
-      },
-      error: (err) => console.error('Serial read stream error:', err),
-    });
     this.receiveSubscription = this.transport.receive$.subscribe({
       next: (chunk) => {
         if (!chunk?.length) {
           return;
         }
-        const cleaned = stripSerialAnsiForPrompt(chunk);
-        this.rawReceiveTail = (
-          this.rawReceiveTail + cleaned
-        ).slice(-SerialCommandRunnerService.RECEIVE_TAIL_MAX_LEN);
+        this.readBuffer += stripSerialAnsiForPrompt(chunk);
         this.bufferNotify$.next();
       },
       error: (err: unknown) => console.error('Serial receive stream error:', err),
@@ -101,21 +85,16 @@ export class SerialCommandRunnerService {
    * 読み取り購読を停止しバッファを空にする
    */
   stopReadLoop(): void {
-    this.readSubscription?.unsubscribe();
-    this.readSubscription = null;
     this.receiveSubscription?.unsubscribe();
     this.receiveSubscription = null;
     this.readBuffer = '';
-    this.rawReceiveTail = '';
   }
 
   /**
-   * 読み取りストリームを購読中か
+   * 読み取り購読中か
    */
   isReading(): boolean {
     return (
-      this.readSubscription != null &&
-      !this.readSubscription.closed &&
       this.receiveSubscription != null &&
       !this.receiveSubscription.closed
     );
@@ -123,24 +102,18 @@ export class SerialCommandRunnerService {
 
   private clearReadBuffer(): void {
     this.readBuffer = '';
-    this.rawReceiveTail = '';
   }
 
   /**
-   * getty が `\r` のみで行を終わらせたり、chunks が `\r` / `\r\n` 混在だとプロンプト正規表現がずれる。
-   * 行バッファと受信テールを連結した直後に適用する。
+   * バッファ正規化: `\\r`・`\\r\\n` を「論理表示」へ収束させる（{@link collapseCarriageRedrawsPerLine}）。
    */
   private normalizeInspectionBufferText(s: string): string {
-    return s.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
+    return collapseCarriageRedrawsPerLine(s);
   }
 
-  /** lines$ の完了行 + receive$ の未完テキスト末尾（プロンプト照合用） */
+  /** プロンプト照合用のバッファ */
   private promptInspectionBuffer(): string {
-    const raw =
-      this.readBuffer.length > 0
-        ? `${this.readBuffer}${this.rawReceiveTail}`
-        : this.rawReceiveTail;
-    return this.normalizeInspectionBufferText(raw);
+    return this.normalizeInspectionBufferText(this.readBuffer);
   }
 
   /**
@@ -163,8 +136,7 @@ export class SerialCommandRunnerService {
       take(1),
       map((buf) => {
         const stdout = buf;
-        this.readBuffer = '';
-        this.rawReceiveTail = '';
+        this.clearReadBuffer();
         return stdout;
       }),
       timeout({ first: config.timeout }),
