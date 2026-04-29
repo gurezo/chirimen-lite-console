@@ -2,7 +2,13 @@
  * コマンド実行設定
  */
 export interface CommandExecutionConfig {
-  /** 期待するプロンプト文字列 */
+  /**
+   * 受信バッファ全体の一致判定。指定時は {@link prompt} より優先。
+   */
+  promptMatch?: (buffer: string) => boolean;
+  /**
+   * {@link promptMatch} 未使用時の期待プロンプト。promptMatch 使用時は未参照になり得る。
+   */
   prompt: string | RegExp;
   /** タイムアウト時間（ミリ秒） */
   timeout: number;

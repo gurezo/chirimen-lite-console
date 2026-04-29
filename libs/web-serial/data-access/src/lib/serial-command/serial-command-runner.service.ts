@@ -109,9 +109,7 @@ export class SerialCommandRunnerService {
         }
         return this.readBuffer;
       }),
-      filter((buf) =>
-        this.promptDetector.matchesPrompt(buf, config.prompt),
-      ),
+      filter((buf) => this.bufferMatchesPrompt(buf, config)),
       take(1),
       map((buf) => {
         const stdout = buf;
@@ -173,7 +171,7 @@ export class SerialCommandRunnerService {
         return throwError(() => new Error('All commands cancelled'));
       }
       onAttemptStart?.();
-      if (this.promptDetector.matchesPrompt(this.readBuffer, config.prompt)) {
+      if (this.bufferMatchesPrompt(this.readBuffer, config)) {
         const stdout = this.readBuffer;
         this.readBuffer = '';
         return of<CommandResult>({ stdout });
@@ -188,9 +186,28 @@ export class SerialCommandRunnerService {
   serialOptionsToConfig(options: SerialExecOptions): CommandExecutionConfig {
     const {
       prompt,
+      promptMatch,
       timeout = SERIAL_TIMEOUT.DEFAULT,
       retry = 0,
     } = options;
-    return { prompt, timeout, retry };
+    if (promptMatch === undefined && prompt === undefined) {
+      throw new Error('SerialExecOptions: prompt or promptMatch is required');
+    }
+    return {
+      prompt: prompt ?? '',
+      promptMatch,
+      timeout,
+      retry,
+    };
+  }
+
+  private bufferMatchesPrompt(
+    buffer: string,
+    config: CommandExecutionConfig,
+  ): boolean {
+    if (config.promptMatch) {
+      return config.promptMatch(buffer);
+    }
+    return this.promptDetector.matchesPrompt(buffer, config.prompt);
   }
 }
