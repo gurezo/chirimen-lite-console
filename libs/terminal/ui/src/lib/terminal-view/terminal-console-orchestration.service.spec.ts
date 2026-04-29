@@ -26,7 +26,7 @@ describe('TerminalConsoleOrchestrationService', () => {
             exec$: execMock,
             isConnected$: of(true),
             connectionEstablished$: of(undefined),
-            terminalOutput$: EMPTY,
+            terminalText$: EMPTY,
           },
         },
         {
@@ -71,7 +71,7 @@ describe('TerminalConsoleOrchestrationService', () => {
         exec$: execMock,
         isConnected$: of(false),
         connectionEstablished$: of(undefined),
-        terminalOutput$: EMPTY,
+        terminalText$: EMPTY,
       },
     });
     const svc = TestBed.inject(TerminalConsoleOrchestrationService);
@@ -101,14 +101,14 @@ describe('TerminalConsoleOrchestrationService', () => {
     expect(write).toHaveBeenCalledWith('$ ');
   });
 
-  it('pipeTerminalOutputToSink$ forwards terminalOutput$ chunks to sink.write', async () => {
+  it('pipeTerminalOutputToSink$ forwards terminalText$ chunks to sink.write', async () => {
     const chunks = new Subject<string>();
     TestBed.overrideProvider(SerialFacadeService, {
       useValue: {
         exec$: execMock,
         isConnected$: of(true),
         connectionEstablished$: of(undefined),
-        terminalOutput$: chunks.asObservable(),
+        terminalText$: chunks.asObservable(),
       },
     });
     TestBed.overrideProvider(PiZeroSessionService, {
