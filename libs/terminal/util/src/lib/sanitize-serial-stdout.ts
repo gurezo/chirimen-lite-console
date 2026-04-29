@@ -1,34 +1,16 @@
-import { stripSerialAnsiForPrompt } from '@libs-web-serial-util';
+import {
+  collapseCarriageRedrawsPerLine,
+  stripSerialAnsiForPrompt,
+} from '@libs-web-serial-util';
 
 /**
  * シリアル由来の stdout をブラウザ xterm で表示できるよう CR/LF を揃える。
  * lone \\r が混ぜると xterm が行頭に戻して階段状ずれになりやすい（Web Serial でよく見る）。
+ *
+ * 実装は {@link collapseCarriageRedrawsPerLine}（シリアル受信バッファのプロンプト照合でも同じ）。
  */
-/**
- * 単純に \\r を \\n へすると、TTY が同一行へ \\r で重ね書きした断片が複数物理行になり、空白がずらして蓄積し「階段」になる。
- * それぞれの論理行（\\n で区切る）は、端末として最終的に見えていた内容＝\\r で分割した最後の実質的非空セグメントを残す。
- */
-function lineAfterLastCarriageReturn(line: string): string {
-  const segments = line.split(/\r/);
-  const n = segments.length;
-  if (n === 1) {
-    return line;
-  }
-  const last = segments[n - 1] ?? '';
-  if (last.length > 0) {
-    return last;
-  }
-  /** 行末が \\r のみ（空の上書き）のときはその直前のセグメント */
-  if (n >= 2) {
-    return segments[n - 2] ?? '';
-  }
-  return '';
-}
-
 export function normalizeSerialNewlines(stdout: string): string {
-  const normalizedCrlf = stdout.replace(/\r\n/g, '\n');
-  const lines = normalizedCrlf.split('\n').map(lineAfterLastCarriageReturn);
-  return lines.join('\n').replace(/\r/g, '\n');
+  return collapseCarriageRedrawsPerLine(stdout);
 }
 
 /**
@@ -78,8 +60,8 @@ function stripForTerminalDisplay(s: string): string {
 }
 
 /**
- * [web-serial-rxjs の example-angular][ex] と同様、ライブラリ `lines$` で区切られる行並びを保つことを優先した正規化。
- * 論理行内の `\\r` 再描画による「最終セグメント優先」（{@link normalizeSerialNewlines}）は行わない。
+ * [example-angular][ex] と同様、ANSI 後に論理行内 `\\r` を「見えていた最終セグメント」へ収束させ（{@link normalizeSerialNewlines}
+ * と同等）、送信列の並びだけは `sanitizeSerialStdout(..., default)` と異なる細部に留める用途向け。
  *
  * [ex]: https://github.com/gurezo/web-serial-rxjs/tree/main/apps/example-angular
  */
@@ -87,7 +69,7 @@ function stripForLineStreamMirrorDisplay(s: string): string {
   let t = s.replace(/\r\n/g, '\n');
   t = stripSerialAnsiForPrompt(t);
   t = stripResidualTerminalEscapes(t);
-  return t.replace(/\r/g, '\n');
+  return collapseCarriageRedrawsPerLine(t);
 }
 
 function escapeRegex(s: string): string {
@@ -185,16 +167,15 @@ function stripRepeatedLeadingCommandEchoLines(
 }
 
 /**
- * `lines$` と同じ並びでの表示が望ましい対話コンソールでは {@link sanitizeSerialStdout} の第 4 引に
- * `'lineStreamMirrored'` を渡す。[example-angular](https://github.com/gurezo/web-serial-rxjs/tree/main/apps/example-angular)
- * は送信を `send$` とし受信は `lines$` のみであり、論理行内の複雑な `\\r` 処理をしない。
+ * `'lineStreamMirrored'` はタブラ・ls dedent 等を省略し軽量化する対話コンソール向け。
+ * 論理行内の `\\r` は {@link normalizeSerialNewlines} で収束する（シリアル exec のバッファ正規化でも同関数を使う）。
  *
  * Strip echoed command and trailing remote prompt from serial exec capture.
  */
 export type SanitizeSerialStdoutVariant =
   /** タブラ・強 dedent を含む従来表示用 */
   | 'default'
-  /** example-angular のように行順を優先（exec 結果を lines$ 相当へ近づける） */
+  /** タブラ／dedent を省く軽めのパス（`\\r` 収束は default と共通） */
   | 'lineStreamMirrored';
 
 export function sanitizeSerialStdout(
