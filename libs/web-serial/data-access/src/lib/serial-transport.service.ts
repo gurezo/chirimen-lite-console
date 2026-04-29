@@ -18,6 +18,7 @@ import {
   NEVER,
   Observable,
   of,
+  shareReplay,
   switchMap,
   tap,
   throwError,
@@ -38,18 +39,19 @@ import {
  * 本サービスは `activeSession$` のみで「どのセッションを流すか」を切り替え、
  * ライブラリの Observable を重ねて二重管理しない。
  *
- * ### 受信ストリームの使い分け（issue #559）
+ * ### 受信ストリームの使い分け（issue #559, #566）
  *
  * | 用途 | stream |
  * | --- | --- |
  * | ターミナル表示（replay で取りこぼしにくい生受信） | {@link #receiveReplay$} |
  * | 通常の行単位ログ | {@link #lines$} |
- * | prompt / login / password 判定 | `receiveReplay$` または専用 stream。本アプリでは {@link #lines$} / {@link #getReadStream} の行＋`SerialCommandService` のプロンプト用バッファで判定 |
- * | コマンド結果の行処理 | {@link #lines$} / {@link #getReadStream} |
+ * | prompt / login / password 判定 | 本アプリでは {@link #commandResultLines$} / {@link #getReadStream} の行＋`SerialCommandService` のプロンプト用バッファで判定（チャンクの `receiveReplay$` には寄せない） |
+ * | コマンド結果の行処理（プロンプト待ち含む） | {@link #commandResultLines$} / {@link #getReadStream} |
  * | 生チャンク | {@link #receive$} |
  *
  * `receiveReplay$` はチャンク単位のため、プロンプト検出をそこに寄せると行境界・ANSI 処理と齟齬が出やすい。
- * {@link #lines$} / {@link #getReadStream} は {@link SerialSession.lines$} への橋渡し（改行区切りの行文字列）。
+ * {@link #lines$} は {@link SerialSession.lines$} への素の橋渡し。{@link #commandResultLines$} は同一源を **multicast** し、
+ * 表示側など別購読が増えても {@link #getReadStream} を複数購読しても行が消費され合わない（issue #566）。
  */
 @Injectable({
   providedIn: 'root',
@@ -88,6 +90,19 @@ export class SerialTransportService {
    */
   readonly lines$ = this.activeSession$.pipe(
     switchMap((s) => (s ? s.lines$ : NEVER))
+  );
+
+  /**
+   * コマンド実行・プロンプト判定用の **行** ストリーム（`SerialSession.lines$` と同根、issue #566）。
+   * `shareReplay` により複数購読者が同一行シーケンスを共有し、ターミナル表示など別経路の購読が
+   * コマンド側の行消費と競合しない。
+   */
+  readonly commandResultLines$ = this.activeSession$.pipe(
+    switchMap((s) =>
+      s
+        ? s.lines$.pipe(shareReplay({ bufferSize: 1, refCount: true }))
+        : NEVER
+    )
   );
 
   /**
@@ -198,7 +213,7 @@ export class SerialTransportService {
 
   /**
    * 読み取りストリーム（**1 改行区切りごとに 1 エミット**する行文字列）。
-   * {@link #lines$} と同じ {@link SerialSession.lines$} 源。接続済みチェックのため
+   * {@link #commandResultLines$} を購読する（= `lines$` と同根・multicast）。接続済みチェックのため
    * セッション欠如時は throwError（{@link #lines$} は未接続時 `NEVER`）。
    */
   getReadStream(): Observable<string> {
@@ -206,7 +221,7 @@ export class SerialTransportService {
       if (!this.session) {
         return throwError(() => new Error('Serial port not connected'));
       }
-      return this.lines$.pipe(
+      return this.commandResultLines$.pipe(
         catchError((err: unknown) =>
           throwError(() => new Error(getReadErrorMessage(err)))
         )

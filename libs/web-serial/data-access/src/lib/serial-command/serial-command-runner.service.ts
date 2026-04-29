@@ -37,7 +37,7 @@ import { SerialTransportService } from '../serial-transport.service';
  *
  * ### 受信（issue #559）
  *
- * {@link SerialTransportService#getReadStream}（= `SerialSession.lines$` と同根の**行**ストリーム）のみを購読する。
+ * {@link SerialTransportService#getReadStream}（= {@link SerialTransportService#commandResultLines$} / `SerialSession.lines$` と同根の**行**ストリーム）のみを購読する。
  * プロンプト・ログイン判定は **行単位**に strip したテキストを {@link readBuffer} に連結して行い、
  * 判定は {@link SerialPromptDetectorService} に委ねる。
  */
@@ -57,7 +57,7 @@ export class SerialCommandRunnerService {
   ) {}
 
   /**
-   * 接続後に呼び出し、`lines$` 経路（{@link SerialTransportService#getReadStream}）だけを購読する。
+   * 接続後に呼び出し、`commandResultLines$` 経路（{@link SerialTransportService#getReadStream}）だけを購読する。
    * 各エミットは 1 行。プロンプト検出用に {@link stripLineForPromptDetection} 後の行＋改行を {@link readBuffer} へ蓄積する。
    */
   startReadLoop(): void {
