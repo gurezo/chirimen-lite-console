@@ -1,20 +1,137 @@
 import { Injectable } from '@angular/core';
+import {
+  catchError,
+  defer,
+  finalize,
+  map,
+  type Observable,
+  of,
+  shareReplay,
+  switchMap,
+  take,
+  tap,
+  throwError,
+} from 'rxjs';
+import type { PiZeroBootstrapStatusHandler } from './pi-zero-serial-bootstrap.service';
 import { PiZeroSerialBootstrapService } from './pi-zero-serial-bootstrap.service';
 import { PiZeroShellReadinessService } from './pi-zero-shell-readiness.service';
+import type { SerialFacadeConnectResult } from './serial-facade.service';
+import { SerialFacadeService } from './serial-facade.service';
 
 /**
- * Pi Zero / CHIRIMEN 固有のシリアルセッション境界（issue #557）。
+ * Pi Zero / CHIRIMEN 固有シリアルセッションの単一エントリ（issue #562）。
  *
- * UI や feature 層は、汎用の送受信に {@link SerialFacadeService}、接続後のログイン・初期化に
- * {@link PiZeroSerialBootstrapService}、シェル準備フラグに {@link PiZeroShellReadinessService} を利用する。
- * 本サービスはそれらへの単一エントリとして DI を整理する。
+ * 汎用の送受信は {@link SerialFacadeService}。本サービスは接続・切断・接続後パイプラインを束ねる。
  */
 @Injectable({
   providedIn: 'root',
 })
 export class PiZeroSessionService {
+  private lastBootstrappedEpoch = -1;
+  private activeBootstrap$: Observable<void> | null = null;
+  private activeBootstrapEpoch: number | null = null;
+
   constructor(
-    readonly bootstrap: PiZeroSerialBootstrapService,
+    private readonly serial: SerialFacadeService,
+    private readonly bootstrap: PiZeroSerialBootstrapService,
     readonly shellReadiness: PiZeroShellReadinessService,
   ) {}
+
+  connect$(baudRate = 115200): Observable<SerialFacadeConnectResult> {
+    return this.serial.connect$(baudRate);
+  }
+
+  disconnect$(): Observable<void> {
+    return this.serial.disconnect$();
+  }
+
+  loginIfNeeded$(
+    onStatus?: PiZeroBootstrapStatusHandler,
+  ): Observable<void> {
+    return this.bootstrap.loginIfNeeded$(onStatus);
+  }
+
+  setupEnvironment$(
+    onStatus?: PiZeroBootstrapStatusHandler,
+  ): Observable<void> {
+    return this.bootstrap.setupEnvironment$(onStatus);
+  }
+
+  /**
+   * 接続セッションごとに 1 回、初期化パイプラインを走らせるか。
+   */
+  shouldRunAfterConnect$(): Observable<boolean> {
+    return this.serial.isConnected$.pipe(
+      take(1),
+      map((connected) => {
+        if (!connected) {
+          return false;
+        }
+        const epoch = this.serial.getConnectionEpoch();
+        if (epoch === this.lastBootstrappedEpoch) {
+          return false;
+        }
+        return true;
+      }),
+    );
+  }
+
+  /**
+   * 接続セッション内で未初期化の場合のみ login + 環境セットアップを実行する。
+   */
+  runAfterConnect$(
+    onStatus?: PiZeroBootstrapStatusHandler,
+  ): Observable<void> {
+    const log = onStatus ?? (() => undefined);
+
+    return this.shouldRunAfterConnect$().pipe(
+      switchMap((shouldRun) => {
+        if (!shouldRun) {
+          return of(undefined);
+        }
+        const epoch = this.serial.getConnectionEpoch();
+
+        if (
+          this.activeBootstrap$ !== null &&
+          this.activeBootstrapEpoch === epoch
+        ) {
+          return this.activeBootstrap$;
+        }
+
+        this.activeBootstrapEpoch = epoch;
+
+        this.activeBootstrap$ = defer(() =>
+          this.bootstrap.runPostConnectPipeline$(onStatus),
+        ).pipe(
+          switchMap(() =>
+            this.serial.isConnected$.pipe(
+              take(1),
+              tap((connected) => {
+                if (connected) {
+                  this.lastBootstrappedEpoch = epoch;
+                  this.shellReadiness.setReady(true);
+                }
+              }),
+              map(() => undefined),
+            ),
+          ),
+          catchError((error: unknown) => {
+            const message =
+              error instanceof Error ? error.message : String(error);
+            log(`[コンソール] 接続後の初期化に失敗しました: ${message}`);
+            return throwError(() => error);
+          }),
+          finalize(() => {
+            if (this.activeBootstrapEpoch === epoch) {
+              this.activeBootstrap$ = null;
+              this.activeBootstrapEpoch = null;
+            }
+          }),
+          shareReplay({ bufferSize: 1, refCount: true }),
+        );
+
+        return this.activeBootstrap$;
+      }),
+    );
+  }
 }

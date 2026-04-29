@@ -7,28 +7,14 @@ import {
   SERIAL_TIMEOUT,
 } from '@libs-web-serial-util';
 import { PiZeroSerialBootstrapService } from './pi-zero-serial-bootstrap.service';
-import type { PiZeroShellReadinessService } from './pi-zero-shell-readiness.service';
 import type { SerialFacadeService } from './serial-facade.service';
 import { SerialPromptDetectorService } from './serial-command/serial-prompt-detector.service';
 
-function createBootstrap(
-  serial: SerialFacadeService,
-  shellReadiness: PiZeroShellReadinessService,
-) {
+function createBootstrap(serial: SerialFacadeService) {
   return new PiZeroSerialBootstrapService(
     serial,
-    shellReadiness,
     new SerialPromptDetectorService(),
   );
-}
-
-function createShellReadinessMock(): PiZeroShellReadinessService {
-  return {
-    setReady: vi.fn(),
-    reset: vi.fn(),
-    isReady: vi.fn(() => false),
-    ready$: vi.fn() as unknown as PiZeroShellReadinessService['ready$'],
-  } as unknown as PiZeroShellReadinessService;
 }
 
 const TZ_SET_CMD =
@@ -48,11 +34,9 @@ describe('PiZeroSerialBootstrapService', () => {
       exec$: (c: string, o: unknown) => from(exec(c, o)),
     } as unknown as SerialFacadeService;
 
-    const shellReadiness = createShellReadinessMock();
-    const service = createBootstrap(serial, shellReadiness);
-    await firstValueFrom(service.runAfterConnect$());
+    const service = createBootstrap(serial);
+    await firstValueFrom(service.runPostConnectPipeline$());
 
-    expect(vi.mocked(shellReadiness.setReady)).toHaveBeenCalledWith(true);
     expect(readUntilPrompt).toHaveBeenCalledTimes(1);
     expect(readUntilPrompt).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -94,12 +78,12 @@ describe('PiZeroSerialBootstrapService', () => {
       exec$: (c: string, o: unknown) => from(exec(c, o)),
     } as unknown as SerialFacadeService;
 
-    const shellReadiness = createShellReadinessMock();
-    const service = createBootstrap(serial, shellReadiness);
+    const service = createBootstrap(serial);
     const lines: string[] = [];
-    await firstValueFrom(service.runAfterConnect$((line) => lines.push(line)));
+    await firstValueFrom(
+      service.runPostConnectPipeline$((line) => lines.push(line)),
+    );
 
-    expect(vi.mocked(shellReadiness.setReady)).toHaveBeenCalledWith(true);
     expect(readUntilPrompt).toHaveBeenCalledTimes(2);
     expect(readUntilPrompt).toHaveBeenNthCalledWith(
       1,
@@ -158,52 +142,6 @@ describe('PiZeroSerialBootstrapService', () => {
     );
   });
 
-  it('runs at most once per connection epoch', async () => {
-    const readUntilPrompt = vi.fn().mockResolvedValue({
-      stdout: `${PI_ZERO_PROMPT} `,
-    });
-    const exec = vi.fn().mockResolvedValue({ stdout: '' });
-    const serial = {
-      isConnected$: of(true),
-      getConnectionEpoch: () => 1,
-      readUntilPrompt$: (o: unknown) => from(readUntilPrompt(o)),
-      exec$: (c: string, o: unknown) => from(exec(c, o)),
-    } as unknown as SerialFacadeService;
-
-    const shellReadiness = createShellReadinessMock();
-    const service = createBootstrap(serial, shellReadiness);
-    await firstValueFrom(service.runAfterConnect$());
-    await firstValueFrom(service.runAfterConnect$());
-
-    expect(readUntilPrompt).toHaveBeenCalledTimes(1);
-    expect(vi.mocked(shellReadiness.setReady)).toHaveBeenCalledTimes(1);
-    expect(vi.mocked(shellReadiness.setReady)).toHaveBeenCalledWith(true);
-  });
-
-  it('re-runs bootstrap when connection epoch changes', async () => {
-    let epoch = 1;
-    const readUntilPrompt = vi.fn().mockResolvedValue({
-      stdout: `${PI_ZERO_PROMPT} `,
-    });
-    const exec = vi.fn().mockResolvedValue({ stdout: '' });
-    const serial = {
-      isConnected$: of(true),
-      getConnectionEpoch: () => epoch,
-      readUntilPrompt$: (o: unknown) => from(readUntilPrompt(o)),
-      exec$: (c: string, o: unknown) => from(exec(c, o)),
-    } as unknown as SerialFacadeService;
-
-    const shellReadiness = createShellReadinessMock();
-    const service = createBootstrap(serial, shellReadiness);
-
-    await firstValueFrom(service.runAfterConnect$());
-    epoch = 2;
-    await firstValueFrom(service.runAfterConnect$());
-
-    expect(readUntilPrompt).toHaveBeenCalledTimes(2);
-    expect(vi.mocked(shellReadiness.setReady)).toHaveBeenCalledTimes(2);
-  });
-
   it('logs timezone status stdout lines to the status handler', async () => {
     const readUntilPrompt = vi.fn().mockResolvedValue({
       stdout: `ready\r\n${PI_ZERO_PROMPT} `,
@@ -222,11 +160,11 @@ describe('PiZeroSerialBootstrapService', () => {
     } as unknown as SerialFacadeService;
 
     const lines: string[] = [];
-    const shellReadiness = createShellReadinessMock();
-    const service = createBootstrap(serial, shellReadiness);
-    await firstValueFrom(service.runAfterConnect$((line) => lines.push(line)));
+    const service = createBootstrap(serial);
+    await firstValueFrom(
+      service.runPostConnectPipeline$((line) => lines.push(line)),
+    );
 
-    expect(vi.mocked(shellReadiness.setReady)).toHaveBeenCalledWith(true);
     expect(
       lines.some((l) => l.includes('Time zone: Asia/Tokyo')),
     ).toBe(true);
