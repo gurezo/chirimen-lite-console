@@ -16,7 +16,10 @@ import {
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { SerialTransportService } from './serial-transport.service';
 
-const mockCreateSerialSession = vi.fn<[], SerialSession>();
+/** Vitest 4 の `vi.fn<Args, R>()` は非推奨のため、実装から型を載せる */
+const mockCreateSerialSession = vi.fn((): SerialSession => {
+  throw new Error('mockCreateSerialSession: call mockReturnValue in the test');
+});
 
 vi.mock('@gurezo/web-serial-rxjs', async (importOriginal) => {
   const actual =
@@ -36,7 +39,7 @@ function buildMockSession(
     SerialSessionState.Connecting
   );
   const isConnected$ = new BehaviorSubject(false);
-  const getCurrentPort = vi.fn<[], SerialPort | null>(() => port);
+  const getCurrentPort = vi.fn((): SerialPort | null => port);
   const receiveStream = receive$ ?? EMPTY;
 
   return {
@@ -124,7 +127,9 @@ describe('SerialTransportService', () => {
     const err = new SerialError(SerialErrorCode.READ_FAILED, 'read');
     const errSubj = new BehaviorSubject(err);
     const session = buildMockSession(mockPort);
-    (session as { errors$: typeof errSubj }).errors$ = errSubj.asObservable();
+    (
+      session as unknown as { errors$: Observable<SerialError> }
+    ).errors$ = errSubj.asObservable();
     mockCreateSerialSession.mockReturnValue(session);
 
     await firstValueFrom(service.connect$());
