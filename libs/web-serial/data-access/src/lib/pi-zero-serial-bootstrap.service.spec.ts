@@ -4,13 +4,23 @@ import {
   PI_ZERO_LOGIN_PASSWORD,
   PI_ZERO_LOGIN_USER,
   PI_ZERO_PROMPT,
-  PI_ZERO_SERIAL_LOGIN_LINE_PATTERN,
-  PI_ZERO_SHELL_PROMPT_LINE_PATTERN,
   SERIAL_TIMEOUT,
 } from '@libs-web-serial-util';
 import { PiZeroSerialBootstrapService } from './pi-zero-serial-bootstrap.service';
 import type { PiZeroShellReadinessService } from './pi-zero-shell-readiness.service';
 import type { SerialFacadeService } from './serial-facade.service';
+import { SerialPromptDetectorService } from './serial-command/serial-prompt-detector.service';
+
+function createBootstrap(
+  serial: SerialFacadeService,
+  shellReadiness: PiZeroShellReadinessService,
+) {
+  return new PiZeroSerialBootstrapService(
+    serial,
+    shellReadiness,
+    new SerialPromptDetectorService(),
+  );
+}
 
 function createShellReadinessMock(): PiZeroShellReadinessService {
   return {
@@ -39,20 +49,24 @@ describe('PiZeroSerialBootstrapService', () => {
     } as unknown as SerialFacadeService;
 
     const shellReadiness = createShellReadinessMock();
-    const service = new PiZeroSerialBootstrapService(serial, shellReadiness);
+    const service = createBootstrap(serial, shellReadiness);
     await firstValueFrom(service.runAfterConnect$());
 
     expect(vi.mocked(shellReadiness.setReady)).toHaveBeenCalledWith(true);
     expect(readUntilPrompt).toHaveBeenCalledTimes(1);
-    expect(readUntilPrompt).toHaveBeenCalledWith({
-      prompt: PI_ZERO_SHELL_PROMPT_LINE_PATTERN,
-      timeout: SERIAL_TIMEOUT.SHELL_PROMPT_PROBE,
-    });
+    expect(readUntilPrompt).toHaveBeenCalledWith(
+      expect.objectContaining({
+        prompt: '',
+        promptMatch: expect.any(Function),
+        timeout: SERIAL_TIMEOUT.SHELL_PROMPT_PROBE,
+      }),
+    );
     expect(exec).toHaveBeenNthCalledWith(
       1,
       TZ_SET_CMD,
       expect.objectContaining({
-        prompt: PI_ZERO_SHELL_PROMPT_LINE_PATTERN,
+        prompt: '',
+        promptMatch: expect.any(Function),
         timeout: SERIAL_TIMEOUT.SHORT,
       }),
     );
@@ -60,7 +74,8 @@ describe('PiZeroSerialBootstrapService', () => {
       2,
       TZ_STATUS_CMD,
       expect.objectContaining({
-        prompt: PI_ZERO_SHELL_PROMPT_LINE_PATTERN,
+        prompt: '',
+        promptMatch: expect.any(Function),
         timeout: SERIAL_TIMEOUT.SHORT,
       }),
     );
@@ -80,25 +95,34 @@ describe('PiZeroSerialBootstrapService', () => {
     } as unknown as SerialFacadeService;
 
     const shellReadiness = createShellReadinessMock();
-    const service = new PiZeroSerialBootstrapService(serial, shellReadiness);
+    const service = createBootstrap(serial, shellReadiness);
     const lines: string[] = [];
     await firstValueFrom(service.runAfterConnect$((line) => lines.push(line)));
 
     expect(vi.mocked(shellReadiness.setReady)).toHaveBeenCalledWith(true);
     expect(readUntilPrompt).toHaveBeenCalledTimes(2);
-    expect(readUntilPrompt).toHaveBeenNthCalledWith(1, {
-      prompt: PI_ZERO_SHELL_PROMPT_LINE_PATTERN,
-      timeout: SERIAL_TIMEOUT.SHELL_PROMPT_PROBE,
-    });
-    expect(readUntilPrompt).toHaveBeenNthCalledWith(2, {
-      prompt: PI_ZERO_SERIAL_LOGIN_LINE_PATTERN,
-      timeout: SERIAL_TIMEOUT.LONG,
-    });
+    expect(readUntilPrompt).toHaveBeenNthCalledWith(
+      1,
+      expect.objectContaining({
+        prompt: '',
+        promptMatch: expect.any(Function),
+        timeout: SERIAL_TIMEOUT.SHELL_PROMPT_PROBE,
+      }),
+    );
+    expect(readUntilPrompt).toHaveBeenNthCalledWith(
+      2,
+      expect.objectContaining({
+        prompt: '',
+        promptMatch: expect.any(Function),
+        timeout: SERIAL_TIMEOUT.LONG,
+      }),
+    );
     expect(exec).toHaveBeenNthCalledWith(
       1,
       PI_ZERO_LOGIN_USER,
       expect.objectContaining({
-        prompt: expect.any(RegExp),
+        prompt: '',
+        promptMatch: expect.any(Function),
         timeout: SERIAL_TIMEOUT.DEFAULT,
         retry: 1,
       }),
@@ -107,7 +131,8 @@ describe('PiZeroSerialBootstrapService', () => {
       2,
       PI_ZERO_LOGIN_PASSWORD,
       expect.objectContaining({
-        prompt: PI_ZERO_SHELL_PROMPT_LINE_PATTERN,
+        prompt: '',
+        promptMatch: expect.any(Function),
         timeout: SERIAL_TIMEOUT.LONG,
         retry: 1,
       }),
@@ -117,7 +142,8 @@ describe('PiZeroSerialBootstrapService', () => {
       3,
       TZ_SET_CMD,
       expect.objectContaining({
-        prompt: PI_ZERO_SHELL_PROMPT_LINE_PATTERN,
+        prompt: '',
+        promptMatch: expect.any(Function),
         timeout: SERIAL_TIMEOUT.SHORT,
       }),
     );
@@ -125,7 +151,8 @@ describe('PiZeroSerialBootstrapService', () => {
       4,
       TZ_STATUS_CMD,
       expect.objectContaining({
-        prompt: PI_ZERO_SHELL_PROMPT_LINE_PATTERN,
+        prompt: '',
+        promptMatch: expect.any(Function),
         timeout: SERIAL_TIMEOUT.SHORT,
       }),
     );
@@ -144,7 +171,7 @@ describe('PiZeroSerialBootstrapService', () => {
     } as unknown as SerialFacadeService;
 
     const shellReadiness = createShellReadinessMock();
-    const service = new PiZeroSerialBootstrapService(serial, shellReadiness);
+    const service = createBootstrap(serial, shellReadiness);
     await firstValueFrom(service.runAfterConnect$());
     await firstValueFrom(service.runAfterConnect$());
 
@@ -167,7 +194,7 @@ describe('PiZeroSerialBootstrapService', () => {
     } as unknown as SerialFacadeService;
 
     const shellReadiness = createShellReadinessMock();
-    const service = new PiZeroSerialBootstrapService(serial, shellReadiness);
+    const service = createBootstrap(serial, shellReadiness);
 
     await firstValueFrom(service.runAfterConnect$());
     epoch = 2;
@@ -196,7 +223,7 @@ describe('PiZeroSerialBootstrapService', () => {
 
     const lines: string[] = [];
     const shellReadiness = createShellReadinessMock();
-    const service = new PiZeroSerialBootstrapService(serial, shellReadiness);
+    const service = createBootstrap(serial, shellReadiness);
     await firstValueFrom(service.runAfterConnect$((line) => lines.push(line)));
 
     expect(vi.mocked(shellReadiness.setReady)).toHaveBeenCalledWith(true);

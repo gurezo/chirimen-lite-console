@@ -7,9 +7,6 @@ import { sanitizeSerialStdout } from '@libs-terminal-util';
 import {
   PI_ZERO_LOGIN_PASSWORD,
   PI_ZERO_LOGIN_USER,
-  PI_ZERO_SERIAL_LOGIN_LINE_PATTERN,
-  PI_ZERO_SERIAL_PASSWORD_LINE_PATTERN,
-  PI_ZERO_SHELL_PROMPT_LINE_PATTERN,
   SERIAL_TIMEOUT,
 } from '@libs-web-serial-util';
 import type { Observable } from 'rxjs';
@@ -30,10 +27,15 @@ import {
   throwError,
 } from 'rxjs';
 import { PiZeroShellReadinessService } from './pi-zero-shell-readiness.service';
+import { SerialPromptDetectorService } from './serial-command/serial-prompt-detector.service';
 import { SerialFacadeService } from './serial-facade.service';
 
 export type PiZeroBootstrapStatusHandler = (line: string) => void;
 
+/**
+ * Pi Zero / CHIRIMEN 向けシリアル接続後のログイン・初期化（issue #557）。
+ * 汎用の送受信は {@link SerialFacadeService}、プロンプト判定は {@link SerialPromptDetectorService}。
+ */
 @Injectable({
   providedIn: 'root',
 })
@@ -46,6 +48,7 @@ export class PiZeroSerialBootstrapService {
   constructor(
     private readonly serial: SerialFacadeService,
     private readonly shellReadiness: PiZeroShellReadinessService,
+    private readonly promptDetector: SerialPromptDetectorService,
   ) {}
 
   /**
@@ -130,10 +133,13 @@ export class PiZeroSerialBootstrapService {
   private runPipeline$(log: PiZeroBootstrapStatusHandler): Observable<void> {
     const client = createConnectClient();
 
-    return this.serial.readUntilPrompt$({
-      prompt: PI_ZERO_SHELL_PROMPT_LINE_PATTERN,
-      timeout: SERIAL_TIMEOUT.SHELL_PROMPT_PROBE,
-    }).pipe(
+    return this.serial
+      .readUntilPrompt$({
+        prompt: '',
+        promptMatch: (buf) => this.promptDetector.isShellPrompt(buf),
+        timeout: SERIAL_TIMEOUT.SHELL_PROMPT_PROBE,
+      })
+      .pipe(
       map(() => true),
       catchError(() => of(false)),
       switchMap((atShell) =>
@@ -147,7 +153,8 @@ export class PiZeroSerialBootstrapService {
     log('[コンソール] ログイン画面を検出しました。');
     return this.serial
       .readUntilPrompt$({
-        prompt: PI_ZERO_SERIAL_LOGIN_LINE_PATTERN,
+        prompt: '',
+        promptMatch: (buf) => this.promptDetector.isLoginPrompt(buf),
         // 起動直後のログ出しが続くと login: 行が遅延することがある
         timeout: SERIAL_TIMEOUT.LONG,
       })
@@ -159,7 +166,8 @@ export class PiZeroSerialBootstrapService {
         }),
         switchMap(() =>
           this.serial.exec$(PI_ZERO_LOGIN_USER, {
-            prompt: PI_ZERO_SERIAL_PASSWORD_LINE_PATTERN,
+            prompt: '',
+            promptMatch: (buf) => this.promptDetector.isPasswordPrompt(buf),
             timeout: SERIAL_TIMEOUT.DEFAULT,
             retry: 1,
           }),
@@ -169,7 +177,8 @@ export class PiZeroSerialBootstrapService {
         }),
         switchMap(() =>
           this.serial.exec$(PI_ZERO_LOGIN_PASSWORD, {
-            prompt: PI_ZERO_SHELL_PROMPT_LINE_PATTERN,
+            prompt: '',
+            promptMatch: (buf) => this.promptDetector.isShellPrompt(buf),
             timeout: SERIAL_TIMEOUT.LONG,
             retry: 1,
           }),
@@ -189,7 +198,8 @@ export class PiZeroSerialBootstrapService {
         log(step.statusMessage);
         return this.serial
           .exec$(step.command, {
-            prompt: PI_ZERO_SHELL_PROMPT_LINE_PATTERN,
+            prompt: '',
+            promptMatch: (buf) => this.promptDetector.isShellPrompt(buf),
             timeout: SERIAL_TIMEOUT.SHORT,
           })
           .pipe(
