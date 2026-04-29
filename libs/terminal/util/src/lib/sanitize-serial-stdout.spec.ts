@@ -62,7 +62,7 @@ describe('sanitizeSerialStdout', () => {
       '合計 36\n       drwx------ 5 pi pi 4096 .\npi@raspberrypi:';
     const out = sanitizeSerialStdout(
       raw,
-      'LC_ALL=C LANG=C TERM=dumb LS_COLORS= ls -1 -la 2>&1 | cat',
+      "LC_ALL=C LANG=C TERM=dumb LS_COLORS= ls -1 -la </dev/null 2>&1 | sed 's/^[[:blank:]]*//' | cat",
       'pi@raspberrypi:',
     );
     expect(out).toBe('合計 36\ndrwx------ 5 pi pi 4096 .');
@@ -70,11 +70,12 @@ describe('sanitizeSerialStdout', () => {
 
   it('strips coerced ls even when UART splits the echoed command across line breaks', () => {
     const cmd =
-      'LC_ALL=C LANG=C TERM=dumb LS_COLORS= ls -1 -la 2>&1 | cat';
+      "LC_ALL=C LANG=C TERM=dumb LS_COLORS= ls -1 -la </dev/null 2>&1 | sed 's/^[[:blank:]]*//' | cat";
     const raw =
       'stale block before echo\ntotal 36\njunk\n' +
       'LC_ALL=C LANG=C TERM=dumb\n' +
-      'LS_COLORS= ls -1 -la 2>&1 | cat\n' +
+      'LS_COLORS= ls -1 -la </dev/null 2>&1\n' +
+      "| sed 's/^[[:blank:]]*//' | cat\n" +
       'total 36\ndrwx------ 5 pi\npi@raspberrypi:~$ ';
     const out = sanitizeSerialStdout(raw, cmd, 'pi@raspberrypi:~$ ');
     expect(out).not.toContain('stale');
@@ -83,15 +84,15 @@ describe('sanitizeSerialStdout', () => {
     expect(out).toBe('total 36\ndrwx------ 5 pi');
   });
 
-  it('lineStreamMirrored skips per-line CR-collapse (closer to library lines$ semantics)', () => {
+  it('lineStreamMirrored also collapses intra-line \\r redraws (exec buffer matches lines$ + TTY)', () => {
     const prompt = 'pi@p:$ ';
-    /** 1 行に複数 \\r（TTY 再描画）。default は最終セグメントのみ、lineStream は \\n 化で断片を並べる */
+    /** 1 行に複数 \\r（TTY 再描画）。exec キャプチャは default / lineStream ともに最終セグメントへ収束 */
     const raw = 'A\rB\rC\n' + prompt;
     expect(
       sanitizeSerialStdout(raw, 'echo', prompt, 'default').trim(),
     ).toBe('C');
-    expect(sanitizeSerialStdout(raw, 'echo', prompt, 'lineStreamMirrored')).toBe(
-      'A\nB\nC',
+    expect(sanitizeSerialStdout(raw, 'echo', prompt, 'lineStreamMirrored').trim()).toBe(
+      'C',
     );
   });
 
