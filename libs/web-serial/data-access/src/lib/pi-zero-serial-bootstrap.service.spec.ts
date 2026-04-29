@@ -142,6 +142,52 @@ describe('PiZeroSerialBootstrapService', () => {
     );
   });
 
+  it('sends password only when Password is already the active prompt', async () => {
+    const readUntilPrompt = vi
+      .fn()
+      .mockRejectedValueOnce(new Error('Command execution timeout'))
+      .mockResolvedValueOnce({ stdout: 'Password: ' });
+    const exec = vi.fn().mockResolvedValue({ stdout: `pi@raspberrypi:~$ ` });
+    const serial = {
+      isConnected$: of(true),
+      getConnectionEpoch: () => 1,
+      readUntilPrompt$: (o: unknown) => from(readUntilPrompt(o)),
+      exec$: (c: string, o: unknown) => from(exec(c, o)),
+    } as unknown as SerialFacadeService;
+
+    const lines: string[] = [];
+    const service = createBootstrap(serial);
+    await firstValueFrom(
+      service.runPostConnectPipeline$((line) => lines.push(line)),
+    );
+
+    expect(exec).toHaveBeenNthCalledWith(
+      1,
+      PI_ZERO_LOGIN_PASSWORD,
+      expect.objectContaining({
+        prompt: '',
+        promptMatch: expect.any(Function),
+        timeout: SERIAL_TIMEOUT.LONG,
+        retry: 1,
+      }),
+    );
+    expect(
+      lines.some((l) => l.includes('パスワード入力画面を検出')),
+    ).toBe(true);
+    expect(
+      lines.some((l) => l.includes('ログインユーザー')),
+    ).toBe(false);
+    expect(exec).toHaveBeenNthCalledWith(
+      2,
+      TZ_SET_CMD,
+      expect.objectContaining({
+        prompt: '',
+        promptMatch: expect.any(Function),
+        timeout: SERIAL_TIMEOUT.SHORT,
+      }),
+    );
+  });
+
   it('logs timezone status stdout lines to the status handler', async () => {
     const readUntilPrompt = vi.fn().mockResolvedValue({
       stdout: `ready\r\n${PI_ZERO_PROMPT} `,
