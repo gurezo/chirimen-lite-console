@@ -29,11 +29,11 @@ export type SerialFacadeConnectResult = SerialConnectResult;
  *
  * 各ストリームの意味は {@link SerialTransportService} のクラスドキュメントおよび `libs/web-serial/data-access/README.md` を参照。
  *
- * - {@link #terminalOutput$} … ターミナル表示専用。replay 付き **生** 受信（= {@link #receiveReplay$}）。
+ * - {@link #terminalText$} … ターミナル表示専用。terminal helper で整形済み文字列。
  * - {@link #commandResultLines$} / {@link #data$} / {@link #read$} … コマンド実行・プロンプト待ち用の **行**（multicast）。
  * - {@link #lines$} … `SerialSession.lines$` の素の橋渡し（未接続時 `NEVER`）。
  * - {@link #receive$} … 生チャンク（replay なし）。
- * - {@link #receiveReplay$} … {@link #terminalOutput$} と同一の replay 付き生受信。
+ * - {@link #receiveReplay$} … 後方互換の replay 付き生受信。
  *
  * プロンプト待ち・`exec$` は {@link SerialCommandService} が {@link SerialTransportService#receive$} を累積したバッファで照合する（`lines$` は使用しない）。
  */
@@ -62,17 +62,22 @@ export class SerialFacadeService {
     return this.transport.lines$;
   }
 
+  /** ターミナル UI 向けの表示テキスト。terminal helper による整形済み文字列。 */
+  get terminalText$(): Observable<string> {
+    return this.transport.terminalText$;
+  }
+
   /**
-   * ターミナル UI 向けの受信ログ（issue #566 の `terminalOutput$`）。
-   * 生チャンク・replay 付き。プロンプト判定には使わないこと。
+   * @deprecated `terminalText$` を使用すること。
+   * 互換性のため残すが、replay 生受信ではなく表示テキストに委譲する。
    */
   get terminalOutput$(): Observable<string> {
-    return this.transport.receiveReplay$;
+    return this.terminalText$;
   }
 
   /**
    * コマンド実行・プロンプト待ち向けの行ストリーム（issue #566 の `commandResult$` 相当の入力）。
-   * multicast。表示用 {@link #terminalOutput$} とは別経路。
+   * multicast。表示用 {@link #terminalText$} とは別経路。
    */
   get commandResultLines$(): Observable<string> {
     return this.transport.commandResultLines$;
@@ -83,7 +88,7 @@ export class SerialFacadeService {
     return this.transport.receive$;
   }
 
-  /** replay 付き生受信。{@link #terminalOutput$} と同一源。 */
+  /** replay 付き生受信（後方互換用途）。 */
   get receiveReplay$(): Observable<string> {
     return this.transport.receiveReplay$;
   }
@@ -92,6 +97,7 @@ export class SerialFacadeService {
    * 接続済み時のみ 1 行ずつ読むストリーム（{@link SerialTransportService#getReadStream} = {@link #commandResultLines$}）。
    * 未接続で購読するとエラー。
    */
+  /** @deprecated `lines$` または `commandResultLines$` を使用すること。 */
   get data$() {
     return this.transport.getReadStream();
   }

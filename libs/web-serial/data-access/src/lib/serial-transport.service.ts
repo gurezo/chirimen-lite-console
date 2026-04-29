@@ -2,6 +2,7 @@
 
 import { Injectable } from '@angular/core';
 import {
+  createTerminalBuffer,
   createSerialSession,
   SerialError,
   SerialSessionState,
@@ -43,7 +44,7 @@ import {
  *
  * | 用途 | stream |
  * | --- | --- |
- * | ターミナル表示（replay で取りこぼしにくい生受信） | {@link #receiveReplay$} |
+ * | ターミナル表示（terminal helper で整形済み文字列） | {@link #terminalText$} |
  * | 通常の行単位ログ | {@link #lines$} |
  * | prompt / login / password 判定（SerialCommandRunner の exec バッファ） | {@link #receive$} のチャンク累積（`lines$` は lone `\\r` で断片が分離するためプロンプト照合に使わない） |
  * | `lines$` でのログ・行入力（表示・他コンシューマ） | {@link #commandResultLines$} / {@link #getReadStream} |
@@ -93,6 +94,16 @@ export class SerialTransportService {
   );
 
   /**
+   * terminal helper で整形済みの表示向けテキスト。
+   * `createTerminalBuffer(session.receive$).text$` をそのまま公開する。
+   */
+  readonly terminalText$ = this.activeSession$.pipe(
+    switchMap((s) =>
+      s ? createTerminalBuffer(s.receive$).text$ : NEVER
+    )
+  );
+
+  /**
    * コマンド実行・プロンプト判定用の **行** ストリーム（`SerialSession.lines$` と同根、issue #566）。
    * `shareReplay` により複数購読者が同一行シーケンスを共有し、ターミナル表示など別経路の購読が
    * コマンド側の行消費と競合しない。
@@ -116,6 +127,7 @@ export class SerialTransportService {
 
   /**
    * ライブラリ {@link SerialSession.receiveReplay$}。未接続時は空ストリーム。
+   * 後方互換用途のみ（terminal 表示は {@link #terminalText$} を優先）。
    */
   get receiveReplay$(): Observable<string> {
     return this.activeSession$.pipe(
