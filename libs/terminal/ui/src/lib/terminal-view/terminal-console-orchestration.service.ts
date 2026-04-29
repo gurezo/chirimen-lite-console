@@ -27,7 +27,7 @@ export interface TerminalConsoleSink {
  *
  * ### 生受信ミラー（issue #566）
  *
- * シリアルからの **ライブ表示** 専用は {@link SerialFacadeService#terminalOutput$} のみを購読する。
+ * シリアルからの **ライブ表示** 専用は {@link SerialFacadeService#terminalText$} のみを購読する。
  * {@link #pipeTerminalOutputToSink$} がその経路。`exec` の stdout 整形表示と二重にならないよう UI 側で使い分けること。
  *
  * ### 対話コンソールの表示モードと [example-angular](https://github.com/gurezo/web-serial-rxjs/tree/main/apps/example-angular)
@@ -132,12 +132,12 @@ export class TerminalConsoleOrchestrationService {
   }
 
   /**
-   * {@link SerialFacadeService#terminalOutput$}（replay 生受信）を xterm 等へ流す（issue #566）。
+   * {@link SerialFacadeService#terminalText$}（terminal helper の整形済み文字列）を xterm 等へ流す。
    * プロンプト判定・コマンド結果の行処理には使わないこと。
    */
   pipeTerminalOutputToSink$(
     sink: Pick<TerminalConsoleSink, 'write'>,
   ): Observable<string> {
-    return this.serial.terminalOutput$.pipe(tap((chunk) => sink.write(chunk)));
+    return this.serial.terminalText$.pipe(tap((chunk) => sink.write(chunk)));
   }
 }
