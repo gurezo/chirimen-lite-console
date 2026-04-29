@@ -2,7 +2,10 @@
 
 import { Injectable } from '@angular/core';
 import type { Observable } from 'rxjs';
-import type { SerialExecOptions } from '@libs-web-serial-util';
+import {
+  mergeSerialExecOptions,
+  type SerialExecOptions,
+} from '@libs-web-serial-util';
 import type { CommandExecutionConfig, CommandResult } from './serial-command-types';
 import { SerialCommandQueueService } from './serial-command-queue.service';
 import { SerialCommandRunnerService } from './serial-command-runner.service';
@@ -43,17 +46,24 @@ export class SerialCommandService {
   }
 
   /**
-   * {@link SerialExecOptions}（timeout / retry の既定あり）でコマンド実行
+   * {@link SerialExecOptions}（既定のタイムアウト・再試行・フラグあり）でコマンド実行
    */
   execWithSerialOptions$(
     cmd: string,
     options: SerialExecOptions,
     onAttemptStart?: () => void,
   ): Observable<CommandResult> {
-    return this.exec$(
-      cmd,
-      this.runner.serialOptionsToConfig(options),
-      onAttemptStart,
+    const merged = mergeSerialExecOptions(options);
+    const config = this.runner.serialOptionsToConfig(merged);
+    return this.commandQueue.enqueueCommand$(
+      (enqueuedGen) =>
+        this.runner.buildExecPipeline$(
+          cmd + '\n',
+          config,
+          enqueuedGen,
+          onAttemptStart,
+        ),
+      { cancelPrevious: merged.cancelPrevious },
     );
   }
 
@@ -62,10 +72,17 @@ export class SerialCommandService {
     options: SerialExecOptions,
     onAttemptStart?: () => void,
   ): Observable<CommandResult> {
-    return this.execRaw$(
-      cmdRaw,
-      this.runner.serialOptionsToConfig(options),
-      onAttemptStart,
+    const merged = mergeSerialExecOptions(options);
+    const config = this.runner.serialOptionsToConfig(merged);
+    return this.commandQueue.enqueueCommand$(
+      (enqueuedGen) =>
+        this.runner.buildExecPipeline$(
+          cmdRaw,
+          config,
+          enqueuedGen,
+          onAttemptStart,
+        ),
+      { cancelPrevious: merged.cancelPrevious },
     );
   }
 
@@ -73,9 +90,16 @@ export class SerialCommandService {
     options: SerialExecOptions,
     onAttemptStart?: () => void,
   ): Observable<CommandResult> {
-    return this.readUntilPrompt$(
-      this.runner.serialOptionsToConfig(options),
-      onAttemptStart,
+    const merged = mergeSerialExecOptions(options);
+    const config = this.runner.serialOptionsToConfig(merged);
+    return this.commandQueue.enqueueCommand$(
+      (enqueuedGen) =>
+        this.runner.buildReadUntilPromptPipeline$(
+          config,
+          enqueuedGen,
+          onAttemptStart,
+        ),
+      { cancelPrevious: merged.cancelPrevious },
     );
   }
 

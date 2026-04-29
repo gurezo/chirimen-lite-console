@@ -19,7 +19,8 @@ import {
   timeout,
 } from 'rxjs';
 import {
-  SERIAL_TIMEOUT,
+  DEFAULT_SERIAL_EXEC_OPTIONS,
+  mergeSerialExecOptions,
   type SerialExecOptions,
 } from '@libs-web-serial-util';
 import { stripLineForPromptDetection } from './ansi-strip.util';
@@ -153,8 +154,14 @@ export class SerialCommandRunnerService {
       onAttemptStart?.();
       this.clearReadBuffer();
       return this.transport.write(sendData).pipe(
-        mergeMap(() => this.waitForPromptMatch$(config, enqueuedGen)),
-        map((stdout) => ({ stdout })),
+        mergeMap(() => {
+          if (config.waitForPrompt === false) {
+            return of<CommandResult>({ stdout: '' });
+          }
+          return this.waitForPromptMatch$(config, enqueuedGen).pipe(
+            map((stdout) => ({ stdout })),
+          );
+        }),
       );
     });
     return this.withPromptAttemptRetries(attempt$, retryCount);
@@ -171,6 +178,11 @@ export class SerialCommandRunnerService {
         return throwError(() => new Error('All commands cancelled'));
       }
       onAttemptStart?.();
+      if (config.waitForPrompt === false) {
+        const stdout = this.readBuffer;
+        this.readBuffer = '';
+        return of<CommandResult>({ stdout });
+      }
       if (this.bufferMatchesPrompt(this.readBuffer, config)) {
         const stdout = this.readBuffer;
         this.readBuffer = '';
@@ -184,12 +196,14 @@ export class SerialCommandRunnerService {
   }
 
   serialOptionsToConfig(options: SerialExecOptions): CommandExecutionConfig {
-    const {
-      prompt,
-      promptMatch,
-      timeout = SERIAL_TIMEOUT.DEFAULT,
-      retry = 0,
-    } = options;
+    const m = mergeSerialExecOptions(options);
+    const { prompt, promptMatch, waitForPrompt } = m;
+    const timeout =
+      m.timeoutMs ??
+      m.timeout ??
+      DEFAULT_SERIAL_EXEC_OPTIONS.timeoutMs;
+    const retry =
+      m.retryCount ?? m.retry ?? DEFAULT_SERIAL_EXEC_OPTIONS.retryCount;
     if (promptMatch === undefined && prompt === undefined) {
       throw new Error('SerialExecOptions: prompt or promptMatch is required');
     }
@@ -198,6 +212,7 @@ export class SerialCommandRunnerService {
       promptMatch,
       timeout,
       retry,
+      waitForPrompt,
     };
   }
 
