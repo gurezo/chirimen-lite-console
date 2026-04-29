@@ -192,7 +192,7 @@ export class TerminalViewComponent implements AfterViewInit, OnDestroy {
   }
 
   private bootstrapAfterConnect$(prefixMessage: string) {
-    return this.piZeroSession.bootstrap.shouldRunAfterConnect$().pipe(
+    return this.piZeroSession.shouldRunAfterConnect$().pipe(
       switchMap((should) => {
         if (!should) {
           this.xterminal.writeln(
@@ -202,7 +202,7 @@ export class TerminalViewComponent implements AfterViewInit, OnDestroy {
           return EMPTY;
         }
         this.xterminal.writeln(`${prefixMessage} 初期化しています...`);
-        return this.piZeroSession.bootstrap.runAfterConnect$((line) =>
+        return this.piZeroSession.runAfterConnect$((line) =>
           this.xterminal.writeln(line),
         );
       }),

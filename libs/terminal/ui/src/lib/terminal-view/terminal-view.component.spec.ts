@@ -54,10 +54,8 @@ describe('TerminalViewComponent', () => {
       })
       .overrideProvider(PiZeroSessionService, {
         useValue: {
-          bootstrap: {
-            shouldRunAfterConnect$: shouldRunAfterConnectMock,
-            runAfterConnect$: runAfterConnectMock,
-          },
+          shouldRunAfterConnect$: shouldRunAfterConnectMock,
+          runAfterConnect$: runAfterConnectMock,
         },
       })
       .compileComponents();
