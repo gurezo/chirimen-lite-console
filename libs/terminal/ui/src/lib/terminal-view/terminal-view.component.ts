@@ -9,28 +9,19 @@ import {
   input,
 } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
-import {
-  EMPTY,
-  Subscription,
-  catchError,
-  finalize,
-  firstValueFrom,
-  switchMap,
-  take,
-} from 'rxjs';
+import { EMPTY, Subscription, switchMap, take } from 'rxjs';
 import { FitAddon } from '@xterm/addon-fit';
 import { Terminal } from '@xterm/xterm';
 import {
   TerminalCommandRequestService,
-  sanitizeSerialStdout,
   xtermConsoleConfigOptions,
 } from '@libs-terminal-util';
 import { attachTerminalInput } from '../terminal-input';
+import { PI_ZERO_PROMPT } from '@libs-web-serial-util';
 import {
-  PiZeroSessionService,
-  SerialFacadeService,
-} from '@libs-web-serial-data-access';
-import { PI_ZERO_PROMPT, SERIAL_TIMEOUT } from '@libs-web-serial-util';
+  TerminalConsoleOrchestrationService,
+  type TerminalConsoleSink,
+} from './terminal-console-orchestration.service';
 
 @Component({
   selector: 'choh-terminal-view',
@@ -41,15 +32,14 @@ import { PI_ZERO_PROMPT, SERIAL_TIMEOUT } from '@libs-web-serial-util';
 })
 export class TerminalViewComponent implements AfterViewInit, OnDestroy {
   /**
-   * シリアル側のシェルプロンプト（CommandService の prompt 待機に利用）
+   * シリアル側のシェルプロンプト（サービス側の prompt 待機に渡す）
    */
   readonly remotePrompt = input<string>(PI_ZERO_PROMPT);
 
   @ViewChild('consoleDom', { read: ElementRef })
   private consoleDomRef?: ElementRef<HTMLElement>;
 
-  private serial = inject(SerialFacadeService);
-  private piZeroSession = inject(PiZeroSessionService);
+  private console = inject(TerminalConsoleOrchestrationService);
   private commandRequests = inject(TerminalCommandRequestService);
   private destroyRef = inject(DestroyRef);
 
@@ -57,28 +47,26 @@ export class TerminalViewComponent implements AfterViewInit, OnDestroy {
 
   private readonly fitAddon = new FitAddon();
 
-  /** Serializes interactive and toolbar-initiated exec so only one runs at a time. */
-  private execTail: Promise<void> = Promise.resolve();
-
   private commandRequestSub?: Subscription;
   private resizeObserver?: ResizeObserver;
 
-  /** {@link SerialFacadeService#isConnected$} の直近値（キー入力可否用） */
+  /** キー入力可否（{@link TerminalConsoleOrchestrationService#isConnected$} のミラー） */
   private serialInputEnabled = false;
 
   ngAfterViewInit(): void {
     this.configTerminal();
-    this.serial.connectionEstablished$
+    this.console.connectionEstablished$
       .pipe(
         switchMap(() =>
-          this.serial.isConnected$.pipe(
+          this.console.isConnected$.pipe(
             take(1),
             switchMap((connected) =>
               connected
-                ? this.bootstrapAfterConnect$(
+                ? this.console.bootstrapAfterConnect$(
                     '[コンソール] シリアルに接続しました。',
+                    this.terminalSink,
                   )
-                : EMPTY
+                : EMPTY,
             ),
           ),
         ),
@@ -93,13 +81,11 @@ export class TerminalViewComponent implements AfterViewInit, OnDestroy {
     this.xterminal.dispose();
   }
 
-  private enqueueExec<T>(job: () => Promise<T>): Promise<T> {
-    const run = this.execTail.then(() => job());
-    this.execTail = run.then(
-      () => undefined,
-      () => undefined,
-    );
-    return run;
+  private get terminalSink(): TerminalConsoleSink {
+    return {
+      writeln: (line: string) => this.xterminal.writeln(line),
+      write: (chunk: string) => this.xterminal.write(chunk),
+    };
   }
 
   private configTerminal(): void {
@@ -112,18 +98,22 @@ export class TerminalViewComponent implements AfterViewInit, OnDestroy {
     this.resizeObserver = new ResizeObserver(() => this.fitTerminal());
     this.resizeObserver.observe(el);
 
-    this.serial.isConnected$
+    this.console.isConnected$
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe((c) => {
         this.serialInputEnabled = c;
       });
 
     this.xterminal.reset();
-    this.serial.isConnected$
+    this.console.isConnected$
       .pipe(take(1), takeUntilDestroyed(this.destroyRef))
       .subscribe((connected) => {
         if (connected) {
-          this.bootstrapAfterConnect$('[コンソール] シリアル接続済み。')
+          this.console
+            .bootstrapAfterConnect$(
+              '[コンソール] シリアル接続済み。',
+              this.terminalSink,
+            )
             .pipe(takeUntilDestroyed(this.destroyRef))
             .subscribe();
         } else {
@@ -134,51 +124,34 @@ export class TerminalViewComponent implements AfterViewInit, OnDestroy {
     attachTerminalInput(
       this.xterminal,
       async (command) => {
-        return this.enqueueExec(async () => {
-          const { stdout } = await firstValueFrom(this.serial.exec$(command, {
-            prompt: this.remotePrompt(),
-            timeout: SERIAL_TIMEOUT.DEFAULT,
-          }));
-          return sanitizeSerialStdout(stdout, command, this.remotePrompt());
-        });
+        return this.console.runInteractiveCommand(command, this.remotePrompt());
       },
       () => this.serialInputEnabled,
     );
 
     this.commandRequestSub = this.commandRequests.commandRequests$.subscribe(
       (cmd) => {
-        void this.enqueueExec(async () => {
-          const connected = await firstValueFrom(
-            this.serial.isConnected$.pipe(take(1)),
-          );
-          if (!connected) {
+        void this.console.runToolbarCommand(cmd, this.remotePrompt()).then(
+          (result) => {
+            if (result.status === 'not_connected') {
+              this.xterminal.writeln(`$ ${cmd}`);
+              this.xterminal.writeln('Command failed: Serial port not connected');
+              this.xterminal.write('$ ');
+              return;
+            }
             this.xterminal.writeln(`$ ${cmd}`);
-            this.xterminal.writeln('Command failed: Serial port not connected');
-            this.xterminal.write('$ ');
-            return;
-          }
-          this.xterminal.writeln(`$ ${cmd}`);
-          try {
-            const { stdout } = await firstValueFrom(this.serial.exec$(cmd, {
-              prompt: this.remotePrompt(),
-              timeout: SERIAL_TIMEOUT.DEFAULT,
-            }));
-            const out = sanitizeSerialStdout(
-              stdout,
-              cmd,
-              this.remotePrompt(),
-            );
+            if (result.status === 'error') {
+              this.xterminal.writeln(`\r\nCommand failed: ${result.message}`);
+              this.xterminal.write('$ ');
+              return;
+            }
+            const out = result.output;
             if (out) {
               this.xterminal.write(out);
             }
             this.xterminal.write('\r\n$ ');
-          } catch (error: unknown) {
-            const message =
-              error instanceof Error ? error.message : String(error);
-            this.xterminal.writeln(`\r\nCommand failed: ${message}`);
-            this.xterminal.write('$ ');
-          }
-        });
+          },
+        );
       },
     );
   }
@@ -189,25 +162,5 @@ export class TerminalViewComponent implements AfterViewInit, OnDestroy {
     } catch {
       // Dimensions may be zero before layout stabilizes
     }
-  }
-
-  private bootstrapAfterConnect$(prefixMessage: string) {
-    return this.piZeroSession.shouldRunAfterConnect$().pipe(
-      switchMap((should) => {
-        if (!should) {
-          this.xterminal.writeln(
-            `${prefixMessage} 初期化済みのためスキップします。`,
-          );
-          this.xterminal.write('$ ');
-          return EMPTY;
-        }
-        this.xterminal.writeln(`${prefixMessage} 初期化しています...`);
-        return this.piZeroSession.runAfterConnect$((line) =>
-          this.xterminal.writeln(line),
-        );
-      }),
-      catchError(() => EMPTY),
-      finalize(() => this.xterminal.write('$ ')),
-    );
   }
 }
