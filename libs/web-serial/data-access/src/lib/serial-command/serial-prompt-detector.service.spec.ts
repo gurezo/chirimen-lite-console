@@ -47,8 +47,19 @@ describe('SerialPromptDetectorService', () => {
     expect(detector.isShellPrompt('root@host:~# ')).toBe(false);
   });
 
+  it('isLikelyLoggedInShellPrompt accepts common user@host shell lines', () => {
+    expect(detector.isLikelyLoggedInShellPrompt('pi@raspberrypi:~$ ')).toBe(
+      true,
+    );
+    expect(
+      detector.isLikelyLoggedInShellPrompt('boot\nroot@raspberrypi:~# '),
+    ).toBe(true);
+    expect(detector.isLikelyLoggedInShellPrompt('kernel: blah')).toBe(false);
+  });
+
   it('isCommandCompleted matches shell prompt return', () => {
     expect(detector.isCommandCompleted('pi@raspberrypi:~$ ')).toBe(true);
+    expect(detector.isCommandCompleted('\nroot@raspberrypi:~# ')).toBe(true);
     expect(detector.isCommandCompleted('running…')).toBe(false);
   });
 

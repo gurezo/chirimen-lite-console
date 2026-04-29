@@ -57,6 +57,22 @@ export class SerialPromptDetectorService {
   }
 
   /**
+   * 対話シェル到達とみなせるプロンプト（`pi@` に限らない）。
+   * 既にログイン済みなのに getty 待ちへ進みタイムアウトする誤判定を防ぐ。
+   */
+  isLikelyLoggedInShellPrompt(text: string): boolean {
+    if (this.isShellPrompt(text)) {
+      return true;
+    }
+    const line = this.trailingNonEmptyLine(text);
+    if (!line) {
+      return false;
+    }
+    // user@host:path $ / # / %（bash / zsh 等で一般的な末尾）
+    return /^[^\s]+@[^:]+:.+[$#%]\s*$/.test(line);
+  }
+
+  /**
    * 末尾行がユーザー名入力待ちの `login:` / `ログイン:`（getty の現在のプロンプト）
    */
   isAwaitingLoginName(text: string): boolean {
@@ -82,7 +98,7 @@ export class SerialPromptDetectorService {
    * シリアル上のコマンド完了はシェルプロンプトへの復帰で判定する。
    */
   isCommandCompleted(text: string): boolean {
-    return this.isShellPrompt(text);
+    return this.isLikelyLoggedInShellPrompt(text);
   }
 
   /**
