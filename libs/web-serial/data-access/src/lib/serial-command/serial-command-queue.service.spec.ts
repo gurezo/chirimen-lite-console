@@ -6,6 +6,7 @@ import {
   firstValueFrom,
   map,
   of,
+  switchMap,
   take,
   timer,
 } from 'rxjs';
@@ -107,5 +108,47 @@ describe('SerialCommandQueueService', () => {
     expect(queue.isGenerationActive(genAtEnqueue)).toBe(true);
     queue.cancelAllCommands();
     expect(queue.isGenerationActive(genAtEnqueue)).toBe(false);
+  });
+
+  it('cancelPrevious rejects pending work but not the one currently running', async () => {
+    const queue = new SerialCommandQueueService();
+    const finishFirst = new Subject<void>();
+    const p1 = firstValueFrom(
+      queue.enqueueCommand$(() =>
+        finishFirst.pipe(
+          take(1),
+          map(() => 'first'),
+        ),
+      ),
+    );
+    const p2 = firstValueFrom(queue.enqueueCommand$(() => of('second')));
+    const p3 = firstValueFrom(
+      queue.enqueueCommand$(() => of('third'), { cancelPrevious: true }),
+    );
+    finishFirst.next();
+    finishFirst.complete();
+    expect(await p1).toBe('first');
+    await expect(p2).rejects.toThrow('All commands cancelled');
+    expect(await p3).toBe('third');
+  });
+
+  it('cancelPrevious does not abort work already in defer (same slot bump)', async () => {
+    const queue = new SerialCommandQueueService();
+    const blocker = new Subject<void>();
+    const p1 = firstValueFrom(
+      queue.enqueueCommand$(() =>
+        blocker.pipe(
+          take(1),
+          switchMap(() => of('running')),
+        ),
+      ),
+    );
+    const p2 = firstValueFrom(
+      queue.enqueueCommand$(() => of('x'), { cancelPrevious: true }),
+    );
+    blocker.next();
+    blocker.complete();
+    expect(await p1).toBe('running');
+    expect(await p2).toBe('x');
   });
 });
