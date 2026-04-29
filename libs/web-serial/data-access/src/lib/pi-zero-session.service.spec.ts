@@ -1,6 +1,9 @@
 import { describe, expect, it, vi } from 'vitest';
-import { firstValueFrom, from, of } from 'rxjs';
-import { PI_ZERO_PROMPT } from '@libs-web-serial-util';
+import { firstValueFrom, from, of, throwError } from 'rxjs';
+import {
+  PI_ZERO_LOGIN_USER,
+  PI_ZERO_PROMPT,
+} from '@libs-web-serial-util';
 import { PiZeroSerialBootstrapService } from './pi-zero-serial-bootstrap.service';
 import type { PiZeroShellReadinessService } from './pi-zero-shell-readiness.service';
 import { PiZeroSessionService } from './pi-zero-session.service';
@@ -95,5 +98,127 @@ describe('PiZeroSessionService', () => {
 
     expect(seen).toContain(true);
     expect(seen.at(-1)).toBe(false);
+  });
+
+  describe('login flow (loginIfNeeded$)', () => {
+    it('completes without exec when shell prompt is already present', async () => {
+      const readUntilPrompt = vi.fn().mockReturnValue(
+        of({ stdout: `${PI_ZERO_PROMPT} ` }),
+      );
+      const exec = vi.fn();
+      const serial = {
+        readUntilPrompt$: (o: unknown) => readUntilPrompt(o),
+        exec$: (c: string, o: unknown) => from(exec(c, o)),
+      } as unknown as SerialFacadeService;
+
+      const service = createSession(serial, createShellReadinessMock());
+      await firstValueFrom(service.loginIfNeeded$());
+
+      expect(readUntilPrompt).toHaveBeenCalledTimes(1);
+      expect(exec).not.toHaveBeenCalled();
+    });
+
+    it('runs user and password exec after login prompts when shell probe fails', async () => {
+      const readUntilPrompt = vi
+        .fn()
+        .mockImplementationOnce(() =>
+          throwError(() => new Error('shell prompt timeout')),
+        )
+        .mockImplementationOnce(() =>
+          of({ stdout: 'raspberrypi login: ' }),
+        );
+      const exec = vi
+        .fn()
+        .mockReturnValueOnce(of({ stdout: 'Password: ' }))
+        .mockReturnValueOnce(of({ stdout: `${PI_ZERO_PROMPT} ` }));
+
+      const serial = {
+        readUntilPrompt$: (o: unknown) => readUntilPrompt(o),
+        exec$: (c: string, o: unknown) => exec(c, o),
+      } as unknown as SerialFacadeService;
+
+      const service = createSession(serial, createShellReadinessMock());
+      await firstValueFrom(service.loginIfNeeded$());
+
+      expect(readUntilPrompt).toHaveBeenCalledTimes(2);
+      expect(exec).toHaveBeenCalledTimes(2);
+      expect(exec.mock.calls[0]?.[0]).toBe(PI_ZERO_LOGIN_USER);
+    });
+  });
+
+  describe('setup flow (setupEnvironment$)', () => {
+    it('runs each timezone init command over serial exec$', async () => {
+      const exec = vi.fn().mockReturnValue(of({ stdout: `${PI_ZERO_PROMPT} ` }));
+      const serial = {
+        exec$: (c: string, o: unknown) => exec(c, o),
+      } as unknown as SerialFacadeService;
+
+      const service = createSession(serial, createShellReadinessMock());
+      await firstValueFrom(service.setupEnvironment$());
+
+      expect(exec).toHaveBeenCalledTimes(2);
+      expect(exec.mock.calls[0]?.[0]).toContain('timedatectl set-timezone');
+      expect(exec.mock.calls[1]?.[0]).toBe('timedatectl status');
+    });
+  });
+
+  describe('error flow (runAfterConnect$)', () => {
+    it('propagates errors, skips setReady(true), and ends initializing$', async () => {
+      const readUntilPrompt = vi
+        .fn()
+        .mockImplementationOnce(() =>
+          throwError(() => new Error('shell probe timeout')),
+        )
+        .mockImplementationOnce(() =>
+          throwError(() => new Error('login prompt timeout')),
+        );
+      const exec = vi.fn();
+      const serial = {
+        isConnected$: of(true),
+        getConnectionEpoch: () => 1,
+        readUntilPrompt$: (o: unknown) => readUntilPrompt(o),
+        exec$: (c: string, o: unknown) => from(exec(c, o)),
+      } as unknown as SerialFacadeService;
+
+      const shellReadiness = createShellReadinessMock();
+      const service = createSession(serial, shellReadiness);
+      const seen: boolean[] = [];
+      const sub = service.initializing$.subscribe((v) => seen.push(v));
+
+      await expect(firstValueFrom(service.runAfterConnect$())).rejects.toThrow(
+        'login prompt timeout',
+      );
+      sub.unsubscribe();
+
+      expect(vi.mocked(shellReadiness.setReady)).not.toHaveBeenCalledWith(true);
+      expect(seen.at(-1)).toBe(false);
+    });
+
+    it('notifies status handler on pipeline failure', async () => {
+      const readUntilPrompt = vi
+        .fn()
+        .mockImplementationOnce(() =>
+          throwError(() => new Error('shell probe timeout')),
+        )
+        .mockImplementationOnce(() =>
+          throwError(() => new Error('login prompt timeout')),
+        );
+      const onStatus = vi.fn();
+      const serial = {
+        isConnected$: of(true),
+        getConnectionEpoch: () => 1,
+        readUntilPrompt$: (o: unknown) => readUntilPrompt(o),
+        exec$: (c: string, o: unknown) => from(Promise.resolve({ stdout: '' })),
+      } as unknown as SerialFacadeService;
+
+      const service = createSession(serial, createShellReadinessMock());
+      await expect(
+        firstValueFrom(service.runAfterConnect$(onStatus)),
+      ).rejects.toThrow();
+
+      expect(onStatus).toHaveBeenCalledWith(
+        expect.stringContaining('接続後の初期化に失敗'),
+      );
+    });
   });
 });
