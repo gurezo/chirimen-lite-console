@@ -14,6 +14,10 @@ export interface CommandExecutionConfig {
   timeout: number;
   /** タイムアウト等失敗時の再試行回数 */
   retry?: number;
+  /**
+   * 既定相当 `true`。`false` のときプロンプト一致待ちを行わない（Runner 層、issue #565）。
+   */
+  waitForPrompt?: boolean;
 }
 
 /**
