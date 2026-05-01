@@ -90,6 +90,27 @@ describe('PiZeroSerialBootstrapService', () => {
     ).rejects.toThrow('Password authentication failed');
   });
 
+  it('treats username phase timeout followed by login prompt as rejected login', async () => {
+    const readUntilPrompt = vi
+      .fn()
+      .mockRejectedValueOnce(new Error('probe timeout'))
+      .mockResolvedValueOnce({ stdout: 'stale' })
+      .mockResolvedValueOnce({ stdout: 'raspberrypi login: ' })
+      .mockRejectedValueOnce(new Error('Command execution timeout'))
+      .mockResolvedValueOnce({ stdout: 'raspberrypi login: ' });
+    const exec = vi.fn().mockResolvedValue({ stdout: '' });
+    const send$ = vi.fn().mockReturnValue(of(undefined));
+    const serial = {
+      readUntilPrompt$: (o: unknown) => from(readUntilPrompt(o)),
+      exec$: (c: string, o: unknown) => from(exec(c, o)),
+      send$,
+    } as unknown as SerialFacadeService;
+
+    await expect(
+      firstValueFrom(createBootstrap(serial).loginIfNeeded$()),
+    ).rejects.toThrow('Login rejected after username submission');
+  });
+
   it('keeps timezone status logging', async () => {
     const readUntilPrompt = vi.fn().mockResolvedValue({
       stdout: `ready\r\n${PI_ZERO_PROMPT} `,
