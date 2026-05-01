@@ -190,7 +190,6 @@ export class PiZeroSerialBootstrapService {
           prompt: '',
           promptMatch: (buf) =>
             this.promptDetector.isAwaitingPasswordInput(buf) ||
-            this.promptDetector.isAwaitingLoginName(buf) ||
             this.promptDetector.isLikelyLoggedInShellPrompt(buf),
           timeout: SERIAL_TIMEOUT.LONG,
         }),
@@ -204,7 +203,34 @@ export class PiZeroSerialBootstrapService {
           log('[コンソール] パスワードを送信中（画面には表示しません）...');
           return this.sendPasswordAndAwaitShell$();
         }
+        // password/shell 以外（理論上ここには来ない）は再入力待ちとみなし reject
         throw new Error('Login rejected after username submission');
+      }),
+      catchError((error) => {
+        // `password|shell` 待ちで timeout した場合のみ、現在の末尾状態を一度確認して
+        // login 復帰なら認証失敗として扱う。
+        const message = error instanceof Error ? error.message : String(error);
+        if (!/timeout/i.test(message)) {
+          throw error;
+        }
+        return this.serial
+          .readUntilPrompt$({
+            prompt: '',
+            waitForPrompt: false,
+            timeout: SERIAL_TIMEOUT.SHORT,
+          })
+          .pipe(
+            map(({ stdout }) => this.classifyAuthState(stdout)),
+            switchMap((state) => {
+              if (state === 'login') {
+                throw new Error('Login rejected after username submission');
+              }
+              throw error;
+            }),
+            catchError((inner) => {
+              throw inner;
+            }),
+          );
       }),
     );
   }
