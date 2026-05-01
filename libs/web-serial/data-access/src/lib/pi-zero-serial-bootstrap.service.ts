@@ -96,7 +96,7 @@ export class PiZeroSerialBootstrapService {
     log('[コンソール] ログイン画面を検出しました。');
     // getty はプロンプト末尾を CR のみにすることが多く、web-serial-rxjs の行分割では
     // 末尾が lone \r のとき行が emit されない。改行を送って確定させる。
-    return this.serial.write$('\r\n').pipe(
+    return this.serial.send$('\r\n').pipe(
       switchMap(() =>
         this.serial.readUntilPrompt$({
           prompt: '',
@@ -159,7 +159,7 @@ export class PiZeroSerialBootstrapService {
         timeout: SERIAL_TIMEOUT.SHORT,
       })
       .pipe(
-        switchMap(() => this.serial.write$('\r\n')),
+        switchMap(() => this.serial.send$('\r\n')),
         switchMap(() =>
           this.serial.readUntilPrompt$({
             prompt: '',

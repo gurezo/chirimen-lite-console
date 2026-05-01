@@ -120,7 +120,7 @@ network={
       const uint8Array = encoder.encode(configContent);
       const base64 = FileUtils.arrayBufferToBase64(uint8Array.buffer);
 
-      await firstValueFrom(this.serial.write$('\x03'));
+      await firstValueFrom(this.serial.send$('\x03'));
       await this.sleep(100);
 
       await firstValueFrom(this.serial.exec$(
@@ -135,7 +135,7 @@ network={
         timeout: SERIAL_TIMEOUT.LINE,
       }));
 
-      await firstValueFrom(this.serial.write$('\x04'));
+      await firstValueFrom(this.serial.send$('\x04'));
       await this.sleep(10);
     } catch (error: unknown) {
       throw wrapSerialError('Failed to save WiFi config', error);
