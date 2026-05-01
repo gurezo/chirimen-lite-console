@@ -43,64 +43,50 @@ export class SerialTransportService {
     SerialSession | undefined
   >(undefined);
 
+  /**
+   * 接続中は `pick(session)`、未接続時は `whenDisconnected` を購読する。
+   */
+  private sessionSwitchMap<T>(
+    pick: (s: SerialSession) => Observable<T>,
+    whenDisconnected: Observable<T>,
+  ): Observable<T> {
+    return this.activeSession$.pipe(
+      switchMap((s) => (s ? pick(s) : whenDisconnected)),
+    );
+  }
+
   /** ライブラリ {@link SerialSession.state$}。未接続時は `idle` を継続発火。 */
-  readonly state$ = this.activeSession$.pipe(
-    switchMap((s) =>
-      s
-        ? s.state$
-        : concat(of(SerialSessionState.Idle), NEVER)
-    ),
-    distinctUntilChanged()
-  );
+  readonly state$ = this.sessionSwitchMap(
+    (s) => s.state$,
+    concat(of(SerialSessionState.Idle), NEVER),
+  ).pipe(distinctUntilChanged());
 
   /** ライブラリ {@link SerialSession.isConnected$}。未接続時は `false` を継続。 */
-  readonly isConnected$ = this.activeSession$.pipe(
-    switchMap((s) =>
-      s ? s.isConnected$ : concat(of(false), NEVER)
-    ),
-    distinctUntilChanged()
-  );
+  readonly isConnected$ = this.sessionSwitchMap(
+    (s) => s.isConnected$,
+    concat(of(false), NEVER),
+  ).pipe(distinctUntilChanged());
 
   /**
    * ライブラリ {@link SerialSession.lines$}。未接続時は無限に完了しない空ストリーム。
    */
-  readonly lines$ = this.activeSession$.pipe(
-    switchMap((s) => (s ? s.lines$ : NEVER))
-  );
-
-  /** 生チャンク（内部用途）。 */
-  readonly receive$ = this.activeSession$.pipe(
-    switchMap((s) => s?.receive$ ?? EMPTY)
-  );
+  readonly lines$ = this.sessionSwitchMap((s) => s.lines$, NEVER);
 
   /** terminal helper で整形済みの表示向けテキスト。 */
-  readonly terminalText$ = this.activeSession$.pipe(
-    switchMap((s) => (s ? s.terminalText$ : NEVER))
+  readonly terminalText$ = this.sessionSwitchMap(
+    (s) => s.terminalText$,
+    NEVER,
   );
-
-  /**
-   * ライブラリ {@link SerialSession.receiveReplay$}。未接続時は空ストリーム。
-   * 後方互換用途のみ（terminal 表示は {@link #terminalText$} を優先）。
-   */
-  get receiveReplay$(): Observable<string> {
-    return this.activeSession$.pipe(
-      switchMap((s) => s?.receiveReplay$ ?? EMPTY)
-    );
-  }
 
   /**
    * I/O エラー（`SerialError`）のライブラリ本流。未接続時は空ストリーム。
    */
   get errors$(): Observable<SerialError> {
-    return this.activeSession$.pipe(
-      switchMap((s) => s?.errors$ ?? EMPTY)
-    );
+    return this.sessionSwitchMap((s) => s.errors$ ?? EMPTY, EMPTY);
   }
 
   get portInfo$(): Observable<SerialPortInfo | null> {
-    return this.activeSession$.pipe(
-      switchMap((s) => s?.portInfo$ ?? of(null))
-    );
+    return this.sessionSwitchMap((s) => s.portInfo$ ?? of(null), of(null));
   }
 
   getPortInfo(): SerialPortInfo | null {
@@ -112,7 +98,7 @@ export class SerialTransportService {
    * @param baudRate ボーレート (デフォルト: 115200)
    */
   connect$(
-    baudRate = 115200
+    baudRate = 115200,
   ): Observable<{ port: SerialPort } | { error: string }> {
     return defer(() => {
       this.tearDownSession();
@@ -134,7 +120,7 @@ export class SerialTransportService {
             this.tearDownSession();
             return of({
               error: getConnectionErrorMessage(
-                new Error('Port is not available after connection')
+                new Error('Port is not available after connection'),
               ),
             });
           }
@@ -143,7 +129,7 @@ export class SerialTransportService {
         catchError((error) => {
           this.tearDownSession();
           return of({ error: getConnectionErrorMessage(error) });
-        })
+        }),
       );
     });
   }
@@ -167,7 +153,7 @@ export class SerialTransportService {
         catchError((error) => {
           console.error('Error closing port:', error);
           return throwError(() => error);
-        })
+        }),
       );
     });
   }
@@ -188,15 +174,10 @@ export class SerialTransportService {
       }
       return s.send$(data).pipe(
         catchError((error) =>
-          throwError(() => new Error(getWriteErrorMessage(error)))
-        )
+          throwError(() => new Error(getWriteErrorMessage(error))),
+        ),
       );
     });
-  }
-
-  /** @deprecated `send$` を使用すること。 */
-  write(data: string): Observable<void> {
-    return this.send$(data);
   }
 
   private tearDownSession(): void {

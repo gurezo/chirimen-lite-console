@@ -225,7 +225,6 @@ export class PiZeroSerialBootstrapService {
                 typeof stdout === 'string' ? stdout : '',
                 step.command,
                 PI_ZERO_PROMPT_TARGET,
-                'lineStreamMirrored',
               );
               for (const line of cleaned.split(/\n/)) {
                 if (line.trim().length > 0) {
