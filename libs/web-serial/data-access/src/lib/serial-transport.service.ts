@@ -177,19 +177,6 @@ export class SerialTransportService {
   }
 
   /**
-   * 読み取りストリーム（**1 改行区切りごとに 1 エミット**する行文字列）。
-   * 接続済みチェックのためセッション欠如時は throwError（{@link #lines$} は未接続時 `NEVER`）。
-   */
-  getReadStream(): Observable<string> {
-    return defer(() => {
-      if (!this.session) {
-        return throwError(() => new Error('Serial port not connected'));
-      }
-      return this.lines$;
-    });
-  }
-
-  /**
    * データを書き込む。{@link SerialSession.send$} へ委譲（未接続時はライブラリが fail fast）。
    * セッションが無い場合のみ throwError（`Serial port not connected`）。
    */
