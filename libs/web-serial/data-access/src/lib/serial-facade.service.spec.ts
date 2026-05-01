@@ -99,7 +99,12 @@ describe('SerialFacadeService', () => {
     ).toHaveBeenCalledWith(options);
   });
 
-  it('write$ delegates to transport.send$', async () => {
+  it('send$ delegates to transport.send$', async () => {
+    await firstValueFrom(facade.send$('hello'));
+    expect(transport.send$).toHaveBeenCalledWith('hello');
+  });
+
+  it('write$ delegates to send$ as deprecated alias', async () => {
     await firstValueFrom(facade.write$('hello'));
     expect(transport.send$).toHaveBeenCalledWith('hello');
   });
