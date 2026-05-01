@@ -28,9 +28,17 @@ import type { CommandResult } from './serial-command/serial-command-types';
 export type PiZeroBootstrapStatusHandler = (line: string) => void;
 
 /**
- * Pi Zero / CHIRIMEN 向けのログイン・環境初期化パイプライン（シリアル送受信は {@link SerialFacadeService}）。
+ * Pi Zero / CHIRIMEN 固有のシリアル初期化を集約する単一サービス（issue #594）。
  *
- * 接続単位での「一度だけ実行」などのオーケストレーションは {@link PiZeroSessionService}。
+ * 本サービスは次の四責務を担い、他サービスからは Pi Zero ロジックを排除する。
+ *
+ *   1. **シェルプロンプト到達確認**（{@link probeShellPrompt$}）
+ *   2. **ログイン**（{@link loginSequence$}, ID 送信）
+ *   3. **パスワード送信**（{@link sendPasswordAndAwaitShell$}）
+ *   4. **timezone 初期化**（{@link timezoneSequence$}）
+ *
+ * シリアル送受信そのものは {@link SerialFacadeService}、接続単位での「一度だけ実行」
+ * などのオーケストレーションは {@link PiZeroSessionService} が担う。
  */
 @Injectable({
   providedIn: 'root',
@@ -42,7 +50,7 @@ export class PiZeroSerialBootstrapService {
   ) {}
 
   /**
-   * シェルプロンプト到達確認。未到達ならログイン（ID / Password）まで実行する。
+   * シェルプロンプト到達確認を行い、未到達ならログイン（ID / Password）まで実行する。
    */
   loginIfNeeded$(
     onStatus?: PiZeroBootstrapStatusHandler,
@@ -74,7 +82,13 @@ export class PiZeroSerialBootstrapService {
     );
   }
 
-  private loginPhase$(log: PiZeroBootstrapStatusHandler): Observable<void> {
+  // --- (1) プロンプト到達確認 -----------------------------------------------
+
+  /**
+   * シェルプロンプトに既に到達しているかを軽く確認する。
+   * 未到達（タイムアウト等）なら呼び出し側が login フェーズへフォールバックする。
+   */
+  private probeShellPrompt$(): Observable<boolean> {
     return this.serial
       .readUntilPrompt$({
         prompt: '',
@@ -85,71 +99,88 @@ export class PiZeroSerialBootstrapService {
       .pipe(
         map(() => true),
         catchError(() => of(false)),
-        switchMap((atShell) =>
-          atShell ? of(undefined) : this.loginSequence$(log),
-        ),
       );
   }
+
+  private loginPhase$(log: PiZeroBootstrapStatusHandler): Observable<void> {
+    return this.probeShellPrompt$().pipe(
+      switchMap((atShell) =>
+        atShell ? of(undefined) : this.loginSequence$(log),
+      ),
+    );
+  }
+
+  // --- (2) ログイン（ID 送信）/ (3) パスワード送信 --------------------------
 
   private loginSequence$(log: PiZeroBootstrapStatusHandler): Observable<void> {
     log('[コンソール] ログイン画面を検出しました。');
     // getty はプロンプト末尾を CR のみにすることが多く、web-serial-rxjs の行分割では
     // 末尾が lone \r のとき行が emit されない。改行を送って確定させる。
     return this.serial.send$('\r\n').pipe(
-      switchMap(() =>
-        this.serial.readUntilPrompt$({
-          prompt: '',
-          promptMatch: (buf) =>
-            this.promptDetector.isAwaitingLoginName(buf) ||
-            this.promptDetector.isAwaitingPasswordInput(buf) ||
-            this.promptDetector.isLoginPrompt(buf) ||
-            this.promptDetector.isPasswordPrompt(buf),
-          // getty が遅い／MOTD が長いと LONG では間に合わないことがある。lone \r で行が未完の間も検出できるよう時間に余裕を持つ。
-          timeout: SERIAL_TIMEOUT.FILE_TRANSFER,
-        }),
-      ),
+      switchMap(() => this.awaitLoginOrPasswordPrompt$()),
       switchMap((result: CommandResult) => {
         const stdout = typeof result.stdout === 'string' ? result.stdout : '';
-        const pwdOnly =
-          this.promptDetector.isAwaitingPasswordInput(stdout) &&
-          !this.promptDetector.isAwaitingLoginName(stdout);
-        if (pwdOnly) {
+        if (this.isPasswordOnlyPrompt(stdout)) {
           log(
             '[コンソール] パスワード入力画面を検出しました（ユーザー名入力は省略します）。',
           );
           log('[コンソール] パスワードを送信中（画面には表示しません）...');
-          return this.awaitLoggedInInteractiveShellPromptAfterSendingPassword$().pipe(
+          return this.sendPasswordAndAwaitShell$().pipe(
             tap(() => log('[コンソール] ログインが完了しました。')),
           );
         }
-        log(`[コンソール] ログインユーザー「${PI_ZERO_LOGIN_USER}」を送信中...`);
-        return this.serial
-          .exec$(PI_ZERO_LOGIN_USER, {
-            prompt: '',
-            promptMatch: (buf) => this.promptDetector.isPasswordPrompt(buf),
-            /** getty／MOTD が長いとき Password: が遅れることがあるため DEFAULT より長く取る */
-            timeout: SERIAL_TIMEOUT.LONG,
-            retry: 1,
-          })
-          .pipe(
-            tap(() => {
-              log('[コンソール] パスワードを送信中（画面には表示しません）...');
-            }),
-            switchMap(() =>
-              this.awaitLoggedInInteractiveShellPromptAfterSendingPassword$(),
-            ),
-            tap(() => log('[コンソール] ログインが完了しました。')),
-          );
+        return this.sendLoginUserAndPassword$(log);
       }),
       map(() => undefined),
     );
+  }
+
+  private awaitLoginOrPasswordPrompt$(): Observable<CommandResult> {
+    return this.serial.readUntilPrompt$({
+      prompt: '',
+      promptMatch: (buf) =>
+        this.promptDetector.isAwaitingLoginName(buf) ||
+        this.promptDetector.isAwaitingPasswordInput(buf) ||
+        this.promptDetector.isLoginPrompt(buf) ||
+        this.promptDetector.isPasswordPrompt(buf),
+      // getty が遅い／MOTD が長いと LONG では間に合わないことがある。lone \r で行が未完の間も検出できるよう時間に余裕を持つ。
+      timeout: SERIAL_TIMEOUT.FILE_TRANSFER,
+    });
+  }
+
+  private isPasswordOnlyPrompt(stdout: string): boolean {
+    return (
+      this.promptDetector.isAwaitingPasswordInput(stdout) &&
+      !this.promptDetector.isAwaitingLoginName(stdout)
+    );
+  }
+
+  private sendLoginUserAndPassword$(
+    log: PiZeroBootstrapStatusHandler,
+  ): Observable<void> {
+    log(`[コンソール] ログインユーザー「${PI_ZERO_LOGIN_USER}」を送信中...`);
+    return this.serial
+      .exec$(PI_ZERO_LOGIN_USER, {
+        prompt: '',
+        promptMatch: (buf) => this.promptDetector.isPasswordPrompt(buf),
+        /** getty／MOTD が長いとき Password: が遅れることがあるため DEFAULT より長く取る */
+        timeout: SERIAL_TIMEOUT.LONG,
+        retry: 1,
+      })
+      .pipe(
+        tap(() => {
+          log('[コンソール] パスワードを送信中（画面には表示しません）...');
+        }),
+        switchMap(() => this.sendPasswordAndAwaitShell$()),
+        tap(() => log('[コンソール] ログインが完了しました。')),
+      );
   }
 
   /**
    * パスワード送出後、その行だけでは pi@ が lines$ に乗らない場合があるので
    * wait を切り、続けて改行送信で getty が出したログイン／シェルを行としてフラッシュしたうえで検出する。
    */
-  private awaitLoggedInInteractiveShellPromptAfterSendingPassword$(): Observable<void> {
+  private sendPasswordAndAwaitShell$(): Observable<void> {
     return this.serial
       .exec$(PI_ZERO_LOGIN_PASSWORD, {
         prompt: '',
@@ -170,6 +201,8 @@ export class PiZeroSerialBootstrapService {
         map(() => undefined),
       );
   }
+
+  // --- (4) timezone 初期化 ---------------------------------------------------
 
   private timezoneSequence$(
     log: PiZeroBootstrapStatusHandler,
