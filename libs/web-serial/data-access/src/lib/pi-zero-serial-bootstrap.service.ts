@@ -121,6 +121,10 @@ export class PiZeroSerialBootstrapService {
       switchMap(() => this.awaitLoginOrPasswordPrompt$()),
       switchMap((result: CommandResult) => {
         const stdout = typeof result.stdout === 'string' ? result.stdout : '';
+        if (this.promptDetector.isLikelyLoggedInShellPrompt(stdout)) {
+          log('[コンソール] すでにログイン済みのシェルを検出しました。');
+          return of(undefined);
+        }
         if (this.isPasswordOnlyPrompt(stdout)) {
           log(
             '[コンソール] パスワード入力画面を検出しました（ユーザー名入力は省略します）。',
@@ -158,8 +162,7 @@ export class PiZeroSerialBootstrapService {
       promptMatch: (buf) =>
         this.promptDetector.isAwaitingLoginName(buf) ||
         this.promptDetector.isAwaitingPasswordInput(buf) ||
-        this.promptDetector.isLoginPrompt(buf) ||
-        this.promptDetector.isPasswordPrompt(buf),
+        this.promptDetector.isLikelyLoggedInShellPrompt(buf),
       // getty が遅い／MOTD が長いと LONG では間に合わないことがある。lone \r で行が未完の間も検出できるよう時間に余裕を持つ。
       timeout: SERIAL_TIMEOUT.FILE_TRANSFER,
     });

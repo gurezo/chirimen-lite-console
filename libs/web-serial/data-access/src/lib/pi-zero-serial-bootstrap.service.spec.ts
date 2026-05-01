@@ -232,6 +232,38 @@ describe('PiZeroSerialBootstrapService', () => {
     );
   });
 
+  it('skips login send when shell is already visible after newline flush', async () => {
+    const readUntilPrompt = vi
+      .fn()
+      .mockRejectedValueOnce(new Error('Command execution timeout'))
+      .mockResolvedValueOnce({ stdout: 'stale boot log' })
+      .mockResolvedValueOnce({ stdout: `${PI_ZERO_PROMPT} ` });
+    const exec = vi
+      .fn()
+      .mockResolvedValueOnce({ stdout: '' })
+      .mockResolvedValueOnce({ stdout: `${PI_ZERO_PROMPT} ` });
+    const send$ = vi.fn().mockReturnValue(of(undefined));
+    const serial = {
+      isConnected$: of(true),
+      getConnectionEpoch: () => 1,
+      readUntilPrompt$: (o: unknown) => from(readUntilPrompt(o)),
+      exec$: (c: string, o: unknown) => from(exec(c, o)),
+      send$,
+    } as unknown as SerialFacadeService;
+
+    const lines: string[] = [];
+    const service = createBootstrap(serial);
+    await firstValueFrom(
+      service.runPostConnectPipeline$((line) => lines.push(line)),
+    );
+
+    expect(exec).toHaveBeenCalledTimes(2);
+    expect(exec).toHaveBeenNthCalledWith(1, TZ_SET_CMD, expect.any(Object));
+    expect(exec).toHaveBeenNthCalledWith(2, TZ_STATUS_CMD, expect.any(Object));
+    expect(lines.some((l) => l.includes('ログインユーザー'))).toBe(false);
+    expect(lines.some((l) => l.includes('ログイン済みのシェル'))).toBe(true);
+  });
+
   it('does not treat stale Password in previous buffer as active password prompt', async () => {
     const readUntilPrompt = vi
       .fn()
