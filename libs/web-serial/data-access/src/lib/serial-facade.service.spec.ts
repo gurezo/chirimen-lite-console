@@ -23,9 +23,9 @@ describe('SerialFacadeService', () => {
       isConnected$: of(false),
       errors$: EMPTY,
       portInfo$: of(null),
+      lines$: of('line'),
       terminalText$: EMPTY,
       receiveReplay$: EMPTY,
-      getReadStream: vi.fn(() => of('line')),
       send$: vi.fn(() => of(undefined)),
       getPort: vi.fn(() => undefined),
     };
@@ -109,20 +109,19 @@ describe('SerialFacadeService', () => {
     expect(transport.send$).toHaveBeenCalledWith('hello');
   });
 
-  it('read$ takes one line from transport.getReadStream', async () => {
+  it('read$ takes one line from transport.lines$', async () => {
     const line = await firstValueFrom(facade.read$());
-    expect(transport.getReadStream).toHaveBeenCalled();
     expect(line).toBe('line');
   });
 
   it('terminalText$ delegates to transport.terminalText$', async () => {
-    transport.terminalText$ = of('chunk');
+    Object.assign(transport, { terminalText$: of('chunk') });
     const chunk = await firstValueFrom(facade.terminalText$.pipe(take(1)));
     expect(chunk).toBe('chunk');
   });
 
   it('terminalOutput$ delegates to terminalText$ as deprecated alias', async () => {
-    transport.terminalText$ = of('chunk');
+    Object.assign(transport, { terminalText$: of('chunk') });
     const chunk = await firstValueFrom(facade.terminalOutput$.pipe(take(1)));
     expect(chunk).toBe('chunk');
   });
