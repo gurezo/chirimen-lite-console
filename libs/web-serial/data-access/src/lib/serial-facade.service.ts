@@ -25,15 +25,13 @@ export type SerialFacadeConnectResult = SerialConnectResult;
  *
  * Transport / Validator / Command / 接続オーケストレーションを束ね、アプリ向け API を提供する薄い層。
  *
- * ### 受信ストリーム（issue #559, #566）
+ * ### 受信ストリーム（issue #559, #566, #601）
  *
  * 各ストリームの意味は {@link SerialTransportService} のクラスドキュメントおよび `libs/web-serial/data-access/README.md` を参照。
  *
  * - {@link #terminalText$} … ターミナル表示専用。terminal helper で整形済み文字列。
  * - {@link #read$} … 接続済み時の 1 行受信。
  * - {@link #lines$} … `SerialSession.lines$` の素の橋渡し（未接続時 `NEVER`）。
- * - {@link #receive$} … 生チャンク（replay なし）。
- * - {@link #receiveReplay$} … 後方互換の replay 付き生受信。
  *
  * プロンプト待ち・`exec$` は {@link SerialCommandService} が {@link SerialTransportService#lines$} を行単位で累積したバッファで照合する。
  */
@@ -67,24 +65,6 @@ export class SerialFacadeService {
     return this.transport.terminalText$;
   }
 
-  /**
-   * @deprecated `terminalText$` を使用すること。
-   * 互換性のため残すが、replay 生受信ではなく表示テキストに委譲する。
-   */
-  get terminalOutput$(): Observable<string> {
-    return this.terminalText$;
-  }
-
-  /** 生の受信チャンク。 */
-  get receive$(): Observable<string> {
-    return this.transport.receive$;
-  }
-
-  /** replay 付き生受信（後方互換用途）。 */
-  get receiveReplay$(): Observable<string> {
-    return this.transport.receiveReplay$;
-  }
-
   connect$(baudRate = 115200): Observable<SerialFacadeConnectResult> {
     return this.connection.connect$(baudRate);
   }
@@ -97,11 +77,6 @@ export class SerialFacadeService {
     return this.transport.send$(data);
   }
 
-  /** @deprecated `send$` を使用すること。 */
-  write$(data: string): Observable<void> {
-    return this.send$(data);
-  }
-
   read$(): Observable<string> {
     return this.lines$.pipe(take(1));
   }
@@ -110,18 +85,18 @@ export class SerialFacadeService {
     cmd: string,
     options: SerialExecOptions,
   ): Observable<CommandResult> {
-    return this.command.execWithSerialOptions$(cmd, options);
+    return this.command.exec$(cmd, options);
   }
 
   execRaw$(
     cmdRaw: string,
     options: SerialExecOptions,
   ): Observable<CommandResult> {
-    return this.command.execRawWithSerialOptions$(cmdRaw, options);
+    return this.command.execRaw$(cmdRaw, options);
   }
 
   readUntilPrompt$(options: SerialExecOptions): Observable<CommandResult> {
-    return this.command.readUntilPromptWithSerialOptions$(options);
+    return this.command.readUntilPrompt$(options);
   }
 
   getConnectionEpoch(): number {

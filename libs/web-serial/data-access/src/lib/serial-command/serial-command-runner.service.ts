@@ -194,7 +194,7 @@ export class SerialCommandRunnerService {
       }
       onAttemptStart?.();
       this.clearReadBuffer();
-      return this.transport.write(sendData).pipe(
+      return this.transport.send$(sendData).pipe(
         mergeMap(() => this.afterSendPromptOutcome$(config, enqueuedGen)),
       );
     });
@@ -220,12 +220,8 @@ export class SerialCommandRunnerService {
   serialOptionsToConfig(options: SerialExecOptions): CommandExecutionConfig {
     const m = mergeSerialExecOptions(options);
     const { prompt, promptMatch, waitForPrompt } = m;
-    const timeout =
-      m.timeoutMs ??
-      m.timeout ??
-      DEFAULT_SERIAL_EXEC_OPTIONS.timeoutMs;
-    const retry =
-      m.retryCount ?? m.retry ?? DEFAULT_SERIAL_EXEC_OPTIONS.retryCount;
+    const timeout = m.timeout ?? DEFAULT_SERIAL_EXEC_OPTIONS.timeout;
+    const retry = m.retry ?? DEFAULT_SERIAL_EXEC_OPTIONS.retry;
     if (promptMatch === undefined && prompt === undefined) {
       throw new Error('SerialExecOptions: prompt or promptMatch is required');
     }

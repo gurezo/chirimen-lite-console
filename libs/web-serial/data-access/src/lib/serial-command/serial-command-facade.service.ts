@@ -6,7 +6,7 @@ import {
   mergeSerialExecOptions,
   type SerialExecOptions,
 } from '@libs-web-serial-util';
-import type { CommandExecutionConfig, CommandResult } from './serial-command-types';
+import type { CommandResult } from './serial-command-types';
 import { SerialCommandQueueService } from './serial-command-queue.service';
 import { SerialCommandRunnerService } from './serial-command-runner.service';
 
@@ -48,7 +48,7 @@ export class SerialCommandService {
   /**
    * {@link SerialExecOptions}（既定のタイムアウト・再試行・フラグあり）でコマンド実行
    */
-  execWithSerialOptions$(
+  exec$(
     cmd: string,
     options: SerialExecOptions,
     onAttemptStart?: () => void,
@@ -67,7 +67,7 @@ export class SerialCommandService {
     );
   }
 
-  execRawWithSerialOptions$(
+  execRaw$(
     cmdRaw: string,
     options: SerialExecOptions,
     onAttemptStart?: () => void,
@@ -86,7 +86,7 @@ export class SerialCommandService {
     );
   }
 
-  readUntilPromptWithSerialOptions$(
+  readUntilPrompt$(
     options: SerialExecOptions,
     onAttemptStart?: () => void,
   ): Observable<CommandResult> {
@@ -100,58 +100,6 @@ export class SerialCommandService {
           onAttemptStart,
         ),
       { cancelPrevious: merged.cancelPrevious },
-    );
-  }
-
-  /**
-   * コマンド実行（stdin に `cmd + '\n'` を送信し、prompt まで待機）
-   */
-  exec$(
-    cmd: string,
-    config: CommandExecutionConfig,
-    onAttemptStart?: () => void,
-  ): Observable<CommandResult> {
-    return this.commandQueue.enqueueCommand$((enqueuedGen) =>
-      this.runner.buildExecPipeline$(
-        cmd + '\n',
-        config,
-        enqueuedGen,
-        onAttemptStart,
-      ),
-    );
-  }
-
-  /**
-   * raw コマンド実行（stdin に `cmdRaw` をそのまま送信）
-   */
-  execRaw$(
-    cmdRaw: string,
-    config: CommandExecutionConfig,
-    onAttemptStart?: () => void,
-  ): Observable<CommandResult> {
-    return this.commandQueue.enqueueCommand$((enqueuedGen) =>
-      this.runner.buildExecPipeline$(
-        cmdRaw,
-        config,
-        enqueuedGen,
-        onAttemptStart,
-      ),
-    );
-  }
-
-  /**
-   * 読み取りのみ（送信せず prompt まで待機）
-   */
-  readUntilPrompt$(
-    config: CommandExecutionConfig,
-    onAttemptStart?: () => void,
-  ): Observable<CommandResult> {
-    return this.commandQueue.enqueueCommand$((enqueuedGen) =>
-      this.runner.buildReadUntilPromptPipeline$(
-        config,
-        enqueuedGen,
-        onAttemptStart,
-      ),
     );
   }
 

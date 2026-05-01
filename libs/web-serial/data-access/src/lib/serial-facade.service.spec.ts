@@ -25,14 +25,13 @@ describe('SerialFacadeService', () => {
       portInfo$: of(null),
       lines$: of('line'),
       terminalText$: EMPTY,
-      receiveReplay$: EMPTY,
       send$: vi.fn(() => of(undefined)),
       getPort: vi.fn(() => undefined),
     };
     command = {
-      execWithSerialOptions$: vi.fn(() => of({ stdout: '' })),
-      execRawWithSerialOptions$: vi.fn(() => of({ stdout: '' })),
-      readUntilPromptWithSerialOptions$: vi.fn(() => of({ stdout: '' })),
+      exec$: vi.fn(() => of({ stdout: '' })),
+      execRaw$: vi.fn(() => of({ stdout: '' })),
+      readUntilPrompt$: vi.fn(() => of({ stdout: '' })),
       isReading: vi.fn(() => false),
       getPendingCommandCount: vi.fn(() => 0),
     };
@@ -72,40 +71,30 @@ describe('SerialFacadeService', () => {
     expect(connection.disconnect$).toHaveBeenCalled();
   });
 
-  it('exec$ delegates to command.execWithSerialOptions$', async () => {
+  it('exec$ delegates to command.exec$', async () => {
     const options: SerialExecOptions = {
       prompt: 'pi@raspberrypi',
       timeout: 5000,
       retry: 1,
     };
     await firstValueFrom(facade.exec$('ls', options));
-    expect(command.execWithSerialOptions$).toHaveBeenCalledWith('ls', options);
+    expect(command.exec$).toHaveBeenCalledWith('ls', options);
   });
 
-  it('execRaw$ delegates to command.execRawWithSerialOptions$', async () => {
+  it('execRaw$ delegates to command.execRaw$', async () => {
     const options: SerialExecOptions = { prompt: /#$/, timeout: 3000 };
     await firstValueFrom(facade.execRaw$('id\n', options));
-    expect(command.execRawWithSerialOptions$).toHaveBeenCalledWith(
-      'id\n',
-      options,
-    );
+    expect(command.execRaw$).toHaveBeenCalledWith('id\n', options);
   });
 
-  it('readUntilPrompt$ delegates to command.readUntilPromptWithSerialOptions$', async () => {
+  it('readUntilPrompt$ delegates to command.readUntilPrompt$', async () => {
     const options: SerialExecOptions = { prompt: 'login:', timeout: 2000 };
     await firstValueFrom(facade.readUntilPrompt$(options));
-    expect(
-      command.readUntilPromptWithSerialOptions$,
-    ).toHaveBeenCalledWith(options);
+    expect(command.readUntilPrompt$).toHaveBeenCalledWith(options);
   });
 
   it('send$ delegates to transport.send$', async () => {
     await firstValueFrom(facade.send$('hello'));
-    expect(transport.send$).toHaveBeenCalledWith('hello');
-  });
-
-  it('write$ delegates to send$ as deprecated alias', async () => {
-    await firstValueFrom(facade.write$('hello'));
     expect(transport.send$).toHaveBeenCalledWith('hello');
   });
 
@@ -117,12 +106,6 @@ describe('SerialFacadeService', () => {
   it('terminalText$ delegates to transport.terminalText$', async () => {
     Object.assign(transport, { terminalText$: of('chunk') });
     const chunk = await firstValueFrom(facade.terminalText$.pipe(take(1)));
-    expect(chunk).toBe('chunk');
-  });
-
-  it('terminalOutput$ delegates to terminalText$ as deprecated alias', async () => {
-    Object.assign(transport, { terminalText$: of('chunk') });
-    const chunk = await firstValueFrom(facade.terminalOutput$.pipe(take(1)));
     expect(chunk).toBe('chunk');
   });
 

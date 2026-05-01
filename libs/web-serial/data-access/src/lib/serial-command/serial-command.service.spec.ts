@@ -24,7 +24,7 @@ function createService() {
   const linesSubject = new Subject<string>();
   const transport = {
     lines$: linesSubject.asObservable(),
-    write: vi.fn(
+    send$: vi.fn(
       () =>
         new Observable<void>((subscriber) => {
           subscriber.next();
@@ -50,7 +50,7 @@ describe('SerialCommandService', () => {
     const { service, linesSubject, transport } = createService();
 
     let releaseWrite: (() => void) | undefined;
-    transport.write = vi.fn(
+    transport.send$ = vi.fn(
       () =>
         new Observable<void>((subscriber) => {
           releaseWrite = () => {
@@ -69,7 +69,7 @@ describe('SerialCommandService', () => {
 
     const result = await execPromise;
     expect(result.stdout).toContain(PI_ZERO_PROMPT);
-    expect(transport.write).toHaveBeenCalled();
+    expect(transport.send$).toHaveBeenCalled();
   });
 
   it('readUntilPrompt resolves without writing', async () => {
@@ -165,7 +165,7 @@ describe('SerialCommandService', () => {
     const { service, linesSubject, transport } = createService();
 
     let releaseWrite: (() => void) | undefined;
-    transport.write = vi.fn(
+    transport.send$ = vi.fn(
       () =>
         new Observable<void>((subscriber) => {
           releaseWrite = () => {
@@ -195,7 +195,7 @@ describe('SerialCommandService', () => {
     const { service, linesSubject, transport } = createService();
 
     let releaseWrite: (() => void) | undefined;
-    transport.write = vi.fn(
+    transport.send$ = vi.fn(
       () =>
         new Observable<void>((subscriber) => {
           releaseWrite = () => {
@@ -218,7 +218,7 @@ describe('SerialCommandService', () => {
 
   it('exec rejects when prompt never appears before timeout', async () => {
     const { service, transport } = createService();
-    transport.write = vi.fn(
+    transport.send$ = vi.fn(
       () =>
         new Observable<void>((subscriber) => {
           subscriber.next();
@@ -238,7 +238,7 @@ describe('SerialCommandService', () => {
   it('exec retries after timeout and succeeds on second attempt', async () => {
     const { service, linesSubject, transport } = createService();
     let writeCount = 0;
-    transport.write = vi.fn(
+    transport.send$ = vi.fn(
       () =>
         new Observable<void>((subscriber) => {
           writeCount++;
@@ -262,7 +262,7 @@ describe('SerialCommandService', () => {
 
   it('exec rejects after retries are exhausted', async () => {
     const { service, transport } = createService();
-    transport.write = vi.fn(
+    transport.send$ = vi.fn(
       () =>
         new Observable<void>((subscriber) => {
           subscriber.next();
@@ -287,9 +287,9 @@ describe('SerialCommandService', () => {
     expect((outcome as Error).message).toContain('Command execution timeout');
   });
 
-  it('respects timeoutMs as alias for timeout', async () => {
+  it('respects timeout option for prompt wait', async () => {
     const { service, transport } = createService();
-    transport.write = vi.fn(
+    transport.send$ = vi.fn(
       () =>
         new Observable<void>((subscriber) => {
           subscriber.next();
@@ -297,10 +297,10 @@ describe('SerialCommandService', () => {
         }),
     );
     const p = firstValueFrom(
-      service.execWithSerialOptions$('ls', {
+      service.exec$('ls', {
         prompt: PI_ZERO_PROMPT,
-        timeoutMs: 40,
-        retryCount: 0,
+        timeout: 40,
+        retry: 0,
       }),
     );
     await expect(p).rejects.toThrow('Command execution timeout');
@@ -310,7 +310,7 @@ describe('SerialCommandService', () => {
     const { service, transport } = createService();
 
     let releaseWrite: (() => void) | undefined;
-    transport.write = vi.fn(
+    transport.send$ = vi.fn(
       () =>
         new Observable<void>((subscriber) => {
           releaseWrite = () => {
@@ -321,7 +321,7 @@ describe('SerialCommandService', () => {
     );
 
     const execPromise = firstValueFrom(
-      service.execWithSerialOptions$('ls', {
+      service.exec$('ls', {
         prompt: PI_ZERO_PROMPT,
         timeout: 5000,
         waitForPrompt: false,
@@ -331,14 +331,14 @@ describe('SerialCommandService', () => {
     releaseWrite?.();
     const result = await execPromise;
     expect(result.stdout).toBe('');
-    expect(transport.write).toHaveBeenCalled();
+    expect(transport.send$).toHaveBeenCalled();
   });
 
   it('cancelPrevious drops pending exec but not running', async () => {
     const { service, linesSubject, transport } = createService();
     const finishFirst = new Subject<void>();
     let writeCall = 0;
-    transport.write = vi.fn(
+    transport.send$ = vi.fn(
       () =>
         new Observable<void>((s) => {
           writeCall++;
@@ -355,19 +355,19 @@ describe('SerialCommandService', () => {
     );
 
     const p1 = firstValueFrom(
-      service.execWithSerialOptions$('a', {
+      service.exec$('a', {
         prompt: PI_ZERO_PROMPT,
         timeout: 5000,
       }),
     );
     const p2 = firstValueFrom(
-      service.execWithSerialOptions$('b', {
+      service.exec$('b', {
         prompt: PI_ZERO_PROMPT,
         timeout: 5000,
       }),
     );
     const p3 = firstValueFrom(
-      service.execWithSerialOptions$('c', {
+      service.exec$('c', {
         prompt: PI_ZERO_PROMPT,
         timeout: 5000,
         cancelPrevious: true,
@@ -390,7 +390,7 @@ describe('SerialCommandService', () => {
   it('exec stdout aggregates successive lines$ emissions through prompt', async () => {
     const { service, linesSubject, transport } = createService();
     let releaseWrite: (() => void) | undefined;
-    transport.write = vi.fn(
+    transport.send$ = vi.fn(
       () =>
         new Observable<void>((subscriber) => {
           releaseWrite = () => {
