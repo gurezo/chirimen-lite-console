@@ -20,7 +20,7 @@
 
 ## Web Serial と外部ライブラリの境界
 
-汎用パッケージ [@gurezo/web-serial-rxjs](https://www.npmjs.com/package/@gurezo/web-serial-rxjs) と本リポジトリの役割分担、`receive$` / `receiveReplay$` / `lines$` の使い分け、新機能の置き場所の目安は [docs/serial-architecture.md](docs/serial-architecture.md) を参照する。実装レイヤの詳細は [libs/web-serial/data-access/README.md](libs/web-serial/data-access/README.md) にある。
+汎用パッケージ [@gurezo/web-serial-rxjs](https://www.npmjs.com/package/@gurezo/web-serial-rxjs) と本リポジトリの役割分担、`terminalText$` / `lines$` を中心とした受信ストリームの使い分け、新機能の置き場所の目安は [docs/serial-architecture.md](docs/serial-architecture.md) を参照する。実装レイヤの詳細は [libs/web-serial/data-access/README.md](libs/web-serial/data-access/README.md) にある。
 
 ## 依存関係
 
