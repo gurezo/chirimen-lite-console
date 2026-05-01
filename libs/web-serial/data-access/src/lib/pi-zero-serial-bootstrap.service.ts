@@ -26,6 +26,11 @@ import { SerialFacadeService } from './serial-facade.service';
 
 export type PiZeroBootstrapStatusHandler = (line: string) => void;
 type AuthState = 'shell' | 'login' | 'password';
+interface AuthLoopState {
+  stepCount: number;
+  loginSendCount: number;
+  passwordSendCount: number;
+}
 
 /**
  * Pi Zero / CHIRIMEN 固有のシリアル初期化を集約する単一サービス（issue #594）。
@@ -118,26 +123,13 @@ export class PiZeroSerialBootstrapService {
     // 末尾が lone \r のとき行が emit されない。改行を送って確定させる。
     return this.clearPromptBuffer$().pipe(
       switchMap(() => this.serial.send$('\r\n')),
-      switchMap(() => this.awaitAuthStateWithRetry$()),
-      switchMap((state) => {
-        if (state === 'shell') {
-          log('[コンソール] すでにログイン済みのシェルを検出しました。');
-          return of(undefined);
-        }
-        if (state === 'password') {
-          log(
-            '[コンソール] パスワード入力画面を検出しました（ユーザー名入力は省略します）。',
-          );
-          log('[コンソール] パスワードを送信中（画面には表示しません）...');
-          return this.sendPasswordAndAwaitShell$().pipe(
-            tap(() => log('[コンソール] ログインが完了しました。')),
-          );
-        }
-        return this.sendLoginUserAndPassword$(log).pipe(
-          tap(() => log('[コンソール] ログインが完了しました。')),
-        );
-      }),
-      map(() => undefined),
+      switchMap(() =>
+        this.runAuthLoop$(log, {
+          stepCount: 0,
+          loginSendCount: 0,
+          passwordSendCount: 0,
+        }),
+      ),
     );
   }
 
@@ -224,6 +216,62 @@ export class PiZeroSerialBootstrapService {
     return 'login';
   }
 
+  private runAuthLoop$(
+    log: PiZeroBootstrapStatusHandler,
+    state: AuthLoopState,
+  ): Observable<void> {
+    if (state.stepCount >= 8) {
+      throw new Error('Authentication flow exceeded retry budget');
+    }
+    return this.awaitAuthStateWithRetry$().pipe(
+      switchMap((authState) => {
+        if (authState === 'shell') {
+          if (state.stepCount > 0) {
+            log('[コンソール] ログインが完了しました。');
+          } else {
+            log('[コンソール] すでにログイン済みのシェルを検出しました。');
+          }
+          return of(undefined);
+        }
+        if (authState === 'login') {
+          if (state.loginSendCount >= 1) {
+            // username は一度だけ送る。以降 login が続く場合は reject とする。
+            throw new Error('Login rejected after username submission');
+          }
+          log(`[コンソール] ログインユーザー「${PI_ZERO_LOGIN_USER}」を送信中...`);
+          return this.serial.send$(`${PI_ZERO_LOGIN_USER}\r\n`).pipe(
+            switchMap(() =>
+              this.runAuthLoop$(log, {
+                stepCount: state.stepCount + 1,
+                loginSendCount: state.loginSendCount + 1,
+                passwordSendCount: state.passwordSendCount,
+              }),
+            ),
+          );
+        }
+        if (state.passwordSendCount >= 2) {
+          throw new Error('Password authentication failed');
+        }
+        if (state.loginSendCount === 0) {
+          log(
+            '[コンソール] パスワード入力画面を検出しました（ユーザー名入力は省略します）。',
+          );
+        }
+        log('[コンソール] パスワードを送信中（画面には表示しません）...');
+        return this.serial.send$(`${PI_ZERO_LOGIN_PASSWORD}\r\n`).pipe(
+          switchMap(() => this.serial.send$('\r\n')),
+          switchMap(() =>
+            this.runAuthLoop$(log, {
+              stepCount: state.stepCount + 1,
+              loginSendCount: state.loginSendCount,
+              passwordSendCount: state.passwordSendCount + 1,
+            }),
+          ),
+        );
+      }),
+    );
+  }
+
   private lastMatchIndex(pattern: RegExp, text: string): number {
     let last = -1;
     pattern.lastIndex = 0;
@@ -235,98 +283,6 @@ export class PiZeroSerialBootstrapService {
       m = pattern.exec(text);
     }
     return last;
-  }
-
-  private sendLoginUserAndPassword$(
-    log: PiZeroBootstrapStatusHandler,
-  ): Observable<void> {
-    log(`[コンソール] ログインユーザー「${PI_ZERO_LOGIN_USER}」を送信中...`);
-    return this.serial.send$(`${PI_ZERO_LOGIN_USER}\r\n`).pipe(
-      switchMap(() =>
-        this.serial.readUntilPrompt$({
-          prompt: '',
-          promptMatch: (buf) =>
-            this.promptDetector.isAwaitingPasswordInput(buf) ||
-            this.promptDetector.isLikelyLoggedInShellPrompt(buf),
-          timeout: SERIAL_TIMEOUT.LONG,
-        }),
-      ),
-      map(({ stdout }) => this.classifyAuthState(stdout)),
-      switchMap((state) => {
-        if (state === 'shell') {
-          return of(undefined);
-        }
-        if (state === 'password') {
-          log('[コンソール] パスワードを送信中（画面には表示しません）...');
-          return this.sendPasswordAndAwaitShell$();
-        }
-        // password/shell 以外（理論上ここには来ない）は再入力待ちとみなし reject
-        throw new Error('Login rejected after username submission');
-      }),
-      catchError((error) => {
-        // `password|shell` 待ちで timeout した場合のみ、現在の末尾状態を一度確認して
-        // login 復帰なら認証失敗として扱う。
-        const message = error instanceof Error ? error.message : String(error);
-        if (!/timeout/i.test(message)) {
-          throw error;
-        }
-        return this.serial
-          .readUntilPrompt$({
-            prompt: '',
-            promptMatch: (buf) =>
-              this.promptDetector.isAwaitingPasswordInput(buf) ||
-              this.promptDetector.isLikelyLoggedInShellPrompt(buf) ||
-              this.promptDetector.isAwaitingLoginName(buf),
-            timeout: SERIAL_TIMEOUT.LONG,
-          })
-          .pipe(
-            map(({ stdout }) => this.classifyAuthState(stdout)),
-            switchMap((state) => {
-              if (state === 'password') {
-                log('[コンソール] パスワードを送信中（画面には表示しません）...');
-                return this.sendPasswordAndAwaitShell$();
-              }
-              if (state === 'shell') {
-                return of(undefined);
-              }
-              if (state === 'login') {
-                throw new Error('Login rejected after username submission');
-              }
-              throw error;
-            }),
-            catchError((inner) => {
-              throw inner;
-            }),
-          );
-      }),
-    );
-  }
-
-  /**
-   * パスワード送出後、その行だけでは pi@ が lines$ に乗らない場合があるので
-   * wait を切り、続けて改行送信で getty が出したログイン／シェルを行としてフラッシュしたうえで検出する。
-   */
-  private sendPasswordAndAwaitShell$(): Observable<void> {
-    return this.serial.send$(`${PI_ZERO_LOGIN_PASSWORD}\r\n`).pipe(
-      switchMap(() => this.serial.send$('\r\n')),
-      switchMap(() =>
-        this.serial.readUntilPrompt$({
-          prompt: '',
-          promptMatch: (buf) =>
-            this.promptDetector.isLikelyLoggedInShellPrompt(buf) ||
-            this.promptDetector.isAwaitingLoginName(buf) ||
-            this.promptDetector.isAwaitingPasswordInput(buf),
-          timeout: SERIAL_TIMEOUT.FILE_TRANSFER,
-        }),
-      ),
-      switchMap(({ stdout }) => {
-        const state = this.classifyAuthState(stdout);
-        if (state === 'shell') {
-          return of(undefined);
-        }
-        throw new Error('Password authentication failed');
-      }),
-    );
   }
 
   // --- (4) timezone 初期化 ---------------------------------------------------

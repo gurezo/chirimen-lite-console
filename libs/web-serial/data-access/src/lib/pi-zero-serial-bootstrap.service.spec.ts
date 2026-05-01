@@ -76,7 +76,8 @@ describe('PiZeroSerialBootstrapService', () => {
       .mockResolvedValueOnce({ stdout: 'stale' })
       .mockResolvedValueOnce({ stdout: 'raspberrypi login: ' })
       .mockResolvedValueOnce({ stdout: 'Password: ' })
-      .mockResolvedValueOnce({ stdout: 'raspberrypi login: ' });
+      .mockResolvedValueOnce({ stdout: 'Password: ' })
+      .mockResolvedValueOnce({ stdout: 'Password: ' });
     const exec = vi.fn().mockResolvedValue({ stdout: '' });
     const send$ = vi.fn().mockReturnValue(of(undefined));
     const serial = {
@@ -97,6 +98,7 @@ describe('PiZeroSerialBootstrapService', () => {
       .mockResolvedValueOnce({ stdout: 'stale' })
       .mockResolvedValueOnce({ stdout: 'raspberrypi login: ' })
       .mockRejectedValueOnce(new Error('Command execution timeout'))
+      .mockResolvedValueOnce({ stdout: 'raspberrypi login: ' })
       .mockResolvedValueOnce({ stdout: 'raspberrypi login: ' });
     const exec = vi.fn().mockResolvedValue({ stdout: '' });
     const send$ = vi.fn().mockReturnValue(of(undefined));
