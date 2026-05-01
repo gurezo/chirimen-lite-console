@@ -2,7 +2,6 @@
 
 import { Injectable } from '@angular/core';
 import {
-  createTerminalBuffer,
   createSerialSession,
   SerialError,
   SerialSessionState,
@@ -19,42 +18,17 @@ import {
   NEVER,
   Observable,
   of,
-  share,
-  shareReplay,
   switchMap,
   tap,
   throwError,
 } from 'rxjs';
 import {
   getConnectionErrorMessage,
-  getReadErrorMessage,
   getWriteErrorMessage,
   RASPBERRY_PI_ZERO_INFO,
 } from '@libs-web-serial-util';
 
-/**
- * Serial 接続・読取・書込を一元化するサービス
- * v2 @gurezo/web-serial-rxjs の {@link SerialSession} を直接利用し、
- * `state$` / `isConnected$` / `errors$` 等をアプリ層に橋渡しする。
- *
- * 接続状態の Source of truth は常に `SerialSession` 側。
- * 本サービスは `activeSession$` のみで「どのセッションを流すか」を切り替え、
- * ライブラリの Observable を重ねて二重管理しない。
- *
- * ### 受信ストリームの使い分け（issue #559, #566）
- *
- * | 用途 | stream |
- * | --- | --- |
- * | ターミナル表示（terminal helper で整形済み文字列） | {@link #terminalText$} |
- * | 通常の行単位ログ | {@link #lines$} |
- * | prompt / login / password 判定（SerialCommandRunner の exec バッファ） | {@link #receive$} のチャンク累積（`lines$` は lone `\\r` で断片が分離するためプロンプト照合に使わない） |
- * | `lines$` でのログ・行入力（表示・他コンシューマ） | {@link #commandResultLines$} / {@link #getReadStream} |
- * | 生チャンク | {@link #receive$} |
- *
- * `receiveReplay$` はチャンク単位のため、プロンプト検出をそこに寄せると行境界・ANSI 処理と齟齬が出やすい。
- * {@link #lines$} は {@link SerialSession.lines$} への素の橋渡し。{@link #commandResultLines$} は同一源を **multicast** し、
- * 表示側など別購読が増えても {@link #getReadStream} を複数購読しても行が消費され合わない（issue #566）。
- */
+/** SerialSession を薄く公開する transport。 */
 @Injectable({
   providedIn: 'root',
 })
@@ -94,29 +68,14 @@ export class SerialTransportService {
     switchMap((s) => (s ? s.lines$ : NEVER))
   );
 
-  /** 生チャンク（共有化済み）。複数購読でも session.receive$ は 1 本に保つ。 */
+  /** 生チャンク（内部用途）。 */
   readonly receive$ = this.activeSession$.pipe(
-    switchMap((s) => s?.receive$ ?? EMPTY),
-    share()
+    switchMap((s) => s?.receive$ ?? EMPTY)
   );
 
-  /**
-   * terminal helper で整形済みの表示向けテキスト。
-   * `createTerminalBuffer(session.receive$).text$` を shared な receive$ 上で公開する。
-   */
-  readonly terminalText$ = createTerminalBuffer(this.receive$).text$;
-
-  /**
-   * コマンド実行・プロンプト判定用の **行** ストリーム（`SerialSession.lines$` と同根、issue #566）。
-   * `shareReplay` により複数購読者が同一行シーケンスを共有し、ターミナル表示など別経路の購読が
-   * コマンド側の行消費と競合しない。
-   */
-  readonly commandResultLines$ = this.activeSession$.pipe(
-    switchMap((s) =>
-      s
-        ? s.lines$.pipe(shareReplay({ bufferSize: 1, refCount: true }))
-        : NEVER
-    )
+  /** terminal helper で整形済みの表示向けテキスト。 */
+  readonly terminalText$ = this.activeSession$.pipe(
+    switchMap((s) => (s ? s.terminalText$ : NEVER))
   );
 
   /**
@@ -219,19 +178,14 @@ export class SerialTransportService {
 
   /**
    * 読み取りストリーム（**1 改行区切りごとに 1 エミット**する行文字列）。
-   * {@link #commandResultLines$} を購読する（= `lines$` と同根・multicast）。接続済みチェックのため
-   * セッション欠如時は throwError（{@link #lines$} は未接続時 `NEVER`）。
+   * 接続済みチェックのためセッション欠如時は throwError（{@link #lines$} は未接続時 `NEVER`）。
    */
   getReadStream(): Observable<string> {
     return defer(() => {
       if (!this.session) {
         return throwError(() => new Error('Serial port not connected'));
       }
-      return this.commandResultLines$.pipe(
-        catchError((err: unknown) =>
-          throwError(() => new Error(getReadErrorMessage(err)))
-        )
-      );
+      return this.lines$;
     });
   }
 
@@ -239,7 +193,7 @@ export class SerialTransportService {
    * データを書き込む。{@link SerialSession.send$} へ委譲（未接続時はライブラリが fail fast）。
    * セッションが無い場合のみ throwError（`Serial port not connected`）。
    */
-  write(data: string): Observable<void> {
+  send$(data: string): Observable<void> {
     return defer(() => {
       const s = this.session;
       if (!s) {
@@ -251,6 +205,11 @@ export class SerialTransportService {
         )
       );
     });
+  }
+
+  /** @deprecated `send$` を使用すること。 */
+  write(data: string): Observable<void> {
+    return this.send$(data);
   }
 
   private tearDownSession(): void {

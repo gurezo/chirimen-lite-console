@@ -30,7 +30,7 @@ export type SerialFacadeConnectResult = SerialConnectResult;
  * 各ストリームの意味は {@link SerialTransportService} のクラスドキュメントおよび `libs/web-serial/data-access/README.md` を参照。
  *
  * - {@link #terminalText$} … ターミナル表示専用。terminal helper で整形済み文字列。
- * - {@link #commandResultLines$} / {@link #data$} / {@link #read$} … コマンド実行・プロンプト待ち用の **行**（multicast）。
+ * - {@link #data$} / {@link #read$} … 接続済み時の行受信。
  * - {@link #lines$} … `SerialSession.lines$` の素の橋渡し（未接続時 `NEVER`）。
  * - {@link #receive$} … 生チャンク（replay なし）。
  * - {@link #receiveReplay$} … 後方互換の replay 付き生受信。
@@ -75,14 +75,6 @@ export class SerialFacadeService {
     return this.terminalText$;
   }
 
-  /**
-   * コマンド実行・プロンプト待ち向けの行ストリーム（issue #566 の `commandResult$` 相当の入力）。
-   * multicast。表示用 {@link #terminalText$} とは別経路。
-   */
-  get commandResultLines$(): Observable<string> {
-    return this.transport.commandResultLines$;
-  }
-
   /** 生の受信チャンク。 */
   get receive$(): Observable<string> {
     return this.transport.receive$;
@@ -94,10 +86,10 @@ export class SerialFacadeService {
   }
 
   /**
-   * 接続済み時のみ 1 行ずつ読むストリーム（{@link SerialTransportService#getReadStream} = {@link #commandResultLines$}）。
+   * 接続済み時のみ 1 行ずつ読むストリーム（{@link SerialTransportService#getReadStream}）。
    * 未接続で購読するとエラー。
    */
-  /** @deprecated `lines$` または `commandResultLines$` を使用すること。 */
+  /** @deprecated `lines$` を使用すること。 */
   get data$() {
     return this.transport.getReadStream();
   }
@@ -111,7 +103,7 @@ export class SerialFacadeService {
   }
 
   write$(data: string): Observable<void> {
-    return this.transport.write(data);
+    return this.transport.send$(data);
   }
 
   read$(): Observable<string> {
