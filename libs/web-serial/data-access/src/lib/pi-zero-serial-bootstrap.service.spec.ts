@@ -6,14 +6,14 @@ import {
   PI_ZERO_PROMPT,
   SERIAL_TIMEOUT,
 } from '@libs-web-serial-util';
+import { PiZeroPromptDetectorService } from './pi-zero-prompt-detector.service';
 import { PiZeroSerialBootstrapService } from './pi-zero-serial-bootstrap.service';
 import type { SerialFacadeService } from './serial-facade.service';
-import { SerialPromptDetectorService } from './serial-command/serial-prompt-detector.service';
 
 function createBootstrap(serial: SerialFacadeService) {
   return new PiZeroSerialBootstrapService(
     serial,
-    new SerialPromptDetectorService(),
+    new PiZeroPromptDetectorService(),
   );
 }
 
