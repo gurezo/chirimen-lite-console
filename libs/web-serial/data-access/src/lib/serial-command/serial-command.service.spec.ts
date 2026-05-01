@@ -3,6 +3,7 @@ import { Observable, Subject, firstValueFrom, take } from 'rxjs';
 import {
   PI_ZERO_PROMPT,
 } from '@libs-web-serial-util';
+import { PiZeroPromptDetectorService } from '../pi-zero-prompt-detector.service';
 import type { SerialTransportService } from '../serial-transport.service';
 import { SerialCommandQueueService } from './serial-command-queue.service';
 import { SerialCommandRunnerService } from './serial-command-runner.service';
@@ -33,6 +34,7 @@ function createService() {
   };
   const queue = new SerialCommandQueueService();
   const promptDetector = new SerialPromptDetectorService();
+  const piPromptDetector = new PiZeroPromptDetectorService();
   const runner = new SerialCommandRunnerService(
     transport as unknown as SerialTransportService,
     promptDetector,
@@ -40,7 +42,7 @@ function createService() {
   );
   const service = new SerialCommandService(runner, queue);
   service.startReadLoop();
-  return { service, linesSubject, transport, promptDetector };
+  return { service, linesSubject, transport, promptDetector, piPromptDetector };
 }
 
 describe('SerialCommandService', () => {
@@ -112,7 +114,7 @@ describe('SerialCommandService', () => {
   });
 
   it('readUntilPrompt sees data already buffered before the wait starts', async () => {
-    const { service, linesSubject, promptDetector } = createService();
+    const { service, linesSubject, piPromptDetector } = createService();
     emitIncomingLines(linesSubject, [
       'Raspberry Pi OS',
       '',
@@ -121,7 +123,7 @@ describe('SerialCommandService', () => {
     const result = await firstValueFrom(
       service.readUntilPrompt$({
         prompt: '',
-        promptMatch: (buf) => promptDetector.isLoginPrompt(buf),
+        promptMatch: (buf) => piPromptDetector.isLoginPrompt(buf),
         timeout: 1000,
         retry: 0,
       }),
@@ -130,12 +132,12 @@ describe('SerialCommandService', () => {
   });
 
   it('readUntilPrompt matches Japanese login prompt in buffer', async () => {
-    const { service, linesSubject, promptDetector } = createService();
+    const { service, linesSubject, piPromptDetector } = createService();
     emitIncomingLines(linesSubject, ['ホスト名 ログイン: ']);
     const result = await firstValueFrom(
       service.readUntilPrompt$({
         prompt: '',
-        promptMatch: (buf) => promptDetector.isLoginPrompt(buf),
+        promptMatch: (buf) => piPromptDetector.isLoginPrompt(buf),
         timeout: 1000,
         retry: 0,
       }),
@@ -144,14 +146,14 @@ describe('SerialCommandService', () => {
   });
 
   it('readUntilPrompt matches login when line contains ANSI escape sequences', async () => {
-    const { service, linesSubject, promptDetector } = createService();
+    const { service, linesSubject, piPromptDetector } = createService();
     emitIncomingLines(linesSubject, [
       '\u001b[2J\u001b[Hraspberrypi login: ',
     ]);
     const result = await firstValueFrom(
       service.readUntilPrompt$({
         prompt: '',
-        promptMatch: (buf) => promptDetector.isLoginPrompt(buf),
+        promptMatch: (buf) => piPromptDetector.isLoginPrompt(buf),
         timeout: 1000,
         retry: 0,
       }),

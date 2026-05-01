@@ -4,11 +4,11 @@ import {
   PI_ZERO_LOGIN_USER,
   PI_ZERO_PROMPT,
 } from '@libs-web-serial-util';
+import { PiZeroPromptDetectorService } from './pi-zero-prompt-detector.service';
 import { PiZeroSerialBootstrapService } from './pi-zero-serial-bootstrap.service';
 import type { PiZeroShellReadinessService } from './pi-zero-shell-readiness.service';
 import { PiZeroSessionService } from './pi-zero-session.service';
 import type { SerialFacadeService } from './serial-facade.service';
-import { SerialPromptDetectorService } from './serial-command/serial-prompt-detector.service';
 
 function createShellReadinessMock(): PiZeroShellReadinessService {
   return {
@@ -25,7 +25,7 @@ function createSession(
 ): PiZeroSessionService {
   const bootstrap = new PiZeroSerialBootstrapService(
     serial,
-    new SerialPromptDetectorService(),
+    new PiZeroPromptDetectorService(),
   );
   return new PiZeroSessionService(serial, bootstrap, shellReadiness);
 }

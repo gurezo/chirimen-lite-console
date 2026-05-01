@@ -3,6 +3,7 @@ export {
   DEFAULT_SERIAL_EXEC_OPTIONS,
   mergeSerialExecOptions,
 } from '@libs-web-serial-util';
+export * from './lib/pi-zero-prompt-detector.service';
 export * from './lib/pi-zero-session.service';
 export * from './lib/pi-zero-serial-bootstrap.service';
 export * from './lib/pi-zero-shell-readiness.service';

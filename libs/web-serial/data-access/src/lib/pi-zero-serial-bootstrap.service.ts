@@ -21,7 +21,7 @@ import {
   PI_ZERO_PROMPT_TARGET,
   PI_ZERO_TIMEZONE_STEPS,
 } from './pi-zero-bootstrap.config';
-import { SerialPromptDetectorService } from './serial-command/serial-prompt-detector.service';
+import { PiZeroPromptDetectorService } from './pi-zero-prompt-detector.service';
 import { SerialFacadeService } from './serial-facade.service';
 import type { CommandResult } from './serial-command/serial-command-types';
 
@@ -38,7 +38,7 @@ export type PiZeroBootstrapStatusHandler = (line: string) => void;
 export class PiZeroSerialBootstrapService {
   constructor(
     private readonly serial: SerialFacadeService,
-    private readonly promptDetector: SerialPromptDetectorService,
+    private readonly promptDetector: PiZeroPromptDetectorService,
   ) {}
 
   /**
