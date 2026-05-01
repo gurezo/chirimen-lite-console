@@ -29,7 +29,7 @@ export class SerialCommandService {
   ) {}
 
   /**
-   * 接続後に呼び出し、{@link SerialTransportService#receive$} を購読する（runner のプロンプト／exec バッファ用）。
+   * 接続後に呼び出し、{@link SerialTransportService#lines$} を購読する（runner のプロンプト／exec バッファ用）。
    */
   startReadLoop(): void {
     this.runner.startReadLoop();
