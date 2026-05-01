@@ -104,16 +104,9 @@ export class SerialCommandRunnerService {
     this.readBuffer = '';
   }
 
-  /**
-   * バッファ正規化: `\\r`・`\\r\\n` を「論理表示」へ収束させる（{@link collapseCarriageRedrawsPerLine}）。
-   */
-  private normalizeInspectionBufferText(s: string): string {
-    return collapseCarriageRedrawsPerLine(s);
-  }
-
   /** プロンプト照合用のバッファ */
   private promptInspectionBuffer(): string {
-    return this.normalizeInspectionBufferText(this.readBuffer);
+    return collapseCarriageRedrawsPerLine(this.readBuffer);
   }
 
   /**
