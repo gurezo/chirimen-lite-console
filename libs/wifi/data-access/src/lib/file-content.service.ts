@@ -84,7 +84,7 @@ export class FileContentService {
     try {
       const base64 = FileUtils.arrayBufferToBase64(buffer);
 
-      await firstValueFrom(this.serial.write$('\x03'));
+      await firstValueFrom(this.serial.send$('\x03'));
       await this.sleep(100);
 
       await firstValueFrom(this.serial.exec$(`base64 -d > ${FileUtils.escapePath(path)}`, {
@@ -102,7 +102,7 @@ export class FileContentService {
         await this.sleep(1);
       }
 
-      await firstValueFrom(this.serial.write$('\x04'));
+      await firstValueFrom(this.serial.send$('\x04'));
       await this.sleep(10);
       await firstValueFrom(this.serial.exec$('', {
         prompt: '\\$',
