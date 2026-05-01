@@ -27,9 +27,6 @@ vi.mock('@gurezo/web-serial-rxjs', async (importOriginal) => {
   return {
     ...actual,
     createSerialSession: () => mockCreateSerialSession(),
-    createTerminalBuffer: (source$: Observable<string>) => ({
-      text$: source$,
-    }),
   };
 });
 
@@ -37,6 +34,7 @@ function buildMockSession(
   port: SerialPort | null,
   lines$?: Observable<string>,
   receive$?: Observable<string>,
+  terminalText$?: Observable<string>,
 ): SerialSession {
   const state$ = new BehaviorSubject<SerialSessionState>(
     SerialSessionState.Connecting
@@ -70,6 +68,7 @@ function buildMockSession(
     receive$: receiveStream,
     receiveReplay$: receiveStream,
     lines$: lines$ ?? of('line1'),
+    terminalText$: terminalText$ ?? of('terminal-line'),
     send$: vi.fn(() => of(undefined)),
   } as unknown as SerialSession;
 }
@@ -162,7 +161,7 @@ describe('SerialTransportService', () => {
     expect(await readPromise).toBe('expected-line');
   });
 
-  it('getReadStream should multicast commandResultLines$ for multiple subscribers', async () => {
+  it('getReadStream should share source lines$ for multiple subscribers', async () => {
     const mockPort = {} as SerialPort;
     const lineSubject = new Subject<string>();
     mockCreateSerialSession.mockReturnValue(
@@ -194,11 +193,16 @@ describe('SerialTransportService', () => {
     expect(await replayPromise).toBe('raw-chunk');
   });
 
-  it('should emit terminalText$ created from session.receive$', async () => {
+  it('should emit terminalText$ from session terminalText$', async () => {
     const mockPort = {} as SerialPort;
     const chunkSubject = new Subject<string>();
     mockCreateSerialSession.mockReturnValue(
-      buildMockSession(mockPort, undefined, chunkSubject.asObservable()),
+      buildMockSession(
+        mockPort,
+        undefined,
+        chunkSubject.asObservable(),
+        chunkSubject.asObservable(),
+      ),
     );
 
     await firstValueFrom(service.connect$());
@@ -214,6 +218,17 @@ describe('SerialTransportService', () => {
 
     await firstValueFrom(service.connect$());
     await firstValueFrom(service.write('hello'));
+
+    expect(session.send$).toHaveBeenCalledWith('hello');
+  });
+
+  it('send$ should delegate to session send$', async () => {
+    const mockPort = {} as SerialPort;
+    const session = buildMockSession(mockPort);
+    mockCreateSerialSession.mockReturnValue(session);
+
+    await firstValueFrom(service.connect$());
+    await firstValueFrom(service.send$('hello'));
 
     expect(session.send$).toHaveBeenCalledWith('hello');
   });
