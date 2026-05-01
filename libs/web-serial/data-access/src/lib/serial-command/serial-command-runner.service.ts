@@ -19,7 +19,6 @@ import {
   timeout,
 } from 'rxjs';
 import {
-  collapseCarriageRedrawsPerLine,
   DEFAULT_SERIAL_EXEC_OPTIONS,
   mergeSerialExecOptions,
   stripSerialAnsiForPrompt,
@@ -36,24 +35,19 @@ import { SerialTransportService } from '../serial-transport.service';
 /**
  * シリアルへの送信・プロンプト待ち・タイムアウト・再試行（キューとは別層）。
  *
- * ### 受信（issue #559）
+ * ### 受信（#593）
  *
- * プロンプト照合および exec の `stdout` は {@link SerialTransportService#receive$} の **生チャンク**のみを連結したバッファを使う。
+ * プロンプト照合および exec の `stdout` は {@link SerialTransportService#lines$} の各行を `\n` で連結したバッファで行う。
+ * ターミナル上の `\r` 再描画や折り畳み表示は {@link SerialTransportService#terminalText$} に委譲し、本クラスは解析専用。
  *
- * **`lines$`（{@link SerialTransportService#getReadStream}）では使わない。**
- *
- * `@gurezo/web-serial-rxjs` の {@link SerialSession.lines$} は内部 `line-buffer` が lone `\r` を「行終端」とみなし、
- * TTY が同一論理出力で `\r` 再描画した断片を **複数論理「行」**として emit する。その結果 `readBuffer` に `\r` が残らず
- * 「最終 `\r` セグメントへ収束」できず、`ls` 等が xterm で階段状に見える。
- *
- * 生チャンクを `\n`/`\r` が混じったまま累積し、{@link collapseCarriageRedrawsPerLine} で論理表示に収束させる。
+ * 行ごとに {@link stripSerialAnsiForPrompt} を適用し、従来どおり ANSI 混じりの login 行でもプロンプト判定できるようにする。
  */
 @Injectable({
   providedIn: 'root',
 })
 export class SerialCommandRunnerService {
   private readBuffer = '';
-  private receiveSubscription: Subscription | null = null;
+  private linesSubscription: Subscription | null = null;
   /** 受信チャンクでバッファが更新されたことを Observable 側の待機に伝える */
   private readonly bufferNotify$ = new Subject<void>();
 
@@ -64,20 +58,17 @@ export class SerialCommandRunnerService {
   ) {}
 
   /**
-   * 接続後に呼び出し、`receive$` を購読して `readBuffer` に追記する。
+   * 接続後に呼び出し、`lines$` を購読して `readBuffer` に行単位で追記する。
    */
   startReadLoop(): void {
     this.readBuffer = '';
-    this.receiveSubscription?.unsubscribe();
-    this.receiveSubscription = this.transport.receive$.subscribe({
-      next: (chunk) => {
-        if (!chunk?.length) {
-          return;
-        }
-        this.readBuffer += stripSerialAnsiForPrompt(chunk);
+    this.linesSubscription?.unsubscribe();
+    this.linesSubscription = this.transport.lines$.subscribe({
+      next: (line) => {
+        this.readBuffer += stripSerialAnsiForPrompt(line ?? '') + '\n';
         this.bufferNotify$.next();
       },
-      error: (err: unknown) => console.error('Serial receive stream error:', err),
+      error: (err: unknown) => console.error('Serial lines stream error:', err),
     });
   }
 
@@ -85,8 +76,8 @@ export class SerialCommandRunnerService {
    * 読み取り購読を停止しバッファを空にする
    */
   stopReadLoop(): void {
-    this.receiveSubscription?.unsubscribe();
-    this.receiveSubscription = null;
+    this.linesSubscription?.unsubscribe();
+    this.linesSubscription = null;
     this.readBuffer = '';
   }
 
@@ -95,8 +86,8 @@ export class SerialCommandRunnerService {
    */
   isReading(): boolean {
     return (
-      this.receiveSubscription != null &&
-      !this.receiveSubscription.closed
+      this.linesSubscription != null &&
+      !this.linesSubscription.closed
     );
   }
 
@@ -104,9 +95,9 @@ export class SerialCommandRunnerService {
     this.readBuffer = '';
   }
 
-  /** プロンプト照合用のバッファ */
+  /** プロンプト照合用のバッファ（{@link SerialTransportService#lines$} 由来の連結テキスト） */
   private promptInspectionBuffer(): string {
-    return collapseCarriageRedrawsPerLine(this.readBuffer);
+    return this.readBuffer;
   }
 
   /**
@@ -155,6 +146,41 @@ export class SerialCommandRunnerService {
     return attempt$.pipe(retry({ count: retryCount }));
   }
 
+  /** 送信完了後: プロンプト待ちしない場合は空 stdout、否则 {@link waitForPromptMatch$}。 */
+  private afterSendPromptOutcome$(
+    config: CommandExecutionConfig,
+    enqueuedGen: number,
+  ): Observable<CommandResult> {
+    if (config.waitForPrompt === false) {
+      return of({ stdout: '' });
+    }
+    return this.waitForPromptMatch$(config, enqueuedGen).pipe(
+      map((stdout) => ({ stdout })),
+    );
+  }
+
+  /**
+   * 送信なし: 既存バッファで一致すれば即返し、否则プロンプトまで待機。
+   */
+  private readUntilPromptOutcome$(
+    config: CommandExecutionConfig,
+    enqueuedGen: number,
+  ): Observable<CommandResult> {
+    if (config.waitForPrompt === false) {
+      const stdout = this.promptInspectionBuffer();
+      this.clearReadBuffer();
+      return of({ stdout });
+    }
+    if (this.bufferMatchesPrompt(this.promptInspectionBuffer(), config)) {
+      const stdout = this.promptInspectionBuffer();
+      this.clearReadBuffer();
+      return of({ stdout });
+    }
+    return this.waitForPromptMatch$(config, enqueuedGen).pipe(
+      map((stdout) => ({ stdout })),
+    );
+  }
+
   buildExecPipeline$(
     sendData: string,
     config: CommandExecutionConfig,
@@ -169,14 +195,7 @@ export class SerialCommandRunnerService {
       onAttemptStart?.();
       this.clearReadBuffer();
       return this.transport.write(sendData).pipe(
-        mergeMap(() => {
-          if (config.waitForPrompt === false) {
-            return of<CommandResult>({ stdout: '' });
-          }
-          return this.waitForPromptMatch$(config, enqueuedGen).pipe(
-            map((stdout) => ({ stdout })),
-          );
-        }),
+        mergeMap(() => this.afterSendPromptOutcome$(config, enqueuedGen)),
       );
     });
     return this.withPromptAttemptRetries(attempt$, retryCount);
@@ -193,19 +212,7 @@ export class SerialCommandRunnerService {
         return throwError(() => new Error('All commands cancelled'));
       }
       onAttemptStart?.();
-      if (config.waitForPrompt === false) {
-        const stdout = this.promptInspectionBuffer();
-        this.clearReadBuffer();
-        return of<CommandResult>({ stdout });
-      }
-      if (this.bufferMatchesPrompt(this.promptInspectionBuffer(), config)) {
-        const stdout = this.promptInspectionBuffer();
-        this.clearReadBuffer();
-        return of<CommandResult>({ stdout });
-      }
-      return this.waitForPromptMatch$(config, enqueuedGen).pipe(
-        map((stdout) => ({ stdout })),
-      );
+      return this.readUntilPromptOutcome$(config, enqueuedGen);
     });
     return this.withPromptAttemptRetries(attempt$, retryCount);
   }
