@@ -1,8 +1,4 @@
 import { Injectable } from '@angular/core';
-import {
-  type ConnectClient,
-  createConnectClient,
-} from '@libs-connect-util';
 import { sanitizeSerialStdout } from '@libs-terminal-util';
 import {
   PI_ZERO_LOGIN_PASSWORD,
@@ -21,6 +17,10 @@ import {
   switchMap,
   tap,
 } from 'rxjs';
+import {
+  PI_ZERO_PROMPT_TARGET,
+  PI_ZERO_TIMEZONE_STEPS,
+} from './pi-zero-bootstrap.config';
 import { SerialPromptDetectorService } from './serial-command/serial-prompt-detector.service';
 import { SerialFacadeService } from './serial-facade.service';
 import type { CommandResult } from './serial-command/serial-command-types';
@@ -58,8 +58,7 @@ export class PiZeroSerialBootstrapService {
     onStatus?: PiZeroBootstrapStatusHandler,
   ): Observable<void> {
     const log = onStatus ?? (() => undefined);
-    const client = createConnectClient();
-    return this.timezoneSequence$(log, client);
+    return this.timezoneSequence$(log);
   }
 
   /**
@@ -174,10 +173,9 @@ export class PiZeroSerialBootstrapService {
 
   private timezoneSequence$(
     log: PiZeroBootstrapStatusHandler,
-    client: ConnectClient,
   ): Observable<void> {
     log('[コンソール] タイムゾーン関連の初期化を開始します。');
-    return from(client.timezoneSteps).pipe(
+    return from(PI_ZERO_TIMEZONE_STEPS).pipe(
       concatMap((step) => {
         log(step.statusMessage);
         return this.serial
@@ -193,7 +191,7 @@ export class PiZeroSerialBootstrapService {
               const cleaned = sanitizeSerialStdout(
                 typeof stdout === 'string' ? stdout : '',
                 step.command,
-                client.prompt,
+                PI_ZERO_PROMPT_TARGET,
                 'lineStreamMirrored',
               );
               for (const line of cleaned.split(/\n/)) {
