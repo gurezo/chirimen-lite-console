@@ -1,17 +1,4 @@
-import {
-  collapseCarriageRedrawsPerLine,
-  stripSerialAnsiForPrompt,
-} from '@libs-web-serial-util';
-
-/**
- * シリアル由来の stdout をブラウザ xterm で表示できるよう CR/LF を揃える。
- * lone \\r が混ぜると xterm が行頭に戻して階段状ずれになりやすい（Web Serial でよく見る）。
- *
- * 実装は {@link collapseCarriageRedrawsPerLine}（シリアル受信バッファのプロンプト照合でも同じ）。
- */
-export function normalizeSerialNewlines(stdout: string): string {
-  return collapseCarriageRedrawsPerLine(stdout);
-}
+import { stripSerialAnsiForPrompt } from '@libs-web-serial-util';
 
 /**
  * {@link stripSerialAnsiForPrompt} で落ちない端末制御（カーソル退避・文字集合・逆改行）を除く。
@@ -53,25 +40,12 @@ function stripResidualTerminalEscapes(s: string): string {
     .replace(new RegExp(`${esc}\\)[\\x20-\\x7e]`, 'g'), ''); // SCS 同上 )
 }
 
+/** ライブ表示の \\r 再描画は {@link SerialSession#terminalText$} に委譲。ここでは ANSI 除去と lone \\r の除去のみ。 */
 function stripForTerminalDisplay(s: string): string {
-  /** \\r\\n のみ先に正規化。\\r 単体の解釈は ANSI 除去の後に {@link normalizeSerialNewlines} で行う */
   let t = s.replace(/\r\n/g, '\n');
   t = stripSerialAnsiForPrompt(t);
   t = stripResidualTerminalEscapes(t);
-  return normalizeSerialNewlines(t);
-}
-
-/**
- * [example-angular][ex] と同様、ANSI 後に論理行内 `\\r` を「見えていた最終セグメント」へ収束させ（{@link normalizeSerialNewlines}
- * と同等）、送信列の並びだけは `sanitizeSerialStdout(..., default)` と異なる細部に留める用途向け。
- *
- * [ex]: https://github.com/gurezo/web-serial-rxjs/tree/main/apps/example-angular
- */
-function stripForLineStreamMirrorDisplay(s: string): string {
-  let t = s.replace(/\r\n/g, '\n');
-  t = stripSerialAnsiForPrompt(t);
-  t = stripResidualTerminalEscapes(t);
-  return collapseCarriageRedrawsPerLine(t);
+  return t.replace(/\r/g, '');
 }
 
 function escapeRegex(s: string): string {
@@ -126,10 +100,6 @@ function stripThroughSentCommand(out: string, command: string): string {
  * `ls -l` らしい行のみ先頭空白を落とし表示を整える（pwd 等はヒットしない）。
  */
 function dedentProbableLsLongListingLines(s: string): string {
-  /**
-   * total／合計、または GNU ls -l の mode＋リンク数付近。
-   * mode は ACL/+ 等で 10 桁超になることがあり、過去の {9} 固定では段状空白の行が落ちなかった。
-   */
   const lsLongish =
     /^(合計|total)\b|^[-bcdlps][-rwxsStT?.+]{9,}\s+[0-9,]+/u;
   return s
@@ -169,43 +139,14 @@ function stripRepeatedLeadingCommandEchoLines(
 }
 
 /**
- * `'lineStreamMirrored'` はタブラ・ls dedent 等を省略し軽量化する対話コンソール向け。
- * 論理行内の `\\r` は {@link normalizeSerialNewlines} で収束する（シリアル exec のバッファ正規化でも同関数を使う）。
- *
  * Strip echoed command and trailing remote prompt from serial exec capture.
+ * 論理行内の TTY `\\r` 再描画の収束はライブラリの `terminalText$` に任せ、本関数は echo / prompt / ANSI のみ扱う（issue #601）。
  */
-export type SanitizeSerialStdoutVariant =
-  /** タブラ・強 dedent を含む従来表示用 */
-  | 'default'
-  /** タブラ／dedent を省く軽めのパス（`\\r` 収束は default と共通） */
-  | 'lineStreamMirrored';
-
 export function sanitizeSerialStdout(
   stdout: string,
   command: string,
   prompt: string,
-  variant?: SanitizeSerialStdoutVariant,
 ): string {
-  const mode = variant ?? 'default';
-
-  if (mode === 'lineStreamMirrored') {
-    let out = stripForLineStreamMirrorDisplay(stdout);
-
-    out = stripThroughSentCommand(out, command);
-
-    const promptIdx = out.lastIndexOf(prompt);
-    if (promptIdx >= 0) {
-      out = out.slice(0, promptIdx);
-    }
-
-    out = stripRepeatedLeadingCommandEchoLines(out, command);
-
-    return out
-      .replace(/^[\r\n]+/, '')
-      .replace(/[\r\n]+$/, '')
-      .replace(/\r/g, '');
-  }
-
   let out = stripForTerminalDisplay(stdout);
 
   out = stripThroughSentCommand(out, command);
@@ -217,10 +158,8 @@ export function sanitizeSerialStdout(
 
   out = stripRepeatedLeadingCommandEchoLines(out, command);
 
-  out = normalizeSerialNewlines(out);
   out = stripSerialAnsiForPrompt(out);
   out = stripResidualTerminalEscapes(out);
-  out = normalizeSerialNewlines(out);
   out = expandTabsToSpaces(out);
   out = dedentProbableLsLongListingLines(out);
 

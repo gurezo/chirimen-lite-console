@@ -10,7 +10,7 @@ describe('sanitizeSerialStdout', () => {
     expect(out).not.toContain('pi@chirimen');
   });
 
-  it('normalizes lines so literal \\r is removed without broken multi-line stair-steps', () => {
+  it('removes literal carriage returns from exec stdout', () => {
     const raw =
       'ls -la\n合計 36\n     drwx------ 1 pi\n-rw-r--r-- 2 pi\npi@raspberrypi:';
     const out = sanitizeSerialStdout(raw, 'ls -la', 'pi@raspberrypi:');
@@ -19,14 +19,13 @@ describe('sanitizeSerialStdout', () => {
     expect(out).toContain('drwx------');
   });
 
-  it('collapses intra-line \\r redraws to the final segment only (TTY column dance)', () => {
+  it('strips lone \\r characters without TTY collapse (terminalText$ owns redraw)', () => {
     const raw =
       'total 36\n' +
       '     x\r       y\rdrwx------ 1 pi ok\npi@host:';
     const out = sanitizeSerialStdout(raw, 'ls', 'pi@host:');
     expect(out).not.toContain('\r');
     expect(out).toContain('drwx------ 1 pi ok');
-    expect(out).not.toContain('     x');
   });
 
   it('expands tabs after strip for xterm column alignment', () => {
@@ -84,16 +83,10 @@ describe('sanitizeSerialStdout', () => {
     expect(out).toBe('total 36\ndrwx------ 5 pi');
   });
 
-  it('lineStreamMirrored also collapses intra-line \\r redraws (exec buffer matches lines$ + TTY)', () => {
+  it('strips echo and prompt from simple A\\rB\\rC line (no collapse; \\r removed)', () => {
     const prompt = 'pi@p:$ ';
-    /** 1 行に複数 \\r（TTY 再描画）。exec キャプチャは default / lineStream ともに最終セグメントへ収束 */
     const raw = 'A\rB\rC\n' + prompt;
-    expect(
-      sanitizeSerialStdout(raw, 'echo', prompt, 'default').trim(),
-    ).toBe('C');
-    expect(sanitizeSerialStdout(raw, 'echo', prompt, 'lineStreamMirrored').trim()).toBe(
-      'C',
-    );
+    expect(sanitizeSerialStdout(raw, 'echo', prompt).trim()).toBe('ABC');
   });
 
   it('does not trim indented non-ls lines', () => {
