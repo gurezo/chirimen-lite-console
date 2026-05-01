@@ -102,8 +102,13 @@ export class SerialFacadeService {
     return this.connection.disconnect$();
   }
 
-  write$(data: string): Observable<void> {
+  send$(data: string): Observable<void> {
     return this.transport.send$(data);
+  }
+
+  /** @deprecated `send$` を使用すること。 */
+  write$(data: string): Observable<void> {
+    return this.send$(data);
   }
 
   read$(): Observable<string> {

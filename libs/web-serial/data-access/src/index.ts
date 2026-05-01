@@ -10,5 +10,4 @@ export * from './lib/serial-command.service';
 export * from './lib/serial-facade.service';
 export * from './lib/serial-notification.service';
 export * from './lib/serial-connection-view-model.facade';
-export * from './lib/serial-transport.service';
 export * from './lib/serial-validator.service';
