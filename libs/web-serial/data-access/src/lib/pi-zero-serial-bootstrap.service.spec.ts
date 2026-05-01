@@ -141,7 +141,6 @@ describe('PiZeroSerialBootstrapService', () => {
         prompt: '',
         promptMatch: expect.any(Function),
         timeout: SERIAL_TIMEOUT.LONG,
-        retry: 1,
       }),
     );
     expect(exec).toHaveBeenNthCalledWith(

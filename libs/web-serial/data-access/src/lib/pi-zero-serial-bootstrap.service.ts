@@ -180,9 +180,11 @@ export class PiZeroSerialBootstrapService {
       .exec$(PI_ZERO_LOGIN_USER, {
         prompt: '',
         promptMatch: (buf) => this.promptDetector.isPasswordPrompt(buf),
-        /** getty／MOTD が長いとき Password: が遅れることがあるため DEFAULT より長く取る */
+        /**
+         * getty／MOTD が長いとき Password: が遅れることがあるため timeout は長めに取る。
+         * ただし retry で `pi` を再送すると認証状態が壊れるため、ユーザー名送信は再試行しない。
+         */
         timeout: SERIAL_TIMEOUT.LONG,
-        retry: 1,
       })
       .pipe(
         tap(() => {
