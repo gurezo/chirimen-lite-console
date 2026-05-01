@@ -172,17 +172,11 @@ describe('PiZeroSessionService', () => {
     it('propagates errors, skips setReady(true), and ends initializing$', async () => {
       const readUntilPrompt = vi
         .fn()
+        .mockImplementation(() =>
+          throwError(() => new Error('login prompt timeout')),
+        )
         .mockImplementationOnce(() =>
           throwError(() => new Error('shell probe timeout')),
-        )
-        .mockImplementationOnce(() =>
-          of({ stdout: 'stale buffer' }),
-        )
-        .mockImplementationOnce(() =>
-          throwError(() => new Error('login prompt timeout')),
-        )
-        .mockImplementationOnce(() =>
-          throwError(() => new Error('login prompt timeout')),
         );
       const exec = vi.fn();
       const serial = {
@@ -199,7 +193,7 @@ describe('PiZeroSessionService', () => {
       const sub = service.initializing$.subscribe((v) => seen.push(v));
 
       await expect(firstValueFrom(service.runAfterConnect$())).rejects.toThrow(
-        'login prompt timeout',
+        'Login rejected after username submission',
       );
       sub.unsubscribe();
 
@@ -210,17 +204,11 @@ describe('PiZeroSessionService', () => {
     it('notifies status handler on pipeline failure', async () => {
       const readUntilPrompt = vi
         .fn()
+        .mockImplementation(() =>
+          throwError(() => new Error('login prompt timeout')),
+        )
         .mockImplementationOnce(() =>
           throwError(() => new Error('shell probe timeout')),
-        )
-        .mockImplementationOnce(() =>
-          of({ stdout: 'stale buffer' }),
-        )
-        .mockImplementationOnce(() =>
-          throwError(() => new Error('login prompt timeout')),
-        )
-        .mockImplementationOnce(() =>
-          throwError(() => new Error('login prompt timeout')),
         );
       const onStatus = vi.fn();
       const serial = {
