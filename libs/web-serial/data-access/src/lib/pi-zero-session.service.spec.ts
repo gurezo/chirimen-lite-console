@@ -137,7 +137,7 @@ describe('PiZeroSessionService', () => {
       const serial = {
         readUntilPrompt$: (o: unknown) => readUntilPrompt(o),
         exec$: (c: string, o: unknown) => exec(c, o),
-        write$: () => of(undefined),
+        send$: () => of(undefined),
       } as unknown as SerialFacadeService;
 
       const service = createSession(serial, createShellReadinessMock());
@@ -181,7 +181,7 @@ describe('PiZeroSessionService', () => {
         getConnectionEpoch: () => 1,
         readUntilPrompt$: (o: unknown) => readUntilPrompt(o),
         exec$: (c: string, o: unknown) => from(exec(c, o)),
-        write$: () => of(undefined),
+        send$: () => of(undefined),
       } as unknown as SerialFacadeService;
 
       const shellReadiness = createShellReadinessMock();
@@ -213,7 +213,7 @@ describe('PiZeroSessionService', () => {
         getConnectionEpoch: () => 1,
         readUntilPrompt$: (o: unknown) => readUntilPrompt(o),
         exec$: (c: string, o: unknown) => from(Promise.resolve({ stdout: '' })),
-        write$: () => of(undefined),
+        send$: () => of(undefined),
       } as unknown as SerialFacadeService;
 
       const service = createSession(serial, createShellReadinessMock());
