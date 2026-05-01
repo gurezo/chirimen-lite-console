@@ -1,5 +1,12 @@
 import { TestBed } from '@angular/core/testing';
-import { defaultIfEmpty, EMPTY, firstValueFrom, of, Subject } from 'rxjs';
+import {
+  defaultIfEmpty,
+  EMPTY,
+  firstValueFrom,
+  forkJoin,
+  of,
+  Subject,
+} from 'rxjs';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   PiZeroSessionService,
@@ -27,6 +34,7 @@ describe('TerminalConsoleOrchestrationService', () => {
             isConnected$: of(true),
             connectionEstablished$: of(undefined),
             terminalText$: EMPTY,
+            getConnectionEpoch: () => 1,
           },
         },
         {
@@ -72,6 +80,7 @@ describe('TerminalConsoleOrchestrationService', () => {
         isConnected$: of(false),
         connectionEstablished$: of(undefined),
         terminalText$: EMPTY,
+        getConnectionEpoch: () => 1,
       },
     });
     const svc = TestBed.inject(TerminalConsoleOrchestrationService);
@@ -95,10 +104,39 @@ describe('TerminalConsoleOrchestrationService', () => {
         .bootstrapAfterConnect$('prefix', { writeln, write })
         .pipe(defaultIfEmpty(undefined)),
     );
-    expect(writeln).toHaveBeenCalledWith(
-      'prefix 初期化済みのためスキップします。',
+    expect(writeln).not.toHaveBeenCalled();
+    expect(write).toHaveBeenCalledWith(
+      '\r\nprefix 初期化済みのためスキップします。\r\n',
     );
     expect(write).toHaveBeenCalledWith('$ ');
+  });
+
+  it('bootstrapAfterConnect$ deduplicates concurrent bootstrap calls in same epoch', async () => {
+    const writeln = vi.fn();
+    const write = vi.fn();
+    const runAfterConnect$ = vi.fn(() => of(undefined));
+    const shouldRunAfterConnect$ = vi.fn(() => of(true));
+    TestBed.overrideProvider(PiZeroSessionService, {
+      useValue: {
+        shouldRunAfterConnect$,
+        runAfterConnect$,
+      },
+    });
+    const svc = TestBed.inject(TerminalConsoleOrchestrationService);
+    await firstValueFrom(
+      forkJoin([
+        svc.bootstrapAfterConnect$('prefix', { writeln, write }).pipe(
+          defaultIfEmpty(undefined),
+        ),
+        svc.bootstrapAfterConnect$('prefix', { writeln, write }).pipe(
+          defaultIfEmpty(undefined),
+        ),
+      ]),
+    );
+
+    expect(shouldRunAfterConnect$).toHaveBeenCalledTimes(1);
+    expect(runAfterConnect$).toHaveBeenCalledTimes(1);
+    expect(write).toHaveBeenCalledWith('\r\nprefix 初期化しています...\r\n');
   });
 
   it('pipeTerminalOutputToSink$ forwards terminalText$ chunks to sink.write', async () => {
@@ -109,6 +147,7 @@ describe('TerminalConsoleOrchestrationService', () => {
         isConnected$: of(true),
         connectionEstablished$: of(undefined),
         terminalText$: chunks.asObservable(),
+        getConnectionEpoch: () => 1,
       },
     });
     TestBed.overrideProvider(PiZeroSessionService, {
@@ -125,5 +164,41 @@ describe('TerminalConsoleOrchestrationService', () => {
     expect(write).toHaveBeenNthCalledWith(1, 'a');
     expect(write).toHaveBeenNthCalledWith(2, 'b');
     sub.unsubscribe();
+  });
+
+  it('suppresses terminalText$ while bootstrap is running', async () => {
+    const chunks = new Subject<string>();
+    const bootstrapDone$ = new Subject<void>();
+    TestBed.overrideProvider(SerialFacadeService, {
+      useValue: {
+        exec$: execMock,
+        isConnected$: of(true),
+        connectionEstablished$: of(undefined),
+        terminalText$: chunks.asObservable(),
+        getConnectionEpoch: () => 1,
+      },
+    });
+    TestBed.overrideProvider(PiZeroSessionService, {
+      useValue: {
+        shouldRunAfterConnect$: () => of(true),
+        runAfterConnect$: () => bootstrapDone$.asObservable(),
+      },
+    });
+    const write = vi.fn();
+    const writeln = vi.fn();
+    const svc = TestBed.inject(TerminalConsoleOrchestrationService);
+    const mirrorSub = svc.pipeTerminalOutputToSink$({ write }).subscribe();
+    const bootSub = svc.bootstrapAfterConnect$('prefix', { write, writeln }).subscribe();
+
+    chunks.next('during-bootstrap');
+    expect(write).not.toHaveBeenCalledWith('during-bootstrap');
+
+    bootstrapDone$.next();
+    bootstrapDone$.complete();
+    chunks.next('after-bootstrap');
+    expect(write).toHaveBeenCalledWith('after-bootstrap');
+
+    bootSub.unsubscribe();
+    mirrorSub.unsubscribe();
   });
 });

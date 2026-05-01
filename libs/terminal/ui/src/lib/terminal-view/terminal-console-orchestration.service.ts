@@ -9,8 +9,10 @@ import {
   EMPTY,
   Observable,
   catchError,
+  filter,
   finalize,
   firstValueFrom,
+  shareReplay,
   switchMap,
   take,
   tap,
@@ -40,6 +42,9 @@ export interface TerminalConsoleSink {
 export class TerminalConsoleOrchestrationService {
   private readonly serial = inject(SerialFacadeService);
   private readonly piZeroSession = inject(PiZeroSessionService);
+  private activeBootstrap$: Observable<void> | null = null;
+  private activeBootstrapEpoch: number | null = null;
+  private suspendTerminalMirror = false;
 
   /** 対話入力とツールバー経由の exec を直列化する */
   private execTail: Promise<void> = Promise.resolve();
@@ -115,19 +120,35 @@ export class TerminalConsoleOrchestrationService {
     prefixMessage: string,
     sink: TerminalConsoleSink,
   ): Observable<void> {
-    return this.piZeroSession.shouldRunAfterConnect$().pipe(
+    const epoch = this.serial.getConnectionEpoch();
+    if (this.activeBootstrap$ !== null && this.activeBootstrapEpoch === epoch) {
+      return this.activeBootstrap$;
+    }
+    this.activeBootstrapEpoch = epoch;
+    this.activeBootstrap$ = this.piZeroSession.shouldRunAfterConnect$().pipe(
       switchMap((should) => {
+        this.suspendTerminalMirror = true;
         if (!should) {
-          sink.writeln(`${prefixMessage} 初期化済みのためスキップします。`);
-          sink.write('$ ');
+          this.writeConsoleLine(sink, `${prefixMessage} 初期化済みのためスキップします。`);
           return EMPTY;
         }
-        sink.writeln(`${prefixMessage} 初期化しています...`);
-        return this.piZeroSession.runAfterConnect$((line) => sink.writeln(line));
+        this.writeConsoleLine(sink, `${prefixMessage} 初期化しています...`);
+        return this.piZeroSession.runAfterConnect$((line) =>
+          this.writeConsoleLine(sink, line),
+        );
       }),
       catchError(() => EMPTY),
-      finalize(() => sink.write('$ ')),
+      finalize(() => {
+        this.suspendTerminalMirror = false;
+        sink.write('$ ');
+        if (this.activeBootstrapEpoch === epoch) {
+          this.activeBootstrap$ = null;
+          this.activeBootstrapEpoch = null;
+        }
+      }),
+      shareReplay({ bufferSize: 1, refCount: true }),
     );
+    return this.activeBootstrap$;
   }
 
   /**
@@ -137,6 +158,13 @@ export class TerminalConsoleOrchestrationService {
   pipeTerminalOutputToSink$(
     sink: Pick<TerminalConsoleSink, 'write'>,
   ): Observable<string> {
-    return this.serial.terminalText$.pipe(tap((chunk) => sink.write(chunk)));
+    return this.serial.terminalText$.pipe(
+      filter(() => !this.suspendTerminalMirror),
+      tap((chunk) => sink.write(chunk)),
+    );
+  }
+
+  private writeConsoleLine(sink: TerminalConsoleSink, line: string): void {
+    sink.write(`\r\n${line}\r\n`);
   }
 }
