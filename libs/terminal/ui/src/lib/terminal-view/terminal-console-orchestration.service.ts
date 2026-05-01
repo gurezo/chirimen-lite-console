@@ -30,10 +30,9 @@ export interface TerminalConsoleSink {
  * シリアルからの **ライブ表示** 専用は {@link SerialFacadeService#terminalText$} のみを購読する。
  * {@link #pipeTerminalOutputToSink$} がその経路。`exec` の stdout 整形表示と二重にならないよう UI 側で使い分けること。
  *
- * ### 対話コンソールの表示モードと [example-angular](https://github.com/gurezo/web-serial-rxjs/tree/main/apps/example-angular)
+ * ### 対話コンソール表示
  *
- * upstream のサンプルは `send$` と組み込み `lines$` のみ。`sanitizeSerialStdout(..., 'lineStreamMirrored')` は並びだけをそれに寄せられるが、
- * `ls -l` 等の論理行内 `\r` やタブによる段状ずれ対策には **`default`**（CR セグメント折り畳み・dedent を含む）を使う。
+ * ライブ表示は `terminalText$` の購読のみで行い、実行結果の表示整形（`exec$` 経路）とは責務を分離する。
  */
 @Injectable({
   providedIn: 'root',
