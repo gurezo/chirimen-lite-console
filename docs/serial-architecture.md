@@ -30,6 +30,8 @@ chirimen-lite-console（本リポジトリ）
 
 本リポジトリでは `SerialSession`（`state$` / `isConnected$` / `errors$` 等）を **接続状態などの唯一のソース** とし、[`SerialTransportService`](../libs/web-serial/data-access/src/lib/serial-transport.service.ts) は `activeSession$` 経由内の **橋渡し（thin adapter）** に留める。Pi Zero 向けの接続・ログイン・初期化は `PiZeroSessionService` やオーケストレーション層に集約し、機能コンポーネントから `SerialTransportService` を直接注入しない方針とする（[`SerialFacadeService`](../libs/web-serial/data-access/src/lib/serial-facade.service.ts) 経由）。
 
+Issue #590 以降は、外部公開 API を `SerialFacadeService` に集約し、利用側は `terminalText$` / `lines$` / `state$` / `isConnected$` / `errors$` と `connect$()` / `disconnect$()` / `send$()` / `exec$()` / `readUntilPrompt$()` を基本導線とする。`write$()` は後方互換の別名としてのみ扱う。
+
 ## 受信ストリーム `receive$` / `receiveReplay$` / `lines$`
 
 いずれも **ライブラリの `SerialSession`** が提供する。意味の整理は次のとおり。
