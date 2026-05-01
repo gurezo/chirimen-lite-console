@@ -124,6 +124,7 @@ describe('PiZeroSessionService', () => {
         .mockImplementationOnce(() =>
           throwError(() => new Error('shell prompt timeout')),
         )
+        .mockImplementationOnce(() => of({ stdout: 'stale buffer' }))
         .mockImplementationOnce(() =>
           of({ stdout: 'raspberrypi login: ' }),
         )
@@ -143,7 +144,7 @@ describe('PiZeroSessionService', () => {
       const service = createSession(serial, createShellReadinessMock());
       await firstValueFrom(service.loginIfNeeded$());
 
-      expect(readUntilPrompt).toHaveBeenCalledTimes(3);
+      expect(readUntilPrompt).toHaveBeenCalledTimes(4);
       expect(exec).toHaveBeenCalledTimes(2);
       expect(exec.mock.calls[0]?.[0]).toBe(PI_ZERO_LOGIN_USER);
     });
@@ -171,6 +172,9 @@ describe('PiZeroSessionService', () => {
         .fn()
         .mockImplementationOnce(() =>
           throwError(() => new Error('shell probe timeout')),
+        )
+        .mockImplementationOnce(() =>
+          of({ stdout: 'stale buffer' }),
         )
         .mockImplementationOnce(() =>
           throwError(() => new Error('login prompt timeout')),
@@ -205,6 +209,9 @@ describe('PiZeroSessionService', () => {
           throwError(() => new Error('shell probe timeout')),
         )
         .mockImplementationOnce(() =>
+          of({ stdout: 'stale buffer' }),
+        )
+        .mockImplementationOnce(() =>
           throwError(() => new Error('login prompt timeout')),
         );
       const onStatus = vi.fn();
@@ -212,7 +219,7 @@ describe('PiZeroSessionService', () => {
         isConnected$: of(true),
         getConnectionEpoch: () => 1,
         readUntilPrompt$: (o: unknown) => readUntilPrompt(o),
-        exec$: (c: string, o: unknown) => from(Promise.resolve({ stdout: '' })),
+        exec$: () => from(Promise.resolve({ stdout: '' })),
         send$: () => of(undefined),
       } as unknown as SerialFacadeService;
 

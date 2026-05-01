@@ -73,6 +73,7 @@ describe('PiZeroSerialBootstrapService', () => {
     const readUntilPrompt = vi
       .fn()
       .mockRejectedValueOnce(new Error('Command execution timeout'))
+      .mockResolvedValueOnce({ stdout: 'stale boot log' })
       .mockResolvedValueOnce({ stdout: 'raspberrypi login: ' })
       .mockResolvedValueOnce({
         stdout: `Last login: Mon Jan 01 00:00:00 2024 from ttyS0\n${PI_ZERO_PROMPT} `,
@@ -100,7 +101,7 @@ describe('PiZeroSerialBootstrapService', () => {
     expect(send$).toHaveBeenCalledTimes(2);
     expect(send$).toHaveBeenCalledWith('\r\n');
 
-    expect(readUntilPrompt).toHaveBeenCalledTimes(3);
+    expect(readUntilPrompt).toHaveBeenCalledTimes(4);
     expect(readUntilPrompt).toHaveBeenNthCalledWith(
       1,
       expect.objectContaining({
@@ -113,12 +114,20 @@ describe('PiZeroSerialBootstrapService', () => {
       2,
       expect.objectContaining({
         prompt: '',
+        waitForPrompt: false,
+        timeout: SERIAL_TIMEOUT.SHORT,
+      }),
+    );
+    expect(readUntilPrompt).toHaveBeenNthCalledWith(
+      3,
+      expect.objectContaining({
+        prompt: '',
         promptMatch: expect.any(Function),
         timeout: SERIAL_TIMEOUT.FILE_TRANSFER,
       }),
     );
     expect(readUntilPrompt).toHaveBeenNthCalledWith(
-      3,
+      4,
       expect.objectContaining({
         prompt: '',
         promptMatch: expect.any(Function),
@@ -170,6 +179,7 @@ describe('PiZeroSerialBootstrapService', () => {
     const readUntilPrompt = vi
       .fn()
       .mockRejectedValueOnce(new Error('Command execution timeout'))
+      .mockResolvedValueOnce({ stdout: 'stale boot log' })
       .mockResolvedValueOnce({ stdout: 'Password: ' })
       .mockResolvedValueOnce({
         stdout: `Login OK\n${PI_ZERO_PROMPT} `,
@@ -221,6 +231,47 @@ describe('PiZeroSerialBootstrapService', () => {
         timeout: SERIAL_TIMEOUT.SHORT,
       }),
     );
+  });
+
+  it('does not treat stale Password in previous buffer as active password prompt', async () => {
+    const readUntilPrompt = vi
+      .fn()
+      .mockRejectedValueOnce(new Error('Command execution timeout'))
+      .mockResolvedValueOnce({ stdout: '...old Password: from stale buffer...' })
+      .mockResolvedValueOnce({ stdout: 'raspberrypi login: ' })
+      .mockResolvedValueOnce({ stdout: `${PI_ZERO_PROMPT} ` });
+    const exec = vi
+      .fn()
+      .mockResolvedValueOnce({ stdout: 'Password: ' })
+      .mockResolvedValueOnce({ stdout: '' })
+      .mockResolvedValue({ stdout: `${PI_ZERO_PROMPT} ` });
+    const send$ = vi.fn().mockReturnValue(of(undefined));
+    const serial = {
+      isConnected$: of(true),
+      getConnectionEpoch: () => 1,
+      readUntilPrompt$: (o: unknown) => from(readUntilPrompt(o)),
+      exec$: (c: string, o: unknown) => from(exec(c, o)),
+      send$,
+    } as unknown as SerialFacadeService;
+
+    const lines: string[] = [];
+    const service = createBootstrap(serial);
+    await firstValueFrom(
+      service.runPostConnectPipeline$((line) => lines.push(line)),
+    );
+
+    expect(exec).toHaveBeenNthCalledWith(
+      1,
+      PI_ZERO_LOGIN_USER,
+      expect.objectContaining({
+        prompt: '',
+        promptMatch: expect.any(Function),
+      }),
+    );
+    expect(lines.some((l) => l.includes('ログインユーザー'))).toBe(true);
+    expect(
+      lines.some((l) => l.includes('パスワード入力画面を検出')),
+    ).toBe(false);
   });
 
   it('logs timezone status stdout lines to the status handler', async () => {
