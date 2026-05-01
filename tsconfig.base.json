@@ -17,7 +17,6 @@
       "@libs-shared-guards": ["libs/shared/guards/src/index.ts"],
       "@libs-connect-feature": ["libs/connect/feature/src/index.ts"],
       "@libs-connect-ui": ["libs/connect/ui/src/index.ts"],
-      "@libs-connect-util": ["libs/connect/util/src/index.ts"],
       "@libs-console-shell-feature": [
         "libs/console-shell/feature/src/index.ts"
       ],
