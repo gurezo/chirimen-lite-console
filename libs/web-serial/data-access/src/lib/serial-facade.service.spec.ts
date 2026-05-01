@@ -25,9 +25,8 @@ describe('SerialFacadeService', () => {
       portInfo$: of(null),
       terminalText$: EMPTY,
       receiveReplay$: EMPTY,
-      commandResultLines$: of('line'),
       getReadStream: vi.fn(() => of('line')),
-      write: vi.fn(() => of(undefined)),
+      send$: vi.fn(() => of(undefined)),
       getPort: vi.fn(() => undefined),
     };
     command = {
@@ -100,9 +99,9 @@ describe('SerialFacadeService', () => {
     ).toHaveBeenCalledWith(options);
   });
 
-  it('write$ delegates to transport.write', async () => {
+  it('write$ delegates to transport.send$', async () => {
     await firstValueFrom(facade.write$('hello'));
-    expect(transport.write).toHaveBeenCalledWith('hello');
+    expect(transport.send$).toHaveBeenCalledWith('hello');
   });
 
   it('read$ takes one line from transport.getReadStream', async () => {
@@ -121,11 +120,6 @@ describe('SerialFacadeService', () => {
     transport.terminalText$ = of('chunk');
     const chunk = await firstValueFrom(facade.terminalOutput$.pipe(take(1)));
     expect(chunk).toBe('chunk');
-  });
-
-  it('commandResultLines$ delegates to transport.commandResultLines$', async () => {
-    const line = await firstValueFrom(facade.commandResultLines$.pipe(take(1)));
-    expect(line).toBe('line');
   });
 
   it('getConnectionEpoch delegates to connection', () => {
