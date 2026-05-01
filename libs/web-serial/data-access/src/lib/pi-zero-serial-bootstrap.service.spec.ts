@@ -111,6 +111,34 @@ describe('PiZeroSerialBootstrapService', () => {
     ).rejects.toThrow('Login rejected after username submission');
   });
 
+  it('prefers latest auth marker when login and password coexist in buffer', async () => {
+    const readUntilPrompt = vi
+      .fn()
+      .mockRejectedValueOnce(new Error('probe timeout'))
+      .mockResolvedValueOnce({ stdout: 'stale' })
+      .mockResolvedValueOnce({
+        stdout:
+          'raspberrypi login: \nPassword: \nLogin timed out after 60 seconds.\nPassword: ',
+      })
+      .mockResolvedValueOnce({ stdout: `${PI_ZERO_PROMPT} ` });
+    const exec = vi.fn().mockResolvedValue({ stdout: '' });
+    const send$ = vi.fn().mockReturnValue(of(undefined));
+    const serial = {
+      readUntilPrompt$: (o: unknown) => from(readUntilPrompt(o)),
+      exec$: (c: string, o: unknown) => from(exec(c, o)),
+      send$,
+    } as unknown as SerialFacadeService;
+
+    const logs: string[] = [];
+    await firstValueFrom(
+      createBootstrap(serial).runPostConnectPipeline$((l) => logs.push(l)),
+    );
+
+    expect(send$).toHaveBeenCalledWith(`${PI_ZERO_LOGIN_PASSWORD}\r\n`);
+    expect(send$).not.toHaveBeenCalledWith(`${PI_ZERO_LOGIN_USER}\r\n`);
+    expect(logs.some((l) => l.includes('パスワード入力画面を検出'))).toBe(true);
+  });
+
   it('keeps timezone status logging', async () => {
     const readUntilPrompt = vi.fn().mockResolvedValue({
       stdout: `ready\r\n${PI_ZERO_PROMPT} `,

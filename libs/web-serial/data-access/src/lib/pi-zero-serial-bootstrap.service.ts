@@ -171,13 +171,50 @@ export class PiZeroSerialBootstrapService {
 
   private classifyAuthState(stdout: string): AuthState {
     const text = typeof stdout === 'string' ? stdout : '';
-    if (this.promptDetector.isLikelyLoggedInShellPrompt(text)) {
+    const normalized = text.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
+    const shellIdx = this.lastMatchIndex(
+      /(?:^|\n)[ \t]*[^\s]+@[^:\n]+:.*[$#%][ \t]*$/gm,
+      normalized,
+    );
+    const passwordIdx = this.lastMatchIndex(
+      /(?:^|\n)[^\n]*[Pp]assword:\s*$/gm,
+      normalized,
+    );
+    const loginIdx = this.lastMatchIndex(
+      /(?:^|\n)[^\n]*(?:[Ll]ogin|ログイン)\s*:\s*$/gmu,
+      normalized,
+    );
+
+    const maxIdx = Math.max(shellIdx, passwordIdx, loginIdx);
+    if (maxIdx < 0) {
+      if (this.promptDetector.isLikelyLoggedInShellPrompt(normalized)) {
+        return 'shell';
+      }
+      if (this.promptDetector.isAwaitingPasswordInput(normalized)) {
+        return 'password';
+      }
+      return 'login';
+    }
+    if (maxIdx === shellIdx) {
       return 'shell';
     }
-    if (this.promptDetector.isAwaitingPasswordInput(text)) {
+    if (maxIdx === passwordIdx) {
       return 'password';
     }
     return 'login';
+  }
+
+  private lastMatchIndex(pattern: RegExp, text: string): number {
+    let last = -1;
+    pattern.lastIndex = 0;
+    let m = pattern.exec(text);
+    while (m) {
+      if (typeof m.index === 'number') {
+        last = m.index;
+      }
+      m = pattern.exec(text);
+    }
+    return last;
   }
 
   private sendLoginUserAndPassword$(
@@ -216,12 +253,22 @@ export class PiZeroSerialBootstrapService {
         return this.serial
           .readUntilPrompt$({
             prompt: '',
-            waitForPrompt: false,
-            timeout: SERIAL_TIMEOUT.SHORT,
+            promptMatch: (buf) =>
+              this.promptDetector.isAwaitingPasswordInput(buf) ||
+              this.promptDetector.isLikelyLoggedInShellPrompt(buf) ||
+              this.promptDetector.isAwaitingLoginName(buf),
+            timeout: SERIAL_TIMEOUT.LONG,
           })
           .pipe(
             map(({ stdout }) => this.classifyAuthState(stdout)),
             switchMap((state) => {
+              if (state === 'password') {
+                log('[コンソール] パスワードを送信中（画面には表示しません）...');
+                return this.sendPasswordAndAwaitShell$();
+              }
+              if (state === 'shell') {
+                return of(undefined);
+              }
               if (state === 'login') {
                 throw new Error('Login rejected after username submission');
               }
