@@ -148,7 +148,7 @@ describe('SerialTransportService', () => {
     expect(line).toBe('line1');
   });
 
-  it('getReadStream should emit line strings from lines$', async () => {
+  it('lines$ should emit line strings from session lines$', async () => {
     const mockPort = {} as SerialPort;
     const lineSubject = new Subject<string>();
     mockCreateSerialSession.mockReturnValue(
@@ -156,12 +156,12 @@ describe('SerialTransportService', () => {
     );
 
     await firstValueFrom(service.connect$());
-    const readPromise = firstValueFrom(service.getReadStream().pipe(take(1)));
+    const readPromise = firstValueFrom(service.lines$.pipe(take(1)));
     queueMicrotask(() => lineSubject.next('expected-line'));
     expect(await readPromise).toBe('expected-line');
   });
 
-  it('getReadStream should share source lines$ for multiple subscribers', async () => {
+  it('lines$ should share source lines$ for multiple subscribers', async () => {
     const mockPort = {} as SerialPort;
     const lineSubject = new Subject<string>();
     mockCreateSerialSession.mockReturnValue(
@@ -169,8 +169,8 @@ describe('SerialTransportService', () => {
     );
 
     await firstValueFrom(service.connect$());
-    const p1 = firstValueFrom(service.getReadStream().pipe(take(1)));
-    const p2 = firstValueFrom(service.getReadStream().pipe(take(1)));
+    const p1 = firstValueFrom(service.lines$.pipe(take(1)));
+    const p2 = firstValueFrom(service.lines$.pipe(take(1)));
     queueMicrotask(() => lineSubject.next('shared-line'));
     const [a, b] = await Promise.all([p1, p2]);
     expect(a).toBe('shared-line');
