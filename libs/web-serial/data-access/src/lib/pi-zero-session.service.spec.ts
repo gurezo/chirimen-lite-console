@@ -129,24 +129,26 @@ describe('PiZeroSessionService', () => {
           of({ stdout: 'raspberrypi login: ' }),
         )
         .mockImplementationOnce(() =>
+          of({ stdout: 'Password: ' }),
+        )
+        .mockImplementationOnce(() =>
           of({ stdout: `ready\n${PI_ZERO_PROMPT} ` }),
         );
-      const exec = vi.fn()
-        .mockReturnValueOnce(of({ stdout: 'Password: ' }))
-        .mockReturnValueOnce(of({ stdout: '' }));
+      const exec = vi.fn();
+      const send$ = vi.fn().mockReturnValue(of(undefined));
 
       const serial = {
         readUntilPrompt$: (o: unknown) => readUntilPrompt(o),
         exec$: (c: string, o: unknown) => exec(c, o),
-        send$: () => of(undefined),
+        send$,
       } as unknown as SerialFacadeService;
 
       const service = createSession(serial, createShellReadinessMock());
       await firstValueFrom(service.loginIfNeeded$());
 
-      expect(readUntilPrompt).toHaveBeenCalledTimes(4);
-      expect(exec).toHaveBeenCalledTimes(2);
-      expect(exec.mock.calls[0]?.[0]).toBe(PI_ZERO_LOGIN_USER);
+      expect(readUntilPrompt).toHaveBeenCalledTimes(5);
+      expect(send$).toHaveBeenCalledWith(`${PI_ZERO_LOGIN_USER}\r\n`);
+      expect(exec).not.toHaveBeenCalled();
     });
   });
 
