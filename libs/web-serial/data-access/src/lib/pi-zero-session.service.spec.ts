@@ -180,6 +180,9 @@ describe('PiZeroSessionService', () => {
         )
         .mockImplementationOnce(() =>
           throwError(() => new Error('login prompt timeout')),
+        )
+        .mockImplementationOnce(() =>
+          throwError(() => new Error('login prompt timeout')),
         );
       const exec = vi.fn();
       const serial = {
@@ -212,6 +215,9 @@ describe('PiZeroSessionService', () => {
         )
         .mockImplementationOnce(() =>
           of({ stdout: 'stale buffer' }),
+        )
+        .mockImplementationOnce(() =>
+          throwError(() => new Error('login prompt timeout')),
         )
         .mockImplementationOnce(() =>
           throwError(() => new Error('login prompt timeout')),

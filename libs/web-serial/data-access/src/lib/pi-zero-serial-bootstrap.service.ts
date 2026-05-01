@@ -118,7 +118,7 @@ export class PiZeroSerialBootstrapService {
     // 末尾が lone \r のとき行が emit されない。改行を送って確定させる。
     return this.clearPromptBuffer$().pipe(
       switchMap(() => this.serial.send$('\r\n')),
-      switchMap(() => this.awaitAuthState$()),
+      switchMap(() => this.awaitAuthStateWithRetry$()),
       switchMap((state) => {
         if (state === 'shell') {
           log('[コンソール] すでにログイン済みのシェルを検出しました。');
@@ -163,10 +163,30 @@ export class PiZeroSerialBootstrapService {
       promptMatch: (buf) =>
         this.promptDetector.isAwaitingLoginName(buf) ||
         this.promptDetector.isAwaitingPasswordInput(buf) ||
+        this.promptDetector.isLoginPrompt(buf) ||
+        this.promptDetector.isPasswordPrompt(buf) ||
         this.promptDetector.isLikelyLoggedInShellPrompt(buf),
       // getty が遅い／MOTD が長いと LONG では間に合わないことがある。lone \r で行が未完の間も検出できるよう時間に余裕を持つ。
       timeout: SERIAL_TIMEOUT.FILE_TRANSFER,
     }).pipe(map(({ stdout }) => this.classifyAuthState(stdout)));
+  }
+
+  /**
+   * getty が lone `\r` でプロンプトを更新した直後は lines$ に載るまで遅れることがあるため、
+   * 1 回だけ改行を再送して認証状態待ちを再試行する。
+   */
+  private awaitAuthStateWithRetry$(): Observable<AuthState> {
+    return this.awaitAuthState$().pipe(
+      catchError((error) => {
+        const message = error instanceof Error ? error.message : String(error);
+        if (!/timeout/i.test(message)) {
+          throw error;
+        }
+        return this.serial.send$('\r\n').pipe(
+          switchMap(() => this.awaitAuthState$()),
+        );
+      }),
+    );
   }
 
   private classifyAuthState(stdout: string): AuthState {
