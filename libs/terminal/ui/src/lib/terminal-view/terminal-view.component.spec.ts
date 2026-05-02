@@ -1,5 +1,5 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { BehaviorSubject, NEVER, Subject, of } from 'rxjs';
+import { BehaviorSubject, NEVER, Subject, of, throwError } from 'rxjs';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 vi.mock('@xterm/xterm', () => {
@@ -102,6 +102,24 @@ describe('TerminalViewComponent', () => {
       expect(shouldRunAfterConnectMock).toHaveBeenCalled();
     });
     expect(runAfterConnectMock).not.toHaveBeenCalled();
+  });
+
+  it('writes bootstrap failure message when post-connect setup errors', async () => {
+    runAfterConnectMock.mockReturnValue(
+      throwError(() => new Error('auth failed')),
+    );
+
+    fixture.destroy();
+    fixture = TestBed.createComponent(TerminalViewComponent);
+    const writelnSpy = vi.spyOn(fixture.componentInstance.xterminal, 'writeln');
+    writelnSpy.mockClear();
+    fixture.detectChanges();
+
+    await vi.waitFor(() => {
+      expect(writelnSpy).toHaveBeenCalledWith(
+        '[コンソール] 接続後の初期化に失敗しました: auth failed',
+      );
+    });
   });
 
   it('writes only the appended delta when terminalText$ grows by suffix', async () => {
