@@ -19,10 +19,7 @@ import {
   tap,
   timer,
 } from 'rxjs';
-import {
-  PI_ZERO_PROMPT_TARGET,
-  PI_ZERO_TIMEZONE_STEPS,
-} from './pi-zero-bootstrap.config';
+import { PI_ZERO_PROMPT_TARGET, PI_ZERO_TIMEZONE_STEPS } from './pi-zero-bootstrap.config';
 import { PiZeroPromptDetectorService } from './pi-zero-prompt-detector.service';
 import { SerialFacadeService } from './serial-facade.service';
 
@@ -371,9 +368,12 @@ export class PiZeroSerialBootstrapService {
             catchError((error: unknown) => {
               const message =
                 error instanceof Error ? error.message : String(error);
-              log(`[コンソール] コマンドが失敗しました: ${message}`);
-              console.warn(`Initial command failed: ${step.command}`, error);
-              return of(undefined);
+              log(
+                `[コンソール] タイムゾーン初期化コマンドに失敗しました: ${step.command} (${message})`,
+              );
+              throw new Error(
+                `Timezone setup failed at "${step.command}": ${message}`,
+              );
             }),
           );
       }),
