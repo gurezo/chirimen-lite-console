@@ -12,3 +12,32 @@ const OSC_SEQ = new RegExp(`${ESC}\\][^${BEL}]*${BEL}`, 'g');
 export function stripSerialAnsiForPrompt(s: string): string {
   return s.replace(CSI_SEQ, '').replace(OSC_SEQ, '');
 }
+
+/**
+ * 1 論理行（`\n` で区切る）のうち、`\r` による TTY 重ね描きの最後に見えていたテキストだけ残す。
+ */
+function lineAfterLastCarriageReturn(line: string): string {
+  const segments = line.split(/\r/);
+  const n = segments.length;
+  if (n === 1) {
+    return line;
+  }
+  const last = segments[n - 1] ?? '';
+  if (last.length > 0) {
+    return last;
+  }
+  if (n >= 2) {
+    return segments[n - 2] ?? '';
+  }
+  return '';
+}
+
+/**
+ * `\r\n` を `\n` にし、各論理行で `\r` の重ね描きを「最終セグメント」に収束させる。
+ * シリアルの exec 受信バッファ（プロンプト照合）で利用する。
+ */
+export function collapseCarriageRedrawsPerLine(text: string): string {
+  const normalizedCrlf = text.replace(/\r\n/g, '\n');
+  const lines = normalizedCrlf.split('\n').map(lineAfterLastCarriageReturn);
+  return lines.join('\n').replace(/\r/g, '\n');
+}
