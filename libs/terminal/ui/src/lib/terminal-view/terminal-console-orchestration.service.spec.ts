@@ -186,6 +186,32 @@ describe('TerminalConsoleOrchestrationService', () => {
     );
   });
 
+  it('bootstrapAfterConnect$ keeps explicit shell readiness timeout errors', async () => {
+    const writeln = vi.fn();
+    const write = vi.fn();
+    TestBed.overrideProvider(PiZeroSessionService, {
+      useValue: {
+        shouldRunAfterConnect$: () => of(true),
+        runAfterConnect$: () =>
+          throwError(
+            () => new Error('Shell readiness timeout while waiting for prompt'),
+          ),
+      },
+    });
+    const svc = TestBed.inject(TerminalConsoleOrchestrationService);
+
+    await expect(
+      firstValueFrom(
+        svc.bootstrapAfterConnect$('prefix', { writeln, write }).pipe(
+          defaultIfEmpty(undefined),
+        ),
+      ),
+    ).rejects.toThrow('Shell readiness timeout while waiting for prompt');
+    expect(write).toHaveBeenCalledWith(
+      '\r\nprefix 初期化に失敗しました: Shell readiness timeout while waiting for prompt\r\n',
+    );
+  });
+
   it('pipeTerminalOutputToSink$ forwards receive$ chunks to sink.write', async () => {
     const chunks = new Subject<string>();
     TestBed.overrideProvider(SerialFacadeService, {
