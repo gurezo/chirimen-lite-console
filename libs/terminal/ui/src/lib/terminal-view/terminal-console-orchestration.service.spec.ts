@@ -13,19 +13,14 @@ import {
   PiZeroSessionService,
   SerialFacadeService,
 } from '@libs-web-serial-data-access';
-import { PI_ZERO_PROMPT, SERIAL_TIMEOUT } from '@libs-web-serial-util';
+import { coerceLsForSerialListing } from '@libs-terminal-util';
+import { PI_ZERO_PROMPT } from '@libs-web-serial-util';
 import { TerminalConsoleOrchestrationService } from './terminal-console-orchestration.service';
 
 describe('TerminalConsoleOrchestrationService', () => {
-  let execMock: ReturnType<typeof vi.fn>;
   let sendMock: ReturnType<typeof vi.fn>;
 
   beforeEach(() => {
-    execMock = vi.fn().mockReturnValue(
-      of({
-        stdout: 'ok\n',
-      }),
-    );
     sendMock = vi.fn().mockReturnValue(of(undefined));
     TestBed.configureTestingModule({
       providers: [
@@ -33,7 +28,6 @@ describe('TerminalConsoleOrchestrationService', () => {
         {
           provide: SerialFacadeService,
           useValue: {
-            exec$: execMock,
             send$: sendMock,
             isConnected$: of(true),
             connectionEstablished$: of(undefined),
@@ -61,7 +55,6 @@ describe('TerminalConsoleOrchestrationService', () => {
     const svc = TestBed.inject(TerminalConsoleOrchestrationService);
     await svc.runInteractiveCommand('uname', PI_ZERO_PROMPT);
     expect(sendMock).toHaveBeenCalledWith('uname\n');
-    expect(execMock).not.toHaveBeenCalled();
   });
 
   it('coerces ls to dumb TERM and single-column for serial send', async () => {
@@ -70,13 +63,11 @@ describe('TerminalConsoleOrchestrationService', () => {
     expect(sendMock).toHaveBeenCalledWith(
       "LC_ALL=C LANG=C TERM=dumb LS_COLORS= ls -1 -la </dev/null 2>&1 | sed 's/^[[:blank:]]*//' | cat\n",
     );
-    expect(execMock).not.toHaveBeenCalled();
   });
 
   it('runToolbarCommand reports not_connected when serial is down', async () => {
     TestBed.overrideProvider(SerialFacadeService, {
       useValue: {
-        exec$: execMock,
         send$: sendMock,
         isConnected$: of(false),
         connectionEstablished$: of(undefined),
@@ -88,7 +79,16 @@ describe('TerminalConsoleOrchestrationService', () => {
     const svc = TestBed.inject(TerminalConsoleOrchestrationService);
     const result = await svc.runToolbarCommand('ls', PI_ZERO_PROMPT);
     expect(result).toEqual({ status: 'not_connected' });
-    expect(execMock).not.toHaveBeenCalled();
+    expect(sendMock).not.toHaveBeenCalled();
+  });
+
+  it('runToolbarCommand sends coerced command via send$ when connected', async () => {
+    const svc = TestBed.inject(TerminalConsoleOrchestrationService);
+    const result = await svc.runToolbarCommand('ls', PI_ZERO_PROMPT);
+    expect(result).toEqual({ status: 'success', output: '' });
+    expect(sendMock).toHaveBeenCalledWith(
+      `${coerceLsForSerialListing('ls')}\n`,
+    );
   });
 
   it('bootstrapAfterConnect$ emits skip sink messages when shouldRun is false', async () => {
@@ -145,7 +145,6 @@ describe('TerminalConsoleOrchestrationService', () => {
     const chunks = new Subject<string>();
     TestBed.overrideProvider(SerialFacadeService, {
       useValue: {
-        exec$: execMock,
         send$: sendMock,
         isConnected$: of(true),
         connectionEstablished$: of(undefined),
@@ -179,7 +178,6 @@ describe('TerminalConsoleOrchestrationService', () => {
     const deferredSend = vi.fn(() => from(sendDone));
     TestBed.overrideProvider(SerialFacadeService, {
       useValue: {
-        exec$: execMock,
         send$: deferredSend,
         isConnected$: of(true),
         connectionEstablished$: of(undefined),
@@ -217,7 +215,6 @@ describe('TerminalConsoleOrchestrationService', () => {
     const bootstrapDone$ = new Subject<void>();
     TestBed.overrideProvider(SerialFacadeService, {
       useValue: {
-        exec$: execMock,
         send$: sendMock,
         isConnected$: of(true),
         connectionEstablished$: of(undefined),
