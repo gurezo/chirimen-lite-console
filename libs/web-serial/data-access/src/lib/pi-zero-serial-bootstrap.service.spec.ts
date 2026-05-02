@@ -113,6 +113,34 @@ describe('PiZeroSerialBootstrapService', () => {
     ).rejects.toThrow('Login rejected after username submission');
   });
 
+  it('treats trailing shell as success when scrollback still contains login prompt', async () => {
+    const readUntilPrompt = vi
+      .fn()
+      .mockRejectedValueOnce(new Error('probe timeout'))
+      .mockResolvedValueOnce({ stdout: 'stale' })
+      .mockResolvedValueOnce({ stdout: 'raspberrypi login: ' })
+      .mockResolvedValueOnce({ stdout: 'Password: ' })
+      .mockResolvedValueOnce({
+        stdout:
+          'raspberrypi login: \nLast login: Thu\npi@raspberrypi:~ $ \n',
+      })
+      .mockResolvedValueOnce({ stdout: `${PI_ZERO_PROMPT} ` })
+      .mockResolvedValueOnce({ stdout: `${PI_ZERO_PROMPT} ` });
+    const exec = vi.fn().mockResolvedValue({ stdout: '' });
+    const send$ = vi.fn().mockReturnValue(of(undefined));
+    const serial = {
+      readUntilPrompt$: (o: unknown) => from(readUntilPrompt(o)),
+      exec$: (c: string, o: unknown) => from(exec(c, o)),
+      send$,
+    } as unknown as SerialFacadeService;
+
+    await firstValueFrom(createBootstrap(serial).runPostConnectPipeline$());
+
+    expect(send$).toHaveBeenCalledWith(`${PI_ZERO_LOGIN_USER}\r\n`);
+    expect(send$).toHaveBeenCalledWith(`${PI_ZERO_LOGIN_PASSWORD}\r\n`);
+    expect(exec).toHaveBeenCalled();
+  });
+
   it('prefers latest auth marker when login and password coexist in buffer', async () => {
     const readUntilPrompt = vi
       .fn()
