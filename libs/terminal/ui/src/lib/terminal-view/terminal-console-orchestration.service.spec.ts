@@ -57,6 +57,12 @@ describe('TerminalConsoleOrchestrationService', () => {
     expect(sendMock).toHaveBeenCalledWith('uname\n');
   });
 
+  it('runInteractiveCommand returns empty string (no stdout capture)', async () => {
+    const svc = TestBed.inject(TerminalConsoleOrchestrationService);
+    const out = await svc.runInteractiveCommand('uname -a', PI_ZERO_PROMPT);
+    expect(out).toBe('');
+  });
+
   it('coerces ls to dumb TERM and single-column for serial send', async () => {
     const svc = TestBed.inject(TerminalConsoleOrchestrationService);
     await svc.runInteractiveCommand('ls -la', PI_ZERO_PROMPT);
@@ -89,6 +95,15 @@ describe('TerminalConsoleOrchestrationService', () => {
     expect(sendMock).toHaveBeenCalledWith(
       `${coerceLsForSerialListing('ls')}\n`,
     );
+  });
+
+  it('runToolbarCommand success always has empty output (no stdout path)', async () => {
+    const svc = TestBed.inject(TerminalConsoleOrchestrationService);
+    const result = await svc.runToolbarCommand('echo hello', PI_ZERO_PROMPT);
+    expect(result.status).toBe('success');
+    if (result.status === 'success') {
+      expect(result.output).toBe('');
+    }
   });
 
   it('bootstrapAfterConnect$ emits skip sink messages when shouldRun is false', async () => {
