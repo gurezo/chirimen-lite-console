@@ -24,6 +24,11 @@ import {
   type TerminalConsoleSink,
 } from './terminal-console-orchestration.service';
 
+/**
+ * ターミナル表示専用コンポーネント。ライブ表示は {@link SerialFacadeService#terminalText$}
+ * の累積テキストを差分だけ xterm に書き込む（issue #610）。
+ * **stdout の整形**（`sanitizeSerialStdout` 等）は本コンポーネントでは行わない（issue #613）。
+ */
 @Component({
   selector: 'choh-terminal-view',
   host: {
@@ -152,7 +157,7 @@ export class TerminalViewComponent implements AfterViewInit, OnDestroy {
               this.xterminal.write('$ ');
               return;
             }
-            // success: シェル出力とプロンプトは terminalText$ 差分描画に任せる（#612）
+            // success: シェル出力とプロンプトは terminalText$ 差分描画に任せる（#612 / #613）
           },
         );
       },

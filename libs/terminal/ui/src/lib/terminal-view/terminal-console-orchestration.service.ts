@@ -46,6 +46,11 @@ export interface TerminalConsoleSink {
  * キーボード入力もツールバー経由のコマンドも {@link SerialFacadeService#send$} で
  * 送信する。完了待ちや stdout の切り出しは行わず、シェル出力は
  * {@link SerialFacadeService#terminalText$} 側のストリームに任せる。
+ *
+ * ### stdout 整形（issue #613）
+ *
+ * `sanitizeSerialStdout`（@libs-terminal-util）のような exec キャプチャ向けの stdout
+ * 整形は、ターミナル UI 経路では使用しない（送信のみ・表示は `terminalText$`）。
  */
 @Injectable({
   providedIn: 'root',
