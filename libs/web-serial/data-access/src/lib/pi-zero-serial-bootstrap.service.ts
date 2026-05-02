@@ -340,10 +340,19 @@ export class PiZeroSerialBootstrapService {
                 step.command,
                 PI_ZERO_PROMPT_TARGET,
               );
+              const tzLine = cleaned.match(/Time zone:\s*.+/im)?.[0]?.trim();
+              if (tzLine) {
+                log(`[コンソール] 現在の設定: ${tzLine}`);
+              }
               for (const line of cleaned.split(/\n/)) {
-                if (line.trim().length > 0) {
-                  log(line);
+                const t = line.trim();
+                if (t.length === 0) {
+                  continue;
                 }
+                if (tzLine && /^Time zone:/i.test(t)) {
+                  continue;
+                }
+                log(line);
               }
             }),
             catchError((error: unknown) => {
