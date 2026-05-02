@@ -25,6 +25,7 @@ describe('SerialFacadeService', () => {
       errors$: EMPTY,
       portInfo$: of(null),
       lines$: of('line'),
+      receive$: EMPTY,
       terminalText$: EMPTY,
       send$: vi.fn(() => of(undefined)),
       getPort: vi.fn(() => undefined),

@@ -23,7 +23,7 @@ export type SerialFacadeConnectResult = SerialConnectResult;
 /**
  * アプリ唯一の入口。`@gurezo/web-serial-rxjs` v2.3.1 の {@link SerialSession} 由来は
  * {@link SerialTransportService} が `isBrowserSupported` / `connect$` / `disconnect$` /
- * `isConnected$` / `terminalText$` / `lines$` / `errors$` で橋渡しする。
+ * `isConnected$` / `receive$` / `terminalText$` / `lines$` / `errors$` で橋渡しする。
  */
 @Injectable({
   providedIn: 'root',
@@ -47,6 +47,7 @@ export class SerialFacadeService {
   readonly errors$ = this.transport.errors$;
   readonly portInfo$ = this.transport.portInfo$;
   readonly lines$ = this.transport.lines$;
+  readonly receive$ = this.transport.receive$;
   readonly terminalText$ = this.transport.terminalText$;
 
   connect$(baudRate = 115200): Observable<SerialFacadeConnectResult> {
