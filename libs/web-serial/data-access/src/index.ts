@@ -8,6 +8,7 @@ export * from './lib/pi-zero-session.service';
 export * from './lib/pi-zero-serial-bootstrap.service';
 export * from './lib/pi-zero-shell-readiness.service';
 export * from './lib/serial-setup.service';
+export * from './lib/serial-setup-status';
 export * from './lib/serial-command/serial-command-facade.service';
 export * from './lib/serial-facade.service';
 export * from './lib/serial-notification.service';
