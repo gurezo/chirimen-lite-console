@@ -39,6 +39,13 @@ Angular 向けのシリアル（Web Serial + `@gurezo/web-serial-rxjs` v2.3.1）
   - methods: `connect$()`, `disconnect$()`, `send$()`, `exec$()`, `execRaw$()`, `readUntilPrompt$()`, `read$()`, `getPort()`, `isRaspberryPiZero()`, `getConnectionEpoch()`, `isReading()`, `getPendingCommandCount()`
 - 生 `receive$` / `receiveReplay$` は facade では公開しない（[#601](https://github.com/gurezo/chirimen-lite-console/issues/601)）。ライブ表示の `\r` 再描画は `terminalText$` に委譲する。
 
+### `exec$` / `execRaw$` / `readUntilPrompt$` の利用方針（[#616](https://github.com/gurezo/chirimen-lite-console/issues/616)）
+
+- **役割**: プロンプト同期でコマンドを送り、**stdout 等のキャプチャ結果**が欲しい **アプリ内部**フロー向け。キュー・リトライ・プロンプト検出は `SerialCommandService` 側。
+- **ターミナル UI（xterm の対話・ツールバー）では使わない。** 送信は `send$()`、ライブ表示は `terminalText$` のみ（親 [#609](https://github.com/gurezo/chirimen-lite-console/issues/609)）。
+- **代表例**（Issue 本文の列挙に沿った説明）: ログイン後の bootstrap / タイムゾーン初期化、i2cdetect、Chirimen setup。これに限らず、**同様にプロンプト待ちと stdout が必要な機能**（Wi-Fi、ファイルマネージャ、リモート等）も `exec$` を用いる。
+- 契約の一次情報は `SerialFacadeService`（`serial-facade.service.ts`）の各メソッド JSDoc を参照する。
+
 ## Pi Zero 接続直後の期待フロー（Issue [#606](https://github.com/gurezo/chirimen-lite-console/issues/606)）
 
 `PiZeroSerialBootstrapService` は `@gurezo/web-serial-rxjs` の `SerialSession` を {@link SerialFacadeService} 経由で利用し、次のコンソール遷移を自動処理する。
