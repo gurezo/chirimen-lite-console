@@ -240,5 +240,32 @@ describe('PiZeroSessionService', () => {
         expect.stringContaining('接続後の初期化に失敗'),
       );
     });
+
+    it('propagates timezone setup failures to caller', async () => {
+      const readUntilPrompt = vi.fn().mockImplementation(() =>
+        of({
+          stdout: `${PI_ZERO_PROMPT} `,
+        }),
+      );
+      const exec = vi
+        .fn()
+        .mockReturnValueOnce(
+          throwError(() => new Error('sudo: a password is required')),
+        );
+      const serial = {
+        isConnected$: of(true),
+        getConnectionEpoch: () => 1,
+        readUntilPrompt$: (o: unknown) => readUntilPrompt(o),
+        exec$: (c: string, o: unknown) => exec(c, o),
+      } as unknown as SerialFacadeService;
+
+      const shellReadiness = createShellReadinessMock();
+      const service = createSession(serial, shellReadiness);
+
+      await expect(firstValueFrom(service.runAfterConnect$())).rejects.toThrow(
+        'Timezone setup failed',
+      );
+      expect(vi.mocked(shellReadiness.setReady)).not.toHaveBeenCalledWith(true);
+    });
   });
 });

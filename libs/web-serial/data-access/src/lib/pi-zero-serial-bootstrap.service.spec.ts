@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { firstValueFrom, from, of } from 'rxjs';
+import { firstValueFrom, from, of, throwError } from 'rxjs';
 import {
   PI_ZERO_LOGIN_PASSWORD,
   PI_ZERO_LOGIN_USER,
@@ -240,5 +240,25 @@ describe('PiZeroSerialBootstrapService', () => {
       createBootstrap(serial).runPostConnectPipeline$((l) => logs.push(l)),
     );
     expect(logs.some((l) => l.includes('Time zone: Asia/Tokyo'))).toBe(true);
+  });
+
+  it('fails setupEnvironment$ when timezone command fails', async () => {
+    const exec = vi
+      .fn()
+      .mockReturnValueOnce(
+        throwError(() => new Error('sudo: a password is required')),
+      );
+    const serial = {
+      exec$: (c: string, o: unknown) => exec(c, o),
+    } as unknown as SerialFacadeService;
+
+    const logs: string[] = [];
+    await expect(
+      firstValueFrom(createBootstrap(serial).setupEnvironment$((l) => logs.push(l))),
+    ).rejects.toThrow('Timezone setup failed');
+
+    expect(logs.some((l) => l.includes('タイムゾーン初期化コマンドに失敗'))).toBe(
+      true,
+    );
   });
 });
