@@ -9,7 +9,7 @@ import {
   input,
 } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
-import { EMPTY, Subscription, switchMap, take } from 'rxjs';
+import { Subscription, filter, merge, switchMap, take } from 'rxjs';
 import { FitAddon } from '@xterm/addon-fit';
 import { Terminal } from '@xterm/xterm';
 import {
@@ -55,24 +55,6 @@ export class TerminalViewComponent implements AfterViewInit, OnDestroy {
 
   ngAfterViewInit(): void {
     this.configTerminal();
-    this.console.connectionEstablished$
-      .pipe(
-        switchMap(() =>
-          this.console.isConnected$.pipe(
-            take(1),
-            switchMap((connected) =>
-              connected
-                ? this.console.bootstrapAfterConnect$(
-                    '[コンソール] シリアルに接続しました。',
-                    this.terminalSink,
-                  )
-                : EMPTY,
-            ),
-          ),
-        ),
-        takeUntilDestroyed(this.destroyRef),
-      )
-      .subscribe();
   }
 
   ngOnDestroy(): void {
@@ -110,18 +92,26 @@ export class TerminalViewComponent implements AfterViewInit, OnDestroy {
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe();
 
+    merge(
+      this.console.connectionEstablished$,
+      this.console.isConnected$.pipe(filter(Boolean), take(1)),
+    )
+      .pipe(
+        take(1),
+        switchMap(() =>
+          this.console.bootstrapAfterConnect$(
+            '[コンソール] シリアル接続済み。',
+            this.terminalSink,
+          ),
+        ),
+        takeUntilDestroyed(this.destroyRef),
+      )
+      .subscribe();
+
     this.console.isConnected$
       .pipe(take(1), takeUntilDestroyed(this.destroyRef))
       .subscribe((connected) => {
-        if (connected) {
-          this.console
-            .bootstrapAfterConnect$(
-              '[コンソール] シリアル接続済み。',
-              this.terminalSink,
-            )
-            .pipe(takeUntilDestroyed(this.destroyRef))
-            .subscribe();
-        } else {
+        if (!connected) {
           this.xterminal.writeln('$ ');
         }
       });

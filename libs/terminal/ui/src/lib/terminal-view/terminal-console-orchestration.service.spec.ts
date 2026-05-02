@@ -33,6 +33,7 @@ describe('TerminalConsoleOrchestrationService', () => {
             exec$: execMock,
             isConnected$: of(true),
             connectionEstablished$: of(undefined),
+            receive$: EMPTY,
             terminalText$: EMPTY,
             getConnectionEpoch: () => 1,
           },
@@ -79,6 +80,7 @@ describe('TerminalConsoleOrchestrationService', () => {
         exec$: execMock,
         isConnected$: of(false),
         connectionEstablished$: of(undefined),
+        receive$: EMPTY,
         terminalText$: EMPTY,
         getConnectionEpoch: () => 1,
       },
@@ -139,14 +141,15 @@ describe('TerminalConsoleOrchestrationService', () => {
     expect(write).toHaveBeenCalledWith('\r\nprefix 初期化しています...\r\n');
   });
 
-  it('pipeTerminalOutputToSink$ forwards terminalText$ chunks to sink.write', async () => {
+  it('pipeTerminalOutputToSink$ forwards receive$ chunks to sink.write', async () => {
     const chunks = new Subject<string>();
     TestBed.overrideProvider(SerialFacadeService, {
       useValue: {
         exec$: execMock,
         isConnected$: of(true),
         connectionEstablished$: of(undefined),
-        terminalText$: chunks.asObservable(),
+        receive$: chunks.asObservable(),
+        terminalText$: EMPTY,
         getConnectionEpoch: () => 1,
       },
     });
@@ -166,7 +169,7 @@ describe('TerminalConsoleOrchestrationService', () => {
     sub.unsubscribe();
   });
 
-  it('suppresses terminalText$ while bootstrap is running', async () => {
+  it('suppresses receive$ mirror while bootstrap is running', async () => {
     const chunks = new Subject<string>();
     const bootstrapDone$ = new Subject<void>();
     TestBed.overrideProvider(SerialFacadeService, {
@@ -174,7 +177,8 @@ describe('TerminalConsoleOrchestrationService', () => {
         exec$: execMock,
         isConnected$: of(true),
         connectionEstablished$: of(undefined),
-        terminalText$: chunks.asObservable(),
+        receive$: chunks.asObservable(),
+        terminalText$: EMPTY,
         getConnectionEpoch: () => 1,
       },
     });
