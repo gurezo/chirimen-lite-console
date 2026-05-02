@@ -48,7 +48,7 @@ Issue #590 / [#601](https://github.com/gurezo/chirimen-lite-console/issues/601) 
 詳細な対応表は [`libs/web-serial/data-access/README.md`](../libs/web-serial/data-access/README.md) を正とする。要約すると次のとおり。
 
 - **ターミナル表示（xterm 等・TTY 再描画を含むライブ表示）**  
-  - `terminalText$` のみを購読する。
+  - `terminalText$` のみを購読する。受信テキストをそのまま xterm に書き込み、`sanitizeSerialStdout` は **ターミナル UI 経路では使用しない**（[#613](https://github.com/gurezo/chirimen-lite-console/issues/613)）。
 - **コマンド実行・プロンプト待ち・ログイン判定など「行」単位の処理**  
   - `lines$` と同根の **`commandResultLines$` / `getReadStream()`**（複数購読で行が取り合いにならないようマルチキャスト）。**プロンプト検出に `receiveReplay$` 単体は寄せない**（チャンク境界と ANSI・行処理の齟齬を避ける）。
 - **単一購読で `SerialSession.lines$` をそのまま見たい場合**  
@@ -56,7 +56,7 @@ Issue #590 / [#601](https://github.com/gurezo/chirimen-lite-console/issues/601) 
 - **リプレイ不要な生チャンクが必要な場合**  
   - `receive$`。
 - **exec 結果の整形表示（エコー削り・プロンプト削り・ANSI 除去）**  
-  - `@libs-terminal-util` の `sanitizeSerialStdout`（ライブ表示の `\r` 収束は行わず、`terminalText$` に委譲）。
+  - `@libs-terminal-util` の `sanitizeSerialStdout`（ライブ表示の `\r` 収束は行わず、`terminalText$` に委譲）。利用は **exec キャプチャ後の後処理**に限定し、残存例は Pi Zero 初期化コマンドのコンソールログや Remote の一覧パースなど（親 [#609](https://github.com/gurezo/chirimen-lite-console/issues/609) の非対象フロー）。
 
 ## 新規実装をどちらのリポジトリに置くか
 
@@ -72,3 +72,4 @@ Issue #590 / [#601](https://github.com/gurezo/chirimen-lite-console/issues/601) 
 - [#557](https://github.com/gurezo/chirimen-lite-console/issues/557) — `SerialSession` を正としたアプリ側の薄型化（本ドキュメント執筆時点でコード上の受け入れ条件を満たしている旨を PR で確認済みとする想定）
 - [#568](https://github.com/gurezo/chirimen-lite-console/issues/568) — 本ドキュメントの追加
 - [#601](https://github.com/gurezo/chirimen-lite-console/issues/601) — `terminalText$` への表示委譲と facade 公開面の整理
+- [#613](https://github.com/gurezo/chirimen-lite-console/issues/613) — ターミナル UI から stdout 整形（`sanitizeSerialStdout`）を排除し、表示は `terminalText$` の生データに統一
