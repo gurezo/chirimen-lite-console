@@ -33,6 +33,12 @@ chirimen-lite-console（本リポジトリ）
 
 Issue #590 / [#601](https://github.com/gurezo/chirimen-lite-console/issues/601) 以降は、外部公開 API を `SerialFacadeService` に集約し、利用側は `terminalText$` / `lines$` / `state$` / `isConnected$` / `errors$` / `portInfo$` と `connect$()` / `disconnect$()` / `send$()` / `exec$()` / `execRaw$()` / `readUntilPrompt$()` を基本導線とする。Pi Zero のログイン〜タイムゾーン初期化の期待シーケンスは [Issue #606](https://github.com/gurezo/chirimen-lite-console/issues/606) を参照。
 
+### `exec$` 系 API の責務（[#616](https://github.com/gurezo/chirimen-lite-console/issues/616)）
+
+- **ターミナル（xterm）経路**では `send$()` と `terminalText$` のみを使い、`exec$()` / `execRaw$()` / `readUntilPrompt$()` は **呼ばない**（親 [#609](https://github.com/gurezo/chirimen-lite-console/issues/609)）。
+- **`exec$` 系**は、プロンプトまで待って **キャプチャした stdout 等をアプリが解釈する**内部処理向け。i2cdetect・setup・ログイン後初期化はその代表例であり、Wi-Fi・ファイル・リモートなど同種の同期コマンドも同じ原則に含める。
+- 詳細は [`SerialFacadeService` の JSDoc](../libs/web-serial/data-access/src/lib/serial-facade.service.ts) および [libs/web-serial/data-access/README.md](../libs/web-serial/data-access/README.md) の「`exec$` の利用方針」を参照。
+
 ## 受信ストリーム（ライブラリ vs 本アプリの公開面）
 
 ライブラリの `SerialSession` は `receive$` / `receiveReplay$` / `lines$` / `terminalText$` 等を提供する。本アプリの **`SerialFacadeService` では `terminalText$` と `lines$` のみ**を公開し、ライブ表示の `\r` 再描画やバッファ正規化は **ライブラリの `terminalText$`** に委譲する（[#601](https://github.com/gurezo/chirimen-lite-console/issues/601)）。
@@ -73,3 +79,4 @@ Issue #590 / [#601](https://github.com/gurezo/chirimen-lite-console/issues/601) 
 - [#568](https://github.com/gurezo/chirimen-lite-console/issues/568) — 本ドキュメントの追加
 - [#601](https://github.com/gurezo/chirimen-lite-console/issues/601) — `terminalText$` への表示委譲と facade 公開面の整理
 - [#613](https://github.com/gurezo/chirimen-lite-console/issues/613) — ターミナル UI から stdout 整形（`sanitizeSerialStdout`）を排除し、表示は `terminalText$` の生データに統一
+- [#616](https://github.com/gurezo/chirimen-lite-console/issues/616) — `exec$` の責務整理（ターミナル外の内部同期コマンド用と文書化）
