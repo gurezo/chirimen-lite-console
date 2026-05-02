@@ -102,6 +102,30 @@ describe('PiZeroSessionService', () => {
     expect(seen.at(-1)).toBe(false);
   });
 
+  it('emits setupStatus$ transitions and ends in ready on success', async () => {
+    const readUntilPrompt = vi.fn().mockResolvedValue({
+      stdout: `${PI_ZERO_PROMPT} `,
+    });
+    const exec = vi.fn().mockResolvedValue({ stdout: '' });
+    const serial = {
+      isConnected$: of(true),
+      getConnectionEpoch: () => 1,
+      readUntilPrompt$: (o: unknown) => from(readUntilPrompt(o)),
+      exec$: (c: string, o: unknown) => from(exec(c, o)),
+    } as unknown as SerialFacadeService;
+
+    const shellReadiness = createShellReadinessMock();
+    const service = createSession(serial, shellReadiness);
+    const seen: string[] = [];
+    const sub = service.setupStatus$.subscribe((v) => seen.push(v));
+    await firstValueFrom(service.runAfterConnect$());
+    sub.unsubscribe();
+
+    expect(seen).toContain('waiting-login');
+    expect(seen).toContain('setting-timezone');
+    expect(seen.at(-1)).toBe('ready');
+  });
+
   describe('login flow (loginIfNeeded$)', () => {
     it('completes without exec when shell prompt is already present', async () => {
       const readUntilPrompt = vi.fn().mockReturnValue(
@@ -209,6 +233,36 @@ describe('PiZeroSessionService', () => {
 
       expect(vi.mocked(shellReadiness.setReady)).not.toHaveBeenCalledWith(true);
       expect(seen.at(-1)).toBe(false);
+    });
+
+    it('sets setupStatus$ to failed on pipeline failure', async () => {
+      const readUntilPrompt = vi
+        .fn()
+        .mockImplementationOnce(() =>
+          throwError(() => new Error('shell probe timeout')),
+        )
+        .mockImplementationOnce(() => of({ stdout: 'stale buffer' }))
+        .mockImplementationOnce(() =>
+          throwError(() => new Error('login prompt timeout')),
+        )
+        .mockImplementationOnce(() =>
+          throwError(() => new Error('login prompt timeout')),
+        );
+      const serial = {
+        isConnected$: of(true),
+        getConnectionEpoch: () => 1,
+        readUntilPrompt$: (o: unknown) => readUntilPrompt(o),
+        exec$: () => from(Promise.resolve({ stdout: '' })),
+        send$: () => of(undefined),
+      } as unknown as SerialFacadeService;
+
+      const service = createSession(serial, createShellReadinessMock());
+      const seen: string[] = [];
+      const sub = service.setupStatus$.subscribe((v) => seen.push(v));
+      await expect(firstValueFrom(service.runAfterConnect$())).rejects.toThrow();
+      sub.unsubscribe();
+
+      expect(seen.at(-1)).toBe('failed');
     });
 
     it('notifies status handler on pipeline failure', async () => {
