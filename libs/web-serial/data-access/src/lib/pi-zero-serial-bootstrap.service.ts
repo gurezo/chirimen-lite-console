@@ -17,6 +17,7 @@ import {
   of,
   switchMap,
   tap,
+  timer,
 } from 'rxjs';
 import {
   PI_ZERO_PROMPT_TARGET,
@@ -26,7 +27,8 @@ import { PiZeroPromptDetectorService } from './pi-zero-prompt-detector.service';
 import { SerialFacadeService } from './serial-facade.service';
 
 export type PiZeroBootstrapStatusHandler = (line: string) => void;
-type AuthState = 'shell' | 'login' | 'password';
+/** `pending` = getty の中間メッセージ（Login incorrect 等）で次のプロンプト行を待つ */
+type AuthState = 'shell' | 'login' | 'password' | 'pending';
 interface AuthLoopState {
   stepCount: number;
   loginSendCount: number;
@@ -157,12 +159,13 @@ export class PiZeroSerialBootstrapService {
   private awaitAuthState$(): Observable<AuthState> {
     return this.serial.readUntilPrompt$({
       prompt: '',
+      // `isLoginPrompt` / `isPasswordPrompt` はバッファ「どこか」の一致のため、ユーザー名送信後も
+      // スクロールバックの login: だけで即完了し「Login rejected」になる。末尾行ベースのみ使う。
       promptMatch: (buf) =>
         this.promptDetector.isAwaitingLoginName(buf) ||
         this.promptDetector.isAwaitingPasswordInput(buf) ||
-        this.promptDetector.isLoginPrompt(buf) ||
-        this.promptDetector.isPasswordPrompt(buf) ||
-        this.promptDetector.isLikelyLoggedInShellPrompt(buf),
+        this.promptDetector.isLikelyLoggedInShellPrompt(buf) ||
+        this.trailingLineLooksLikeGettyAuthMessage(buf),
       // getty が遅い／MOTD が長いと LONG では間に合わないことがある。lone \r で行が未完の間も検出できるよう時間に余裕を持つ。
       timeout: SERIAL_TIMEOUT.FILE_TRANSFER,
     }).pipe(map(({ stdout }) => this.classifyAuthState(stdout)));
@@ -186,39 +189,60 @@ export class PiZeroSerialBootstrapService {
     );
   }
 
+  /**
+   * getty の「現在の」入力待ちは末尾行で見る（{@link PiZeroPromptDetectorService} と同じ方針）。
+   *
+   * **パスワード成功直後**は MOTD などで手前に `raspberrypi login:` が残り、末尾行だけを見る
+   * `isAwaitingLoginName` が先に true になり得る。末尾が対話シェルなら **login より shell を優先**する。
+   */
   private classifyAuthState(stdout: string): AuthState {
     const text = typeof stdout === 'string' ? stdout : '';
     const normalized = text.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
-    const shellIdx = this.lastMatchIndex(
-      /(?:^|\n)[ \t]*[^\s]+@[^:\n]+:.*[$#%][ \t]*$/gm,
-      normalized,
-    );
-    const passwordIdx = this.lastMatchIndex(
-      /(?:^|\n)[^\n]*[Pp]assword:\s*$/gm,
-      normalized,
-    );
-    const loginIdx = this.lastMatchIndex(
-      /(?:^|\n)[^\n]*(?:[Ll]ogin|ログイン)\s*:\s*$/gmu,
-      normalized,
-    );
+    const tail = this.trailingNonEmptyLine(normalized);
 
-    const maxIdx = Math.max(shellIdx, passwordIdx, loginIdx);
-    if (maxIdx < 0) {
-      if (this.promptDetector.isLikelyLoggedInShellPrompt(normalized)) {
-        return 'shell';
-      }
-      if (this.promptDetector.isAwaitingPasswordInput(normalized)) {
-        return 'password';
-      }
-      return 'login';
-    }
-    if (maxIdx === shellIdx) {
-      return 'shell';
-    }
-    if (maxIdx === passwordIdx) {
+    if (this.promptDetector.isAwaitingPasswordInput(normalized)) {
       return 'password';
     }
-    return 'login';
+    if (tail.length > 0 && this.promptDetector.isLikelyLoggedInShellPrompt(tail)) {
+      return 'shell';
+    }
+    if (this.promptDetector.isAwaitingLoginName(normalized)) {
+      return 'login';
+    }
+    if (this.promptDetector.isLikelyLoggedInShellPrompt(normalized)) {
+      return 'shell';
+    }
+    if (this.trailingLineLooksLikeGettyAuthMessage(normalized)) {
+      return 'pending';
+    }
+    return 'pending';
+  }
+
+  private trailingNonEmptyLine(text: string): string {
+    const lines = text.replace(/\r\n/g, '\n').replace(/\r/g, '\n').split('\n');
+    for (let i = lines.length - 1; i >= 0; i--) {
+      const t = lines[i]?.trim();
+      if (t && t.length > 0) {
+        return t;
+      }
+    }
+    return '';
+  }
+
+  /**
+   * パスワード直後の "Login incorrect" / タイムアウト表示など。プロンプト行ではないが read を進める。
+   */
+  private trailingLineLooksLikeGettyAuthMessage(buf: string): boolean {
+    const line = this.trailingNonEmptyLine(buf);
+    if (!line) {
+      return false;
+    }
+    return (
+      /login incorrect/i.test(line) ||
+      /authentication failure/i.test(line) ||
+      /login timed out/i.test(line) ||
+      /maximum\s+number\s+of\s+attempts/i.test(line)
+    );
   }
 
   private runAuthLoop$(
@@ -230,6 +254,17 @@ export class PiZeroSerialBootstrapService {
     }
     return this.awaitAuthStateWithRetry$().pipe(
       switchMap((authState) => {
+        if (authState === 'pending') {
+          return timer(250).pipe(
+            switchMap(() =>
+              this.runAuthLoop$(log, {
+                stepCount: state.stepCount + 1,
+                loginSendCount: state.loginSendCount,
+                passwordSendCount: state.passwordSendCount,
+              }),
+            ),
+          );
+        }
         if (authState === 'shell') {
           if (state.stepCount > 0) {
             log('[コンソール] ログインが完了しました。');
@@ -239,9 +274,13 @@ export class PiZeroSerialBootstrapService {
           return of(undefined);
         }
         if (authState === 'login') {
-          if (state.loginSendCount >= 1) {
-            // username は一度だけ送る。以降 login が続く場合は reject とする。
+          // ユーザー名送信後まだパスワードを送っていないのに再度 login: → 拒否
+          if (state.loginSendCount >= 1 && state.passwordSendCount === 0) {
             throw new Error('Login rejected after username submission');
+          }
+          // パスワード送信後に再度 login:（誤パスワード等）
+          if (state.loginSendCount >= 1 && state.passwordSendCount >= 1) {
+            throw new Error('Password authentication failed');
           }
           log(`[コンソール] ログインユーザー「${PI_ZERO_LOGIN_USER}」を送信中...`);
           return this.serial.send$(`${PI_ZERO_LOGIN_USER}\r\n`).pipe(
@@ -275,19 +314,6 @@ export class PiZeroSerialBootstrapService {
         );
       }),
     );
-  }
-
-  private lastMatchIndex(pattern: RegExp, text: string): number {
-    let last = -1;
-    pattern.lastIndex = 0;
-    let m = pattern.exec(text);
-    while (m) {
-      if (typeof m.index === 'number') {
-        last = m.index;
-      }
-      m = pattern.exec(text);
-    }
-    return last;
   }
 
   // --- (4) timezone 初期化 ---------------------------------------------------
