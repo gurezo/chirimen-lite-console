@@ -17,6 +17,7 @@ import {
 } from 'rxjs';
 import type { PiZeroBootstrapStatusHandler } from './pi-zero-serial-bootstrap.service';
 import { PiZeroShellReadinessService } from './pi-zero-shell-readiness.service';
+import type { SerialSetupStatus } from './serial-setup-status';
 import type { SerialFacadeConnectResult } from './serial-facade.service';
 import { SerialFacadeService } from './serial-facade.service';
 import { SerialSetupService } from './serial-setup.service';
@@ -35,17 +36,26 @@ export class PiZeroSessionService {
   private activeBootstrapEpoch: number | null = null;
 
   private readonly initializingSubject = new BehaviorSubject(false);
+  private readonly setupStatusSubject =
+    new BehaviorSubject<SerialSetupStatus>('idle');
 
   /**
    * 接続後の Pi Zero 初期化パイプライン（ログイン・環境セットアップ等）実行中。
    */
   readonly initializing$ = this.initializingSubject.pipe(distinctUntilChanged());
+  readonly setupStatus$ = this.setupStatusSubject.pipe(distinctUntilChanged());
 
   constructor(
     private readonly serial: SerialFacadeService,
     private readonly setup: SerialSetupService,
     readonly shellReadiness: PiZeroShellReadinessService,
-  ) {}
+  ) {
+    this.setupStatus$.subscribe((status) => {
+      const isInitializing =
+        status !== 'idle' && status !== 'ready' && status !== 'failed';
+      this.initializingSubject.next(isInitializing);
+    });
+  }
 
   connect$(baudRate = 115200): Observable<SerialFacadeConnectResult> {
     return this.serial.connect$(baudRate);
@@ -93,6 +103,14 @@ export class PiZeroSessionService {
     onStatus?: PiZeroBootstrapStatusHandler,
   ): Observable<void> {
     const log = onStatus ?? (() => undefined);
+    const onBootstrapStatus = (line: string): void => {
+      if (line.includes('ログインユーザー')) {
+        this.setupStatusSubject.next('sending-username');
+      } else if (line.includes('パスワードを送信中')) {
+        this.setupStatusSubject.next('sending-password');
+      }
+      log(line);
+    };
 
     return this.shouldRunAfterConnect$().pipe(
       switchMap((shouldRun) => {
@@ -111,9 +129,13 @@ export class PiZeroSessionService {
         this.activeBootstrapEpoch = epoch;
 
         this.activeBootstrap$ = defer(() => {
-          this.initializingSubject.next(true);
-          return this.setup.setupAfterConnect$(onStatus).pipe(map(() => undefined));
+          this.setupStatusSubject.next('waiting-login');
+          return of(undefined);
         }).pipe(
+          switchMap(() => this.setup.loginIfNeeded$(onBootstrapStatus)),
+          tap(() => this.setupStatusSubject.next('waiting-shell')),
+          tap(() => this.setupStatusSubject.next('setting-timezone')),
+          switchMap(() => this.setup.setupEnvironment$(onBootstrapStatus)),
           switchMap(() =>
             this.serial.isConnected$.pipe(
               take(1),
@@ -121,6 +143,7 @@ export class PiZeroSessionService {
                 if (connected) {
                   this.lastBootstrappedEpoch = epoch;
                   this.shellReadiness.setReady(true);
+                  this.setupStatusSubject.next('ready');
                 }
               }),
               map(() => undefined),
@@ -129,11 +152,11 @@ export class PiZeroSessionService {
           catchError((error: unknown) => {
             const message =
               error instanceof Error ? error.message : String(error);
+            this.setupStatusSubject.next('failed');
             log(`[コンソール] 接続後の初期化に失敗しました: ${message}`);
             return throwError(() => error);
           }),
           finalize(() => {
-            this.initializingSubject.next(false);
             if (this.activeBootstrapEpoch === epoch) {
               this.activeBootstrap$ = null;
               this.activeBootstrapEpoch = null;
