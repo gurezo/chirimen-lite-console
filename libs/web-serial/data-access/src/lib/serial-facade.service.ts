@@ -68,6 +68,13 @@ export class SerialFacadeService {
     return this.connection.disconnect$();
   }
 
+  /**
+   * ターミナル対話のユーザー入力をそのまま送るための送信 API（Issue #625）。
+   *
+   * - 主用途はキーボード入力・ツールバー送信などの UI 由来入力。
+   * - 本メソッドは送信のみを担い、コマンド完了待ちや結果解析は行わない。
+   * - 完了待ち・stdout 解析が必要なアプリ制御フローは {@link #exec$} を使う。
+   */
   send$(data: string): Observable<void> {
     return this.transport.send$(data);
   }
@@ -82,6 +89,7 @@ export class SerialFacadeService {
    * **利用境界（[#616](https://github.com/gurezo/chirimen-lite-console/issues/616)）**
    * - **ターミナル UI（xterm の対話・ツールバー送信）では呼ばない。** 表示は {@link #terminalText$}、送信は {@link #send$} に統一する（親 [#609](https://github.com/gurezo/chirimen-lite-console/issues/609)）。
    * - **アプリ内部**で「コマンド完了まで待ち、stdout を取りたい」フロー向け。代表例はログイン後 bootstrap、i2cdetect、Chirimen setup など。Wi-Fi・ファイルマネージャ・リモート等、プロンプト待ちが必要な機能も同じ層に含める。
+   * - とくに接続後初期化（ログイン後の環境設定）は、成功/失敗を判定して呼び出し元へ返す必要があるため `exec$` を使う（Issue #625）。
    *
    * {@link SerialCommandService#exec$} に委譲する。
    */
