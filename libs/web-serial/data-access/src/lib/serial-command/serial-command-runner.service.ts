@@ -42,7 +42,7 @@ import { SerialTransportService } from '../serial-transport.service';
  * プロンプト照合および exec の `stdout` は {@link SerialTransportService#receive$} の生チャンクを連結し、
  * {@link collapseCarriageRedrawsPerLine} で論理表示に収束させたバッファで行う（getty の lone `\r` 行末で
  * {@link SerialTransportService#lines$} が空振りする問題の回避）。
- * ターミナル上のライブ表示は {@link SerialTransportService#terminalText$} に委譲する。
+ * ターミナル上のライブ表示は UI が {@link SerialTransportService#receive$} を xterm に流す。
  *
  * 各チャンクに {@link stripSerialAnsiForPrompt} を適用する。
  */
