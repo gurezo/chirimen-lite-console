@@ -8,13 +8,11 @@ import {
   EMPTY,
   Observable,
   catchError,
-  filter,
   finalize,
   firstValueFrom,
   shareReplay,
   switchMap,
   take,
-  tap,
   throwError,
 } from 'rxjs';
 
@@ -35,13 +33,6 @@ export interface TerminalConsoleSink {
  * xterm に書き込む方式に移行した。`terminalText$` はライブラリ内で `\r` 再描画を
  * 畳んだ累積全文を emit するため、そのまま `write` すると二重表示になる点に注意する。
  *
- * ### 生受信ミラー（issue #566 / #610 で停止）
- *
- * 旧来は本サービスの {@link #pipeTerminalOutputToSink$} が
- * {@link SerialFacadeService#receive$} の生チャンクを xterm にミラーしていた。
- * Issue #610 で UI 側購読を停止し、シグネチャと spec のみ温存している
- * （親 #609 配下の後続サブ issue で本メソッド自体を削除予定）。
- *
  * ### 対話・ツールバー（issue #611 / #612 / #615）
  *
  * キーボード入力もツールバー経由のコマンドも {@link SerialFacadeService#send$} で
@@ -61,8 +52,6 @@ export class TerminalConsoleOrchestrationService {
   private readonly piZeroSession = inject(PiZeroSessionService);
   private activeBootstrap$: Observable<void> | null = null;
   private activeBootstrapEpoch: number | null = null;
-  /** bootstrap 中は 0 より大きくし、{@link #pipeTerminalOutputToSink$} を止める */
-  private terminalMirrorSuppressDepth = 0;
 
   readonly connectionEstablished$ = this.serial.connectionEstablished$;
   readonly isConnected$ = this.serial.isConnected$;
@@ -121,7 +110,6 @@ export class TerminalConsoleOrchestrationService {
     this.activeBootstrapEpoch = epoch;
     this.activeBootstrap$ = this.piZeroSession.shouldRunAfterConnect$().pipe(
       switchMap((should) => {
-        this.terminalMirrorSuppressDepth++;
         if (!should) {
           this.writeConsoleLine(sink, `${prefixMessage} 初期化済みのためスキップします。`);
           return EMPTY;
@@ -141,7 +129,6 @@ export class TerminalConsoleOrchestrationService {
         return throwError(() => error);
       }),
       finalize(() => {
-        this.terminalMirrorSuppressDepth--;
         if (this.activeBootstrapEpoch === epoch) {
           this.activeBootstrap$ = null;
           this.activeBootstrapEpoch = null;
@@ -150,22 +137,6 @@ export class TerminalConsoleOrchestrationService {
       shareReplay({ bufferSize: 1, refCount: true }),
     );
     return this.activeBootstrap$;
-  }
-
-  /**
-   * {@link SerialFacadeService#receive$} の UTF-8 チャンクを xterm 等へそのまま流す（TTY 相当）。
-   * プロンプト判定・コマンド結果の行処理には使わないこと。
-   *
-   * @deprecated Issue #610 でライブ表示は {@link SerialFacadeService#terminalText$} 直購読に
-   * 移行済み。UI 側からは購読されておらず、親 issue #609 配下の後続サブ issue で削除予定。
-   */
-  pipeTerminalOutputToSink$(
-    sink: Pick<TerminalConsoleSink, 'write'>,
-  ): Observable<string> {
-    return this.serial.receive$.pipe(
-      filter(() => this.terminalMirrorSuppressDepth === 0),
-      tap((chunk) => sink.write(chunk)),
-    );
   }
 
   private writeConsoleLine(sink: TerminalConsoleSink, line: string): void {
