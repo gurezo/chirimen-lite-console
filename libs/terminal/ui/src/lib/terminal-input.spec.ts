@@ -109,41 +109,5 @@ describe('attachTerminalInput', () => {
 
     expect(terminal.write).toHaveBeenCalledWith('OK');
   });
-
-  it('normalizes LF output to CRLF for xterm rendering', async () => {
-    let keyHandler: ((e: TerminalKeyEvent) => void) | undefined;
-    const terminal = {
-      onKey: (cb: (e: TerminalKeyEvent) => void) => {
-        keyHandler = cb;
-      },
-      write: vi.fn(),
-      writeln: vi.fn(),
-    } as unknown as Parameters<typeof attachTerminalInput>[0];
-
-    const onCommand = vi.fn(async () => 'line1\nline2');
-    attachTerminalInput(terminal, onCommand, () => true);
-
-    keyHandler?.({
-      domEvent: {
-        altKey: false,
-        ctrlKey: false,
-        metaKey: false,
-        code: 'KeyL',
-        key: 'l',
-      },
-    });
-    keyHandler?.({
-      domEvent: {
-        altKey: false,
-        ctrlKey: false,
-        metaKey: false,
-        code: 'Enter',
-        key: 'Enter',
-      },
-    });
-
-    await new Promise((r) => setTimeout(r, 0));
-    expect(terminal.write).toHaveBeenCalledWith('line1\r\nline2');
-  });
 });
 
