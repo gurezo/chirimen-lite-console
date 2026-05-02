@@ -6,7 +6,6 @@ import {
   OnDestroy,
   ViewChild,
   inject,
-  input,
 } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { Subscription, filter, merge, switchMap, take } from 'rxjs';
@@ -17,7 +16,6 @@ import {
   xtermConsoleConfigOptions,
 } from '@libs-terminal-util';
 import { attachTerminalInput } from '../terminal-input';
-import { PI_ZERO_PROMPT } from '@libs-web-serial-util';
 import { SerialFacadeService } from '@libs-web-serial-data-access';
 import {
   TerminalConsoleOrchestrationService,
@@ -37,11 +35,6 @@ import {
   templateUrl: './terminal-view.component.html',
 })
 export class TerminalViewComponent implements AfterViewInit, OnDestroy {
-  /**
-   * シリアル側のシェルプロンプト（サービス側の prompt 待機に渡す）
-   */
-  readonly remotePrompt = input<string>(PI_ZERO_PROMPT);
-
   @ViewChild('consoleDom', { read: ElementRef })
   private consoleDomRef?: ElementRef<HTMLElement>;
 
@@ -128,14 +121,14 @@ export class TerminalViewComponent implements AfterViewInit, OnDestroy {
     attachTerminalInput(
       this.xterminal,
       async (command) => {
-        return this.console.runInteractiveCommand(command, this.remotePrompt());
+        return this.console.runInteractiveCommand(command);
       },
       () => this.serialInputEnabled,
     );
 
     this.commandRequestSub = this.commandRequests.commandRequests$.subscribe(
       (cmd) => {
-        void this.console.runToolbarCommand(cmd, this.remotePrompt()).then(
+        void this.console.runToolbarCommand(cmd).then(
           (result) => {
             if (result.status === 'not_connected') {
               this.xterminal.writeln(
