@@ -48,6 +48,16 @@ export class SerialFacadeService {
   readonly portInfo$ = this.transport.portInfo$;
   readonly lines$ = this.transport.lines$;
   readonly receive$ = this.transport.receive$;
+
+  /**
+   * ターミナル（xterm 等）の **ライブ表示専用** テキストストリーム（[#617](https://github.com/gurezo/chirimen-lite-console/issues/617)）。
+   *
+   * - **ターミナル UI は本 Observable を購読**し、シェルからの出力を画面に反映する。TTY の `\r` 再描画の畳み込み等はライブラリの `SerialSession.terminalText$` に委譲する。
+   * - **送信**は {@link #send$} のみとし、表示の更新に {@link #exec$} / {@link #execRaw$} / {@link #readUntilPrompt$} の戻り値を用いない（二重表示・責務の混乱を避ける。キャプチャ用途は {@link #exec$} 側のドキュメント参照）。
+   * - **プロンプト検出・ログイン判定**には {@link #lines$} 由来のバッファを用い、本ストリームは照合用に寄せない。
+   *
+   * @see {@link #exec$} ターミナル UI では exec 系を呼ばない理由と内部向け利用境界
+   */
   readonly terminalText$ = this.transport.terminalText$;
 
   connect$(baudRate = 115200): Observable<SerialFacadeConnectResult> {
