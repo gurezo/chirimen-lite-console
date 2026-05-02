@@ -9,6 +9,7 @@ import { PiZeroSerialBootstrapService } from './pi-zero-serial-bootstrap.service
 import type { PiZeroShellReadinessService } from './pi-zero-shell-readiness.service';
 import { PiZeroSessionService } from './pi-zero-session.service';
 import type { SerialFacadeService } from './serial-facade.service';
+import { SerialSetupService } from './serial-setup.service';
 
 function createShellReadinessMock(): PiZeroShellReadinessService {
   return {
@@ -27,7 +28,8 @@ function createSession(
     serial,
     new PiZeroPromptDetectorService(),
   );
-  return new PiZeroSessionService(serial, bootstrap, shellReadiness);
+  const setup = new SerialSetupService(bootstrap);
+  return new PiZeroSessionService(serial, setup, shellReadiness);
 }
 
 describe('PiZeroSessionService', () => {
