@@ -34,6 +34,8 @@ interface AuthLoopState {
   loginSendCount: number;
   passwordSendCount: number;
 }
+const SHELL_READINESS_TIMEOUT_MESSAGE =
+  'Shell readiness timeout while waiting for prompt';
 
 /**
  * Pi Zero / CHIRIMEN 固有のシリアル初期化を集約する単一サービス（issue #594）。
@@ -175,18 +177,29 @@ export class PiZeroSerialBootstrapService {
    * getty が lone `\r` でプロンプトを更新した直後は lines$ に載るまで遅れることがあるため、
    * 1 回だけ改行を再送して認証状態待ちを再試行する。
    */
-  private awaitAuthStateWithRetry$(): Observable<AuthState> {
+  private waitForAuthState$(): Observable<AuthState> {
     return this.awaitAuthState$().pipe(
       catchError((error) => {
-        const message = error instanceof Error ? error.message : String(error);
-        if (!/timeout/i.test(message)) {
+        if (!this.isTimeoutError(error)) {
           throw error;
         }
+        // getty の lone CR で行イベントが未確定な場合に 1 度だけ改行を打って再判定する。
         return this.serial.send$('\r\n').pipe(
           switchMap(() => this.awaitAuthState$()),
+          catchError((retryError) => {
+            if (!this.isTimeoutError(retryError)) {
+              throw retryError;
+            }
+            throw new Error(SHELL_READINESS_TIMEOUT_MESSAGE);
+          }),
         );
       }),
     );
+  }
+
+  private isTimeoutError(error: unknown): boolean {
+    const message = error instanceof Error ? error.message : String(error);
+    return /timeout/i.test(message);
   }
 
   /**
@@ -252,7 +265,7 @@ export class PiZeroSerialBootstrapService {
     if (state.stepCount >= 8) {
       throw new Error('Authentication flow exceeded retry budget');
     }
-    return this.awaitAuthStateWithRetry$().pipe(
+    return this.waitForAuthState$().pipe(
       switchMap((authState) => {
         if (authState === 'pending') {
           return timer(250).pipe(

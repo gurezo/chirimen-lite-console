@@ -194,6 +194,30 @@ describe('PiZeroSerialBootstrapService', () => {
     expect(send$).toHaveBeenCalledWith(`${PI_ZERO_LOGIN_PASSWORD}\r\n`);
   });
 
+  it('throws explicit shell readiness timeout when auth wait times out twice', async () => {
+    const readUntilPrompt = vi
+      .fn()
+      .mockRejectedValueOnce(new Error('probe timeout'))
+      .mockResolvedValueOnce({ stdout: 'stale' })
+      .mockResolvedValueOnce({ stdout: 'raspberrypi login: ' })
+      .mockRejectedValueOnce(new Error('Command execution timeout'))
+      .mockRejectedValueOnce(new Error('Command execution timeout'));
+    const exec = vi.fn().mockResolvedValue({ stdout: '' });
+    const send$ = vi.fn().mockReturnValue(of(undefined));
+    const serial = {
+      readUntilPrompt$: (o: unknown) => from(readUntilPrompt(o)),
+      exec$: (c: string, o: unknown) => from(exec(c, o)),
+      send$,
+    } as unknown as SerialFacadeService;
+
+    await expect(
+      firstValueFrom(createBootstrap(serial).loginIfNeeded$()),
+    ).rejects.toThrow('Shell readiness timeout while waiting for prompt');
+
+    expect(send$).toHaveBeenCalledWith('\r\n');
+    expect(send$).toHaveBeenCalledWith(`${PI_ZERO_LOGIN_USER}\r\n`);
+  });
+
   it('keeps timezone status logging', async () => {
     const readUntilPrompt = vi.fn().mockResolvedValue({
       stdout: `ready\r\n${PI_ZERO_PROMPT} `,
