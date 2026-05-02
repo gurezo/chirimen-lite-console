@@ -1,0 +1,340 @@
+/** Full rewrite (#606). Pi Zero bootstrap; I/O via {@link SerialFacadeService} / `SerialSession` v2.3.1. */
+import { Injectable } from '@angular/core';
+import { sanitizeSerialStdout } from '@libs-terminal-util';
+import {
+  PI_ZERO_LOGIN_PASSWORD,
+  PI_ZERO_LOGIN_USER,
+  SERIAL_TIMEOUT,
+} from '@libs-web-serial-util';
+import type { Observable } from 'rxjs';
+import {
+  catchError,
+  concatMap,
+  defaultIfEmpty,
+  from,
+  ignoreElements,
+  map,
+  of,
+  switchMap,
+  tap,
+} from 'rxjs';
+import {
+  PI_ZERO_PROMPT_TARGET,
+  PI_ZERO_TIMEZONE_STEPS,
+} from './pi-zero-bootstrap.config';
+import { PiZeroPromptDetectorService } from './pi-zero-prompt-detector.service';
+import { SerialFacadeService } from './serial-facade.service';
+
+export type PiZeroBootstrapStatusHandler = (line: string) => void;
+type AuthState = 'shell' | 'login' | 'password';
+interface AuthLoopState {
+  stepCount: number;
+  loginSendCount: number;
+  passwordSendCount: number;
+}
+
+/**
+ * Pi Zero / CHIRIMEN 固有のシリアル初期化を集約する単一サービス（issue #594）。
+ *
+ * 本サービスは次の四責務を担い、他サービスからは Pi Zero ロジックを排除する。
+ *
+ *   1. **シェルプロンプト到達確認**（{@link probeShellPrompt$}）
+ *   2. **ログイン**（{@link loginSequence$}, ID 送信）
+ *   3. **パスワード送信**（{@link sendPasswordAndAwaitShell$}）
+ *   4. **timezone 初期化**（{@link timezoneSequence$}）
+ *
+ * シリアル送受信そのものは {@link SerialFacadeService}（`@gurezo/web-serial-rxjs` の
+ * `SerialSession` を内包）、接続単位での「一度だけ実行」などのオーケストレーションは
+ * {@link PiZeroSessionService} が担う。
+ *
+ * 接続直後のコンソール遷移（`login:` → `Password:` → シェルプロンプト）の受け入れ基準は
+ * [Issue #606](https://github.com/gurezo/chirimen-lite-console/issues/606) を参照。
+ */
+@Injectable({
+  providedIn: 'root',
+})
+export class PiZeroSerialBootstrapService {
+  constructor(
+    private readonly serial: SerialFacadeService,
+    private readonly promptDetector: PiZeroPromptDetectorService,
+  ) {}
+
+  /**
+   * シェルプロンプト到達確認を行い、未到達ならログイン（ID / Password）まで実行する。
+   */
+  loginIfNeeded$(
+    onStatus?: PiZeroBootstrapStatusHandler,
+  ): Observable<void> {
+    const log = onStatus ?? (() => undefined);
+    return this.loginPhase$(log);
+  }
+
+  /**
+   * タイムゾーン等の初期化コマンドを実行する（シェル到達済みを前提）。
+   */
+  setupEnvironment$(
+    onStatus?: PiZeroBootstrapStatusHandler,
+  ): Observable<void> {
+    const log = onStatus ?? (() => undefined);
+    return this.timezoneSequence$(log);
+  }
+
+  /**
+   * ログイン（必要なら）後に環境セットアップを続けて実行する。
+   * 接続エポックの重複抑止は {@link PiZeroSessionService#runAfterConnect$} 側。
+   */
+  runPostConnectPipeline$(
+    onStatus?: PiZeroBootstrapStatusHandler,
+  ): Observable<void> {
+    const log = onStatus ?? (() => undefined);
+    return this.loginPhase$(log).pipe(
+      switchMap(() => this.setupEnvironment$(onStatus)),
+    );
+  }
+
+  // --- (1) プロンプト到達確認 -----------------------------------------------
+
+  /**
+   * シェルプロンプトに既に到達しているかを軽く確認する。
+   * 未到達（タイムアウト等）なら呼び出し側が login フェーズへフォールバックする。
+   */
+  private probeShellPrompt$(): Observable<boolean> {
+    return this.serial
+      .readUntilPrompt$({
+        prompt: '',
+        promptMatch: (buf) =>
+          this.promptDetector.isLikelyLoggedInShellPrompt(buf),
+        timeout: SERIAL_TIMEOUT.SHELL_PROMPT_PROBE,
+      })
+      .pipe(
+        map(() => true),
+        catchError(() => of(false)),
+      );
+  }
+
+  private loginPhase$(log: PiZeroBootstrapStatusHandler): Observable<void> {
+    return this.probeShellPrompt$().pipe(
+      switchMap((atShell) =>
+        atShell ? of(undefined) : this.loginSequence$(log),
+      ),
+    );
+  }
+
+  // --- (2) ログイン（ID 送信）/ (3) パスワード送信 --------------------------
+
+  private loginSequence$(log: PiZeroBootstrapStatusHandler): Observable<void> {
+    log('[コンソール] ログイン画面を検出しました。');
+    // getty はプロンプト末尾を CR のみにすることが多く、web-serial-rxjs の行分割では
+    // 末尾が lone \r のとき行が emit されない。改行を送って確定させる。
+    return this.clearPromptBuffer$().pipe(
+      switchMap(() => this.serial.send$('\r\n')),
+      switchMap(() =>
+        this.runAuthLoop$(log, {
+          stepCount: 0,
+          loginSendCount: 0,
+          passwordSendCount: 0,
+        }),
+      ),
+    );
+  }
+
+  /**
+   * 以前の読み取りで残った行バッファが誤判定を起こさないよう、login 判定前に drain する。
+   */
+  private clearPromptBuffer$(): Observable<void> {
+    return this.serial
+      .readUntilPrompt$({
+        prompt: '',
+        waitForPrompt: false,
+        timeout: SERIAL_TIMEOUT.SHORT,
+      })
+      .pipe(
+        map(() => undefined),
+        catchError(() => of(undefined)),
+      );
+  }
+
+  private awaitAuthState$(): Observable<AuthState> {
+    return this.serial.readUntilPrompt$({
+      prompt: '',
+      promptMatch: (buf) =>
+        this.promptDetector.isAwaitingLoginName(buf) ||
+        this.promptDetector.isAwaitingPasswordInput(buf) ||
+        this.promptDetector.isLoginPrompt(buf) ||
+        this.promptDetector.isPasswordPrompt(buf) ||
+        this.promptDetector.isLikelyLoggedInShellPrompt(buf),
+      // getty が遅い／MOTD が長いと LONG では間に合わないことがある。lone \r で行が未完の間も検出できるよう時間に余裕を持つ。
+      timeout: SERIAL_TIMEOUT.FILE_TRANSFER,
+    }).pipe(map(({ stdout }) => this.classifyAuthState(stdout)));
+  }
+
+  /**
+   * getty が lone `\r` でプロンプトを更新した直後は lines$ に載るまで遅れることがあるため、
+   * 1 回だけ改行を再送して認証状態待ちを再試行する。
+   */
+  private awaitAuthStateWithRetry$(): Observable<AuthState> {
+    return this.awaitAuthState$().pipe(
+      catchError((error) => {
+        const message = error instanceof Error ? error.message : String(error);
+        if (!/timeout/i.test(message)) {
+          throw error;
+        }
+        return this.serial.send$('\r\n').pipe(
+          switchMap(() => this.awaitAuthState$()),
+        );
+      }),
+    );
+  }
+
+  private classifyAuthState(stdout: string): AuthState {
+    const text = typeof stdout === 'string' ? stdout : '';
+    const normalized = text.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
+    const shellIdx = this.lastMatchIndex(
+      /(?:^|\n)[ \t]*[^\s]+@[^:\n]+:.*[$#%][ \t]*$/gm,
+      normalized,
+    );
+    const passwordIdx = this.lastMatchIndex(
+      /(?:^|\n)[^\n]*[Pp]assword:\s*$/gm,
+      normalized,
+    );
+    const loginIdx = this.lastMatchIndex(
+      /(?:^|\n)[^\n]*(?:[Ll]ogin|ログイン)\s*:\s*$/gmu,
+      normalized,
+    );
+
+    const maxIdx = Math.max(shellIdx, passwordIdx, loginIdx);
+    if (maxIdx < 0) {
+      if (this.promptDetector.isLikelyLoggedInShellPrompt(normalized)) {
+        return 'shell';
+      }
+      if (this.promptDetector.isAwaitingPasswordInput(normalized)) {
+        return 'password';
+      }
+      return 'login';
+    }
+    if (maxIdx === shellIdx) {
+      return 'shell';
+    }
+    if (maxIdx === passwordIdx) {
+      return 'password';
+    }
+    return 'login';
+  }
+
+  private runAuthLoop$(
+    log: PiZeroBootstrapStatusHandler,
+    state: AuthLoopState,
+  ): Observable<void> {
+    if (state.stepCount >= 8) {
+      throw new Error('Authentication flow exceeded retry budget');
+    }
+    return this.awaitAuthStateWithRetry$().pipe(
+      switchMap((authState) => {
+        if (authState === 'shell') {
+          if (state.stepCount > 0) {
+            log('[コンソール] ログインが完了しました。');
+          } else {
+            log('[コンソール] すでにログイン済みのシェルを検出しました。');
+          }
+          return of(undefined);
+        }
+        if (authState === 'login') {
+          if (state.loginSendCount >= 1) {
+            // username は一度だけ送る。以降 login が続く場合は reject とする。
+            throw new Error('Login rejected after username submission');
+          }
+          log(`[コンソール] ログインユーザー「${PI_ZERO_LOGIN_USER}」を送信中...`);
+          return this.serial.send$(`${PI_ZERO_LOGIN_USER}\r\n`).pipe(
+            switchMap(() =>
+              this.runAuthLoop$(log, {
+                stepCount: state.stepCount + 1,
+                loginSendCount: state.loginSendCount + 1,
+                passwordSendCount: state.passwordSendCount,
+              }),
+            ),
+          );
+        }
+        if (state.passwordSendCount >= 2) {
+          throw new Error('Password authentication failed');
+        }
+        if (state.loginSendCount === 0) {
+          log(
+            '[コンソール] パスワード入力画面を検出しました（ユーザー名入力は省略します）。',
+          );
+        }
+        log('[コンソール] パスワードを送信中（画面には表示しません）...');
+        return this.serial.send$(`${PI_ZERO_LOGIN_PASSWORD}\r\n`).pipe(
+          switchMap(() => this.serial.send$('\r\n')),
+          switchMap(() =>
+            this.runAuthLoop$(log, {
+              stepCount: state.stepCount + 1,
+              loginSendCount: state.loginSendCount,
+              passwordSendCount: state.passwordSendCount + 1,
+            }),
+          ),
+        );
+      }),
+    );
+  }
+
+  private lastMatchIndex(pattern: RegExp, text: string): number {
+    let last = -1;
+    pattern.lastIndex = 0;
+    let m = pattern.exec(text);
+    while (m) {
+      if (typeof m.index === 'number') {
+        last = m.index;
+      }
+      m = pattern.exec(text);
+    }
+    return last;
+  }
+
+  // --- (4) timezone 初期化 ---------------------------------------------------
+
+  private timezoneSequence$(
+    log: PiZeroBootstrapStatusHandler,
+  ): Observable<void> {
+    log('[コンソール] タイムゾーン関連の初期化を開始します。');
+    return from(PI_ZERO_TIMEZONE_STEPS).pipe(
+      concatMap((step) => {
+        log(step.statusMessage);
+        return this.serial
+          .exec$(step.command, {
+            prompt: '',
+            promptMatch: (buf) =>
+              this.promptDetector.isLikelyLoggedInShellPrompt(buf),
+            timeout: SERIAL_TIMEOUT.SHORT,
+          })
+          .pipe(
+            tap(({ stdout }) => {
+              // コンソールログ: 送信コマンドと末尾プロンプト除去。xterm の強 dedent は lineStream で避ける
+              const cleaned = sanitizeSerialStdout(
+                typeof stdout === 'string' ? stdout : '',
+                step.command,
+                PI_ZERO_PROMPT_TARGET,
+              );
+              for (const line of cleaned.split(/\n/)) {
+                if (line.trim().length > 0) {
+                  log(line);
+                }
+              }
+            }),
+            catchError((error: unknown) => {
+              const message =
+                error instanceof Error ? error.message : String(error);
+              log(`[コンソール] コマンドが失敗しました: ${message}`);
+              console.warn(`Initial command failed: ${step.command}`, error);
+              return of(undefined);
+            }),
+          );
+      }),
+      ignoreElements(),
+      defaultIfEmpty(undefined),
+      tap(() =>
+        log('[コンソール] タイムゾーン関連の初期化が完了しました。'),
+      ),
+      map(() => undefined),
+    );
+  }
+}
