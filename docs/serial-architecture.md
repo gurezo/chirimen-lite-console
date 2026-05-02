@@ -50,7 +50,11 @@ Issue #590 / [#601](https://github.com/gurezo/chirimen-lite-console/issues/601) 
 - **ターミナル表示（xterm 等・TTY 再描画を含むライブ表示）**  
   - `terminalText$` のみを購読する。
 - **コマンド実行・プロンプト待ち・ログイン判定など「行」単位の処理**  
-  - `lines$` を正規導線として利用する。プロンプト検出に生 `receive$` は使わない（チャンク境界と ANSI・行処理の齟齬を避ける）。
+  - `lines$` と同根の **`commandResultLines$` / `getReadStream()`**（複数購読で行が取り合いにならないようマルチキャスト）。**プロンプト検出に `receiveReplay$` 単体は寄せない**（チャンク境界と ANSI・行処理の齟齬を避ける）。
+- **単一購読で `SerialSession.lines$` をそのまま見たい場合**  
+  - `lines$` の素の橋渡し。
+- **リプレイ不要な生チャンクが必要な場合**  
+  - `receive$`。
 - **exec 結果の整形表示（エコー削り・プロンプト削り・ANSI 除去）**  
   - `@libs-terminal-util` の `sanitizeSerialStdout`（ライブ表示の `\r` 収束は行わず、`terminalText$` に委譲）。
 
