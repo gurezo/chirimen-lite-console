@@ -108,6 +108,7 @@ export class TerminalConsoleOrchestrationService {
   /**
    * 接続確立後の Pi Zero 初期化。表示は {@link TerminalConsoleSink} に委譲する。
    * 初期化失敗時はエラーを握り潰さず呼び出し元へ伝播し、UI 側で扱えるようにする（issue #619）。
+   * shell readiness 判定・待機の詳細は web-serial 側フローが担い、UI 側では扱わない（issue #620）。
    */
   bootstrapAfterConnect$(
     prefixMessage: string,
