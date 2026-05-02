@@ -125,14 +125,6 @@ export class TerminalViewComponent implements AfterViewInit, OnDestroy {
       )
       .subscribe();
 
-    this.console.isConnected$
-      .pipe(take(1), takeUntilDestroyed(this.destroyRef))
-      .subscribe((connected) => {
-        if (!connected) {
-          this.xterminal.writeln('$ ');
-        }
-      });
-
     attachTerminalInput(
       this.xterminal,
       async (command) => {
@@ -146,15 +138,15 @@ export class TerminalViewComponent implements AfterViewInit, OnDestroy {
         void this.console.runToolbarCommand(cmd, this.remotePrompt()).then(
           (result) => {
             if (result.status === 'not_connected') {
-              this.xterminal.writeln(`$ ${cmd}`);
-              this.xterminal.writeln('Command failed: Serial port not connected');
-              this.xterminal.write('$ ');
+              this.xterminal.writeln(
+                `Command failed: Serial port not connected (${cmd})`,
+              );
               return;
             }
             if (result.status === 'error') {
-              this.xterminal.writeln(`$ ${cmd}`);
-              this.xterminal.writeln(`\r\nCommand failed: ${result.message}`);
-              this.xterminal.write('$ ');
+              this.xterminal.writeln(
+                `Command failed: ${result.message} (${cmd})`,
+              );
               return;
             }
             // success: シェル出力とプロンプトは terminalText$ 差分描画に任せる（#612 / #613）
