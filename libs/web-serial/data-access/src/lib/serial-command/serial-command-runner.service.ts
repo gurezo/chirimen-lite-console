@@ -1,5 +1,8 @@
 /// <reference types="@types/w3c-web-serial" />
 
+/**
+ * Issue #606: プロンプト照合は {@link SerialTransportService#lines$}（`SerialSession.lines$` / v2.3.1）を購読する。
+ */
 import { Injectable } from '@angular/core';
 import {
   Observable,

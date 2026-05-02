@@ -1,3 +1,6 @@
+/**
+ * Issue #606: シェル準備フラグ。実体のシリアルは {@link SerialFacadeService} の `SerialSession`（v2.3.1）側。
+ */
 import { Injectable } from '@angular/core';
 import { BehaviorSubject, type Observable } from 'rxjs';
 

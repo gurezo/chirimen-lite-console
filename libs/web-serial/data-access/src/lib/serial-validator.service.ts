@@ -1,5 +1,8 @@
 /// <reference types="@types/w3c-web-serial" />
 
+/**
+ * Issue #606: ポート検証。`SerialSession.getPortInfo()`（`@gurezo/web-serial-rxjs` v2.3.1）と一致する USB ID 判定。
+ */
 import { Injectable } from '@angular/core';
 import { RASPBERRY_PI_ZERO_INFO } from '@libs-web-serial-util';
 

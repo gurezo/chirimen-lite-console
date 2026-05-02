@@ -1,5 +1,8 @@
 /// <reference types="@types/w3c-web-serial" />
 
+/**
+ * Issue #606: 接続ライフサイクル。`connect$` / `disconnect$` は {@link SerialTransportService} の `SerialSession`（v2.3.1）に束ねる。
+ */
 import { Injectable, inject } from '@angular/core';
 import {
   catchError,
@@ -13,7 +16,7 @@ import {
 } from 'rxjs';
 import { getConnectionErrorMessage } from '@libs-web-serial-util';
 import { PiZeroShellReadinessService } from './pi-zero-shell-readiness.service';
-import { SerialCommandService } from './serial-command.service';
+import { SerialCommandService } from './serial-command/serial-command-facade.service';
 import { SerialTransportService } from './serial-transport.service';
 
 /** {@link SerialConnectionOrchestrationService#connect$} の結果 */

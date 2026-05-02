@@ -1,12 +1,15 @@
 /// <reference types="@types/w3c-web-serial" />
 
+/**
+ * Issue #606: アプリ公開 API。受信ストリームは `SerialSession`（`@gurezo/web-serial-rxjs` v2.3.1）由来を {@link SerialTransportService} が橋渡しする。
+ */
 import { Injectable, inject } from '@angular/core';
 import type { SerialError } from '@gurezo/web-serial-rxjs';
 import { type Observable, take } from 'rxjs';
 import {
   type CommandResult,
   SerialCommandService,
-} from './serial-command.service';
+} from './serial-command/serial-command-facade.service';
 import {
   type SerialConnectResult,
   SerialConnectionOrchestrationService,

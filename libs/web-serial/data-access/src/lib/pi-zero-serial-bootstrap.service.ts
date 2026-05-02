@@ -1,3 +1,6 @@
+/**
+ * Issue #606: Pi Zero ブートストラップ。`send$` / `exec$` / `readUntilPrompt$` はすべて `SerialSession`（`@gurezo/web-serial-rxjs` v2.3.1）へ委譲。
+ */
 import { Injectable } from '@angular/core';
 import { sanitizeSerialStdout } from '@libs-terminal-util';
 import {

@@ -7,7 +7,7 @@ export * from './lib/pi-zero-prompt-detector.service';
 export * from './lib/pi-zero-session.service';
 export * from './lib/pi-zero-serial-bootstrap.service';
 export * from './lib/pi-zero-shell-readiness.service';
-export * from './lib/serial-command.service';
+export * from './lib/serial-command/serial-command-facade.service';
 export * from './lib/serial-facade.service';
 export * from './lib/serial-notification.service';
 export * from './lib/serial-connection-view-model.facade';
