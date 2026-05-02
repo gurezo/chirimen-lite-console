@@ -140,7 +140,6 @@ export class TerminalConsoleOrchestrationService {
       catchError(() => EMPTY),
       finalize(() => {
         this.terminalMirrorSuppressDepth--;
-        sink.write('\r\n$ ');
         if (this.activeBootstrapEpoch === epoch) {
           this.activeBootstrap$ = null;
           this.activeBootstrapEpoch = null;

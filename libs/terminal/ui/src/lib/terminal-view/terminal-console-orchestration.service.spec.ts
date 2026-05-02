@@ -125,7 +125,6 @@ describe('TerminalConsoleOrchestrationService', () => {
     expect(write).toHaveBeenCalledWith(
       '\r\nprefix 初期化済みのためスキップします。\r\n',
     );
-    expect(write).toHaveBeenCalledWith('\r\n$ ');
   });
 
   it('bootstrapAfterConnect$ deduplicates concurrent bootstrap calls in same epoch', async () => {
