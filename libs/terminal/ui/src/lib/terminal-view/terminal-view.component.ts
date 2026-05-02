@@ -116,7 +116,14 @@ export class TerminalViewComponent implements AfterViewInit, OnDestroy {
         ),
         takeUntilDestroyed(this.destroyRef),
       )
-      .subscribe();
+      .subscribe({
+        error: (err: unknown) => {
+          const message = err instanceof Error ? err.message : String(err);
+          this.xterminal.writeln(
+            `[コンソール] 接続後の初期化に失敗しました: ${message}`,
+          );
+        },
+      });
 
     attachTerminalInput(
       this.xterminal,
