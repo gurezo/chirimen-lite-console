@@ -14,6 +14,7 @@ import {
 } from 'rxjs';
 import { PiZeroSessionService } from './pi-zero-session.service';
 import { PiZeroShellReadinessService } from './pi-zero-shell-readiness.service';
+import type { SerialSetupStatus } from './serial-setup-status';
 import { SerialFacadeService } from './serial-facade.service';
 import { SerialNotificationService } from './serial-notification.service';
 
@@ -29,6 +30,7 @@ export interface SerialConnectionViewModel {
   isConnecting: boolean;
   isLoggedIn: boolean;
   isInitializing: boolean;
+  setupStatus: SerialSetupStatus;
   errorMessage: string | null;
 }
 
@@ -54,16 +56,17 @@ export class SerialConnectionViewModelFacade {
   readonly vm$: Observable<SerialConnectionViewModel> = combineLatest([
     this.serial.state$,
     this.serial.isConnected$,
-    this.piZero.initializing$,
+    this.piZero.setupStatus$,
     this.shellReadiness.ready$,
     this.errorSubject.asObservable(),
   ]).pipe(
-    map(([state, connected, initializing, loggedInReady, errorMessage]) => ({
+    map(([state, connected, setupStatus, loggedInReady, errorMessage]) => ({
       isBrowserSupported: this.serial.isBrowserSupported(),
       isConnected: connected,
       isConnecting: state === SerialSessionState.Connecting,
       isLoggedIn: loggedInReady,
-      isInitializing: initializing,
+      isInitializing: !['idle', 'ready', 'failed'].includes(setupStatus),
+      setupStatus,
       errorMessage,
     })),
     shareReplay({ bufferSize: 1, refCount: true }),
