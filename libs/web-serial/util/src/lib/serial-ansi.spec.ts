@@ -1,5 +1,8 @@
 import { describe, expect, it } from 'vitest';
-import { stripSerialAnsiForPrompt } from './serial-ansi';
+import {
+  collapseCarriageRedrawsPerLine,
+  stripSerialAnsiForPrompt,
+} from './serial-ansi';
 
 describe('stripSerialAnsiForPrompt', () => {
   it('removes CSI color and cursor sequences so login line matches', () => {
@@ -12,5 +15,15 @@ describe('stripSerialAnsiForPrompt', () => {
   it('strips OSC sequences', () => {
     const s = '\u001b]0;pty\u0007raspberrypi login: ';
     expect(stripSerialAnsiForPrompt(s)).toBe('raspberrypi login: ');
+  });
+});
+
+describe('collapseCarriageRedrawsPerLine', () => {
+  it('keeps last segment after carriage return within a line', () => {
+    expect(collapseCarriageRedrawsPerLine('foo\rbar')).toBe('bar');
+  });
+
+  it('normalizes CRLF then collapses per line', () => {
+    expect(collapseCarriageRedrawsPerLine('a\r\nb\rc')).toBe('a\nc');
   });
 });
