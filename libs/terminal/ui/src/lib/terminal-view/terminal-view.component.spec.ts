@@ -1,5 +1,5 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { NEVER, Subject, from, of } from 'rxjs';
+import { BehaviorSubject, NEVER, Subject, from, of } from 'rxjs';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 vi.mock('@xterm/xterm', () => {
@@ -34,12 +34,16 @@ describe('TerminalViewComponent', () => {
   let shouldRunAfterConnectMock: ReturnType<typeof vi.fn>;
   let runAfterConnectMock: ReturnType<typeof vi.fn>;
   let receiveSubject: Subject<string>;
+  let terminalTextSubject: Subject<string>;
+  let isConnectedSubject: BehaviorSubject<boolean>;
 
   beforeEach(async () => {
     execMock = vi.fn().mockResolvedValue({
       stdout: `i2cdetect -y 1\n     0  1\n${PI_ZERO_PROMPT} `,
     });
     receiveSubject = new Subject<string>();
+    terminalTextSubject = new Subject<string>();
+    isConnectedSubject = new BehaviorSubject<boolean>(true);
     shouldRunAfterConnectMock = vi.fn(() => of(true));
     runAfterConnectMock = vi.fn(() => of(undefined));
     await TestBed.configureTestingModule({
@@ -47,12 +51,12 @@ describe('TerminalViewComponent', () => {
     })
       .overrideProvider(SerialFacadeService, {
         useValue: {
-          isConnected$: of(true),
+          isConnected$: isConnectedSubject.asObservable(),
           exec$: (...args: unknown[]) =>
             from(execMock(...(args as [string, unknown]))),
           connectionEstablished$: NEVER,
           receive$: receiveSubject.asObservable(),
-          terminalText$: NEVER,
+          terminalText$: terminalTextSubject.asObservable(),
           getConnectionEpoch: () => 1,
         },
       })
@@ -103,14 +107,75 @@ describe('TerminalViewComponent', () => {
     expect(runAfterConnectMock).not.toHaveBeenCalled();
   });
 
-  it('forwards live receive$ chunks to xterm.write', async () => {
+  it('writes only the appended delta when terminalText$ grows by suffix', async () => {
     const writeSpy = vi.spyOn(fixture.componentInstance.xterminal, 'write');
-    receiveSubject.next('hello');
-    receiveSubject.next('\r\nworld');
+    writeSpy.mockClear();
+
+    terminalTextSubject.next('hello');
+    terminalTextSubject.next('hello world');
 
     await vi.waitFor(() => {
       expect(writeSpy).toHaveBeenCalledWith('hello');
-      expect(writeSpy).toHaveBeenCalledWith('\r\nworld');
+      expect(writeSpy).toHaveBeenCalledWith(' world');
     });
+    expect(writeSpy).not.toHaveBeenCalledWith('hello world');
+  });
+
+  it('resets xterm and writes full text when terminalText$ prefix changes', async () => {
+    const writeSpy = vi.spyOn(fixture.componentInstance.xterminal, 'write');
+    const resetSpy = vi.spyOn(fixture.componentInstance.xterminal, 'reset');
+    writeSpy.mockClear();
+    resetSpy.mockClear();
+
+    terminalTextSubject.next('abc');
+    await vi.waitFor(() => expect(writeSpy).toHaveBeenCalledWith('abc'));
+
+    terminalTextSubject.next('x');
+
+    await vi.waitFor(() => {
+      expect(resetSpy).toHaveBeenCalled();
+      expect(writeSpy).toHaveBeenCalledWith('x');
+    });
+  });
+
+  it('skips re-emission when terminalText$ value is identical to previous', async () => {
+    const writeSpy = vi.spyOn(fixture.componentInstance.xterminal, 'write');
+    writeSpy.mockClear();
+
+    terminalTextSubject.next('hello');
+    await vi.waitFor(() => expect(writeSpy).toHaveBeenCalledWith('hello'));
+
+    writeSpy.mockClear();
+    terminalTextSubject.next('hello');
+
+    await Promise.resolve();
+    expect(writeSpy).not.toHaveBeenCalled();
+  });
+
+  it('treats fresh terminalText$ as full write after disconnect resets cache', async () => {
+    const writeSpy = vi.spyOn(fixture.componentInstance.xterminal, 'write');
+    writeSpy.mockClear();
+
+    terminalTextSubject.next('hello');
+    await vi.waitFor(() => expect(writeSpy).toHaveBeenCalledWith('hello'));
+
+    isConnectedSubject.next(false);
+    await Promise.resolve();
+
+    writeSpy.mockClear();
+    isConnectedSubject.next(true);
+    terminalTextSubject.next('hello');
+
+    await vi.waitFor(() => expect(writeSpy).toHaveBeenCalledWith('hello'));
+  });
+
+  it('does not subscribe to receive$ for live mirroring', async () => {
+    const writeSpy = vi.spyOn(fixture.componentInstance.xterminal, 'write');
+    writeSpy.mockClear();
+
+    receiveSubject.next('raw-chunk');
+
+    await Promise.resolve();
+    expect(writeSpy).not.toHaveBeenCalledWith('raw-chunk');
   });
 });
