@@ -39,17 +39,21 @@ import { SerialTransportService } from '../serial-transport.service';
  *
  * ### 受信（#593）
  *
- * プロンプト照合および exec の `stdout` は {@link SerialTransportService#lines$} の各行を `\n` で連結したバッファで行う。
- * ターミナル上の `\r` 再描画や折り畳み表示は {@link SerialTransportService#terminalText$} に委譲し、本クラスは解析専用。
+ * プロンプト照合および exec の `stdout` は {@link SerialTransportService#receive$} の生チャンクを連結し、
+ * {@link collapseCarriageRedrawsPerLine} で論理表示に収束させたバッファで行う（getty の lone `\r` 行末で
+ * {@link SerialTransportService#lines$} が空振りする問題の回避）。
+ * ターミナル上のライブ表示は {@link SerialTransportService#terminalText$} に委譲する。
  *
- * 行ごとに {@link stripSerialAnsiForPrompt} を適用し、従来どおり ANSI 混じりの login 行でもプロンプト判定できるようにする。
+ * 各チャンクに {@link stripSerialAnsiForPrompt} を適用する。
  */
 @Injectable({
   providedIn: 'root',
 })
 export class SerialCommandRunnerService {
+  private static readonly READ_BUFFER_CAP = 96_000;
+
   private readBuffer = '';
-  private linesSubscription: Subscription | null = null;
+  private rxSubscription: Subscription | null = null;
   /** 受信チャンクでバッファが更新されたことを Observable 側の待機に伝える */
   private readonly bufferNotify$ = new Subject<void>();
 
@@ -60,17 +64,23 @@ export class SerialCommandRunnerService {
   ) {}
 
   /**
-   * 接続後に呼び出し、`lines$` を購読して `readBuffer` に行単位で追記する。
+   * 接続後に呼び出し、`receive$` を購読してプロンプト照合用 `readBuffer` に追記する。
    */
   startReadLoop(): void {
     this.readBuffer = '';
-    this.linesSubscription?.unsubscribe();
-    this.linesSubscription = this.transport.lines$.subscribe({
-      next: (line) => {
-        this.readBuffer += stripSerialAnsiForPrompt(line ?? '') + '\n';
+    this.rxSubscription?.unsubscribe();
+    this.rxSubscription = this.transport.receive$.subscribe({
+      next: (chunk) => {
+        const piece = stripSerialAnsiForPrompt(chunk ?? '');
+        this.readBuffer += piece;
+        if (this.readBuffer.length > SerialCommandRunnerService.READ_BUFFER_CAP) {
+          this.readBuffer = this.readBuffer.slice(
+            -SerialCommandRunnerService.READ_BUFFER_CAP,
+          );
+        }
         this.bufferNotify$.next();
       },
-      error: (err: unknown) => console.error('Serial lines stream error:', err),
+      error: (err: unknown) => console.error('Serial receive stream error:', err),
     });
   }
 
@@ -78,8 +88,8 @@ export class SerialCommandRunnerService {
    * 読み取り購読を停止しバッファを空にする
    */
   stopReadLoop(): void {
-    this.linesSubscription?.unsubscribe();
-    this.linesSubscription = null;
+    this.rxSubscription?.unsubscribe();
+    this.rxSubscription = null;
     this.readBuffer = '';
   }
 
@@ -88,8 +98,8 @@ export class SerialCommandRunnerService {
    */
   isReading(): boolean {
     return (
-      this.linesSubscription != null &&
-      !this.linesSubscription.closed
+      this.rxSubscription != null &&
+      !this.rxSubscription.closed
     );
   }
 
