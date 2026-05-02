@@ -70,13 +70,8 @@ export class TerminalConsoleOrchestrationService {
    * キーボードから入力されたコマンドをシリアルへ送る（issue #611）。
    * 改行は {@link SerialFacadeService#send$} 用ペイロードに `\n` を付与する。
    * 表示は {@link SerialFacadeService#terminalText$} 側のため、戻り値は空文字。
-   *
-   * @param _remotePrompt 互換のため残す（プロンプト待ちは行わない）
    */
-  async runInteractiveCommand(
-    command: string,
-    _remotePrompt: string,
-  ): Promise<string> {
+  async runInteractiveCommand(command: string): Promise<string> {
     const payload = `${coerceLsForSerialListing(command)}\n`;
     await firstValueFrom(this.serial.send$(payload));
     return '';
@@ -85,13 +80,8 @@ export class TerminalConsoleOrchestrationService {
   /**
    * ツールバー等から要求されたコマンドを {@link SerialFacadeService#send$} で送る（issue #612）。
    * シェル側の完了や stdout の取得は行わず、表示は {@link SerialFacadeService#terminalText$} に任せる。
-   *
-   * @param _remotePrompt 互換のため残す（プロンプト待ちは行わない）
    */
-  async runToolbarCommand(
-    cmd: string,
-    _remotePrompt: string,
-  ): Promise<
+  async runToolbarCommand(cmd: string): Promise<
     | { status: 'success'; output: string }
     | { status: 'not_connected' }
     | { status: 'error'; message: string }

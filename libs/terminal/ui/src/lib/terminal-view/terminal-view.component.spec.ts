@@ -24,7 +24,6 @@ import {
   PiZeroSessionService,
   SerialFacadeService,
 } from '@libs-web-serial-data-access';
-import { PI_ZERO_PROMPT } from '@libs-web-serial-util';
 import { coerceLsForSerialListing } from '@libs-terminal-util';
 import { TerminalCommandRequestService } from '@libs-terminal-util';
 import { TerminalViewComponent } from './terminal-view.component';

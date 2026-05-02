@@ -14,7 +14,6 @@ import {
   SerialFacadeService,
 } from '@libs-web-serial-data-access';
 import { coerceLsForSerialListing } from '@libs-terminal-util';
-import { PI_ZERO_PROMPT } from '@libs-web-serial-util';
 import { TerminalConsoleOrchestrationService } from './terminal-console-orchestration.service';
 
 describe('TerminalConsoleOrchestrationService', () => {
@@ -53,19 +52,19 @@ describe('TerminalConsoleOrchestrationService', () => {
 
   it('delegates interactive input to send$ with newline', async () => {
     const svc = TestBed.inject(TerminalConsoleOrchestrationService);
-    await svc.runInteractiveCommand('uname', PI_ZERO_PROMPT);
+    await svc.runInteractiveCommand('uname');
     expect(sendMock).toHaveBeenCalledWith('uname\n');
   });
 
   it('runInteractiveCommand returns empty string (no stdout capture)', async () => {
     const svc = TestBed.inject(TerminalConsoleOrchestrationService);
-    const out = await svc.runInteractiveCommand('uname -a', PI_ZERO_PROMPT);
+    const out = await svc.runInteractiveCommand('uname -a');
     expect(out).toBe('');
   });
 
   it('coerces ls to dumb TERM and single-column for serial send', async () => {
     const svc = TestBed.inject(TerminalConsoleOrchestrationService);
-    await svc.runInteractiveCommand('ls -la', PI_ZERO_PROMPT);
+    await svc.runInteractiveCommand('ls -la');
     expect(sendMock).toHaveBeenCalledWith(
       "LC_ALL=C LANG=C TERM=dumb LS_COLORS= ls -1 -la </dev/null 2>&1 | sed 's/^[[:blank:]]*//' | cat\n",
     );
@@ -83,14 +82,14 @@ describe('TerminalConsoleOrchestrationService', () => {
       },
     });
     const svc = TestBed.inject(TerminalConsoleOrchestrationService);
-    const result = await svc.runToolbarCommand('ls', PI_ZERO_PROMPT);
+    const result = await svc.runToolbarCommand('ls');
     expect(result).toEqual({ status: 'not_connected' });
     expect(sendMock).not.toHaveBeenCalled();
   });
 
   it('runToolbarCommand sends coerced command via send$ when connected', async () => {
     const svc = TestBed.inject(TerminalConsoleOrchestrationService);
-    const result = await svc.runToolbarCommand('ls', PI_ZERO_PROMPT);
+    const result = await svc.runToolbarCommand('ls');
     expect(result).toEqual({ status: 'success', output: '' });
     expect(sendMock).toHaveBeenCalledWith(
       `${coerceLsForSerialListing('ls')}\n`,
@@ -99,7 +98,7 @@ describe('TerminalConsoleOrchestrationService', () => {
 
   it('runToolbarCommand success always has empty output (no stdout path)', async () => {
     const svc = TestBed.inject(TerminalConsoleOrchestrationService);
-    const result = await svc.runToolbarCommand('echo hello', PI_ZERO_PROMPT);
+    const result = await svc.runToolbarCommand('echo hello');
     expect(result.status).toBe('success');
     if (result.status === 'success') {
       expect(result.output).toBe('');
@@ -210,7 +209,7 @@ describe('TerminalConsoleOrchestrationService', () => {
     const svc = TestBed.inject(TerminalConsoleOrchestrationService);
     const mirrorSub = svc.pipeTerminalOutputToSink$({ write }).subscribe();
 
-    const cmdPromise = svc.runInteractiveCommand('date', PI_ZERO_PROMPT);
+    const cmdPromise = svc.runInteractiveCommand('date');
     await Promise.resolve();
     chunks.next('during-send');
     expect(write).toHaveBeenCalledWith('during-send');
