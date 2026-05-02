@@ -153,7 +153,7 @@ describe('PiZeroSessionService', () => {
   });
 
   describe('setup flow (setupEnvironment$)', () => {
-    it('runs each timezone init command over serial exec$', async () => {
+    it('runs each environment init command over serial exec$', async () => {
       const exec = vi.fn().mockReturnValue(of({ stdout: `${PI_ZERO_PROMPT} ` }));
       const serial = {
         exec$: (c: string, o: unknown) => exec(c, o),
@@ -162,9 +162,11 @@ describe('PiZeroSessionService', () => {
       const service = createSession(serial, createShellReadinessMock());
       await firstValueFrom(service.setupEnvironment$());
 
-      expect(exec).toHaveBeenCalledTimes(2);
-      expect(exec.mock.calls[0]?.[0]).toContain('timedatectl set-timezone');
-      expect(exec.mock.calls[1]?.[0]).toBe('timedatectl status');
+      expect(exec).toHaveBeenCalledTimes(6);
+      expect(exec.mock.calls[0]?.[0]).toContain('export LANG=');
+      expect(exec.mock.calls[2]?.[0]).toContain('timedatectl set-timezone');
+      expect(exec.mock.calls[3]?.[0]).toBe('timedatectl status');
+      expect(exec.mock.calls[4]?.[0]).toContain('export TZ=');
     });
   });
 
@@ -241,7 +243,7 @@ describe('PiZeroSessionService', () => {
       );
     });
 
-    it('propagates timezone setup failures to caller', async () => {
+    it('propagates environment setup failures to caller', async () => {
       const readUntilPrompt = vi.fn().mockImplementation(() =>
         of({
           stdout: `${PI_ZERO_PROMPT} `,
@@ -263,7 +265,7 @@ describe('PiZeroSessionService', () => {
       const service = createSession(serial, shellReadiness);
 
       await expect(firstValueFrom(service.runAfterConnect$())).rejects.toThrow(
-        'Timezone setup failed',
+        'Environment setup failed',
       );
       expect(vi.mocked(shellReadiness.setReady)).not.toHaveBeenCalledWith(true);
     });

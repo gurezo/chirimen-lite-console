@@ -40,7 +40,7 @@ describe('PiZeroSerialBootstrapService', () => {
     expect(send$).toHaveBeenCalledWith('\r\n');
     expect(send$).toHaveBeenCalledWith(`${PI_ZERO_LOGIN_USER}\r\n`);
     expect(send$).toHaveBeenCalledWith(`${PI_ZERO_LOGIN_PASSWORD}\r\n`);
-    expect(exec).toHaveBeenCalledTimes(2); // timezone only
+    expect(exec).toHaveBeenCalledTimes(6); // environment setup steps
   });
 
   it('skips login send when shell already visible after flush', async () => {
@@ -218,16 +218,19 @@ describe('PiZeroSerialBootstrapService', () => {
     expect(send$).toHaveBeenCalledWith(`${PI_ZERO_LOGIN_USER}\r\n`);
   });
 
-  it('keeps timezone status logging', async () => {
+  it('keeps environment status logging', async () => {
     const readUntilPrompt = vi.fn().mockResolvedValue({
       stdout: `ready\r\n${PI_ZERO_PROMPT} `,
     });
-    const exec = vi
-      .fn()
-      .mockResolvedValueOnce({ stdout: '' })
-      .mockResolvedValueOnce({
-        stdout: `timedatectl status\r\n       Time zone: Asia/Tokyo (${PI_ZERO_PROMPT} `,
-      });
+    const exec = vi.fn().mockImplementation((command: string) =>
+      Promise.resolve(
+        command === 'timedatectl status'
+          ? {
+              stdout: `timedatectl status\r\n       Time zone: Asia/Tokyo (${PI_ZERO_PROMPT} `,
+            }
+          : { stdout: '' },
+      ),
+    );
     const send$ = vi.fn().mockReturnValue(of(undefined));
     const serial = {
       readUntilPrompt$: (o: unknown) => from(readUntilPrompt(o)),
@@ -242,7 +245,7 @@ describe('PiZeroSerialBootstrapService', () => {
     expect(logs.some((l) => l.includes('Time zone: Asia/Tokyo'))).toBe(true);
   });
 
-  it('fails setupEnvironment$ when timezone command fails', async () => {
+  it('fails setupEnvironment$ when environment command fails', async () => {
     const exec = vi
       .fn()
       .mockReturnValueOnce(
@@ -255,9 +258,9 @@ describe('PiZeroSerialBootstrapService', () => {
     const logs: string[] = [];
     await expect(
       firstValueFrom(createBootstrap(serial).setupEnvironment$((l) => logs.push(l))),
-    ).rejects.toThrow('Timezone setup failed');
+    ).rejects.toThrow('Environment setup failed');
 
-    expect(logs.some((l) => l.includes('タイムゾーン初期化コマンドに失敗'))).toBe(
+    expect(logs.some((l) => l.includes('環境設定初期化コマンドに失敗'))).toBe(
       true,
     );
   });
