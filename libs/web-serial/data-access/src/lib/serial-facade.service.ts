@@ -66,6 +66,15 @@ export class SerialFacadeService {
     return this.lines$.pipe(take(1));
   }
 
+  /**
+   * プロンプト同期でコマンドを送り、シェルが戻るまでの **stdout 等のキャプチャ結果** を返す。
+   *
+   * **利用境界（[#616](https://github.com/gurezo/chirimen-lite-console/issues/616)）**
+   * - **ターミナル UI（xterm の対話・ツールバー送信）では呼ばない。** 表示は {@link #terminalText$}、送信は {@link #send$} に統一する（親 [#609](https://github.com/gurezo/chirimen-lite-console/issues/609)）。
+   * - **アプリ内部**で「コマンド完了まで待ち、stdout を取りたい」フロー向け。代表例はログイン後 bootstrap、i2cdetect、Chirimen setup など。Wi-Fi・ファイルマネージャ・リモート等、プロンプト待ちが必要な機能も同じ層に含める。
+   *
+   * {@link SerialCommandService#exec$} に委譲する。
+   */
   exec$(
     cmd: string,
     options: SerialExecOptions,
@@ -73,6 +82,11 @@ export class SerialFacadeService {
     return this.command.exec$(cmd, options);
   }
 
+  /**
+   * {@link #exec$} と同様の責務で、ペイロード末尾に改行を付けない Raw 送信が必要な場合に用いる。
+   *
+   * @see {@link #exec$} 利用境界（ターミナル UI 禁止）
+   */
   execRaw$(
     cmdRaw: string,
     options: SerialExecOptions,
@@ -80,6 +94,11 @@ export class SerialFacadeService {
     return this.command.execRaw$(cmdRaw, options);
   }
 
+  /**
+   * コマンド送信なしでプロンプト出現まで待ち、それまでのバッファを {@link CommandResult} として返す。
+   *
+   * @see {@link #exec$} 利用境界（ターミナル UI 禁止・アプリ内部のプロンプト同期用）
+   */
   readUntilPrompt$(options: SerialExecOptions): Observable<CommandResult> {
     return this.command.readUntilPrompt$(options);
   }
