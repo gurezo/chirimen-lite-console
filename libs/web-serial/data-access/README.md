@@ -26,6 +26,27 @@ Angular 向けのシリアル（Web Serial + `@gurezo/web-serial-rxjs` v2.3.1）
 - **`SerialCommandRunnerService`（`serial-command-runner.service.ts`）／`SerialCommandService` facade** が `lines$` を購読し、プロンプト待ち用に行連結バッファを保持する（表示の `\r` 処理は `terminalText$` と `@libs-web-serial-util` の `collapseCarriageRedrawsPerLine` に委譲）。
 - **ターミナル UI** は **`SerialFacadeService#terminalText$` を購読**し、ライブ表示を xterm 等に反映する（例: `TerminalViewComponent`）。`exec$` の戻り値で同じ画面を二重更新しない。
 
+## 主要 3 API の責務と判断基準（Issue #625）
+
+- **`terminalText$`**
+  - ターミナル UI（xterm 等）のライブ表示専用。
+  - 受信表示の再描画（`\r`）を含む表示責務は `SerialSession.terminalText$` に委譲する。
+  - プロンプト判定やログイン判定には使わない（判定は `lines$` 側）。
+- **`send$()`**
+  - ユーザー入力送信専用（対話入力・ツールバー送信）。
+  - コマンド完了待ちや結果解析は行わない。
+  - Terminal UI は「送信=`send$` / 表示=`terminalText$`」を基本導線にする。
+- **`exec$()`**
+  - アプリ制御用（ログイン後初期化、i2cdetect、setup、結果解析）。
+  - プロンプト同期で完了を待ち、stdout 等のキャプチャ結果を返す。
+  - Terminal UI で使わない理由は、UI 側の責務を「入力送信とライブ表示」に限定し、結果キャプチャ経路との二重更新・責務混在を防ぐため。
+
+### なぜ初期化処理で `exec$` を使うか（Issue #625）
+
+- 接続直後の bootstrap は、コマンド送信後にプロンプトまで待つ同期制御と結果判定が必要になる。
+- タイムゾーンや環境設定の成功/失敗を呼び出し元へ伝播するため、キャプチャ結果を返す `exec$` が適している。
+- その結果、Terminal UI は表示責務を維持しつつ、初期化フローは制御責務として分離できる。
+
 ## 接続状態の単一ビューモデル（[#564](https://github.com/gurezo/chirimen-lite-console/issues/564)）
 
 コンポーネント向けには **`SerialConnectionViewModelFacade`** が `vm$: Observable<SerialConnectionViewModel>` を提供する。接続・切断・送信（ツールバーと同様に `TerminalCommandRequestService.requestCommand` 経由）および `clearError()` を前置し、ブラウザ対応フラグ、`SerialFacadeService.state$` に基づく接続試行状態、`PiZeroShellReadinessService.ready$`（問題文での「ログイン済み」と同義：`isLoggedIn`）、`PiZeroSessionService.initializing$` での初期化フラグ、`errorMessage` をまとめる。
