@@ -99,10 +99,6 @@ export class TerminalViewComponent implements AfterViewInit, OnDestroy {
       });
 
     this.xterminal.reset();
-    this.console
-      .pipeTerminalOutputToSink$(this.terminalSink)
-      .pipe(takeUntilDestroyed(this.destroyRef))
-      .subscribe();
 
     this.serial.terminalText$
       .pipe(takeUntilDestroyed(this.destroyRef))
