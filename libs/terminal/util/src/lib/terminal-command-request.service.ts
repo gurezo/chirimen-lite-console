@@ -3,7 +3,7 @@ import { Observable, Subject } from 'rxjs';
 
 /**
  * Lets other features (e.g. toolbar) ask the terminal to run a shell command
- * using the same serial path as interactive input.
+ * using the same serial path as interactive input (SerialFacadeService `send$`, issue #615).
  */
 @Injectable({
   providedIn: 'root',

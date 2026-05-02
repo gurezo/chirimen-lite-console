@@ -34,7 +34,8 @@ export interface SerialConnectionViewModel {
 
 /**
  * Terminal のツールバー等からの送信と同一パスの {@link TerminalCommandRequestService.requestCommand}
- * でシェル実行をキューする（#564）。
+ * でシェル実行をキューする（#564）。実送信はターミナル側で {@link SerialFacadeService#send$} となり、
+ * {@link SerialFacadeService#exec$} は使わない（親 #609 / #615）。
  */
 @Injectable({
   providedIn: 'root',
@@ -103,7 +104,7 @@ export class SerialConnectionViewModelFacade {
       });
   }
 
-  /** ツールバーと同じキュー経路でコンソール向けコマンドを送信する。 */
+  /** ツールバーと同じキュー経路でコンソール向けコマンドを送信する（#615: send$ 経路）。 */
   sendCommand(command: string): void {
     this.terminalCommandRequests.requestCommand(command);
   }

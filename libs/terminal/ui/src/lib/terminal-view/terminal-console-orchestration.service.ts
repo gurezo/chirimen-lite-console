@@ -41,10 +41,10 @@ export interface TerminalConsoleSink {
  * Issue #610 で UI 側購読を停止し、シグネチャと spec のみ温存している
  * （親 #609 配下の後続サブ issue で本メソッド自体を削除予定）。
  *
- * ### 対話・ツールバー（issue #611 / #612）
+ * ### 対話・ツールバー（issue #611 / #612 / #615）
  *
  * キーボード入力もツールバー経由のコマンドも {@link SerialFacadeService#send$} で
- * 送信する。完了待ちや stdout の切り出しは行わず、シェル出力は
+ * 送信する（ツールバーは #615）。完了待ちや stdout の切り出しは行わず、シェル出力は
  * {@link SerialFacadeService#terminalText$} 側のストリームに任せる。
  *
  * ### stdout 整形（issue #613）
@@ -78,8 +78,9 @@ export class TerminalConsoleOrchestrationService {
   }
 
   /**
-   * ツールバー等から要求されたコマンドを {@link SerialFacadeService#send$} で送る（issue #612）。
-   * シェル側の完了や stdout の取得は行わず、表示は {@link SerialFacadeService#terminalText$} に任せる。
+   * ツールバー等から要求されたコマンドを {@link SerialFacadeService#send$} で送る（#612 / #615）。
+   * {@link SerialFacadeService#exec$} は使用しない。シェル側の完了や stdout の取得は行わず、
+   * 表示は {@link SerialFacadeService#terminalText$} に任せる。
    */
   async runToolbarCommand(cmd: string): Promise<
     | { status: 'success'; output: string }
