@@ -91,7 +91,10 @@ export class SerialTransportService {
    */
   readonly receive$ = this.fromSession((s) => s.receive$, NEVER);
 
-  /** {@link SerialSession.terminalText$} */
+  /**
+   * {@link SerialSession.terminalText$}。ターミナル UI のライブ表示用（TTY 再描画の畳み込みはライブラリ側）。
+   * 利用境界は {@link SerialFacadeService#terminalText$} の JSDoc および data-access README（[#617](https://github.com/gurezo/chirimen-lite-console/issues/617)）を参照。
+   */
   readonly terminalText$ = this.fromSession((s) => s.terminalText$, NEVER);
 
   /** {@link SerialSession.errors$} */
