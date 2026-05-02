@@ -33,13 +33,13 @@ describe('TerminalViewComponent', () => {
   let execMock: ReturnType<typeof vi.fn>;
   let shouldRunAfterConnectMock: ReturnType<typeof vi.fn>;
   let runAfterConnectMock: ReturnType<typeof vi.fn>;
-  let terminalTextSubject: Subject<string>;
+  let receiveSubject: Subject<string>;
 
   beforeEach(async () => {
     execMock = vi.fn().mockResolvedValue({
       stdout: `i2cdetect -y 1\n     0  1\n${PI_ZERO_PROMPT} `,
     });
-    terminalTextSubject = new Subject<string>();
+    receiveSubject = new Subject<string>();
     shouldRunAfterConnectMock = vi.fn(() => of(true));
     runAfterConnectMock = vi.fn(() => of(undefined));
     await TestBed.configureTestingModule({
@@ -51,7 +51,8 @@ describe('TerminalViewComponent', () => {
           exec$: (...args: unknown[]) =>
             from(execMock(...(args as [string, unknown]))),
           connectionEstablished$: NEVER,
-          terminalText$: terminalTextSubject.asObservable(),
+          receive$: receiveSubject.asObservable(),
+          terminalText$: NEVER,
           getConnectionEpoch: () => 1,
         },
       })
@@ -102,10 +103,10 @@ describe('TerminalViewComponent', () => {
     expect(runAfterConnectMock).not.toHaveBeenCalled();
   });
 
-  it('forwards live terminalText$ chunks to xterm.write', async () => {
+  it('forwards live receive$ chunks to xterm.write', async () => {
     const writeSpy = vi.spyOn(fixture.componentInstance.xterminal, 'write');
-    terminalTextSubject.next('hello');
-    terminalTextSubject.next('\r\nworld');
+    receiveSubject.next('hello');
+    receiveSubject.next('\r\nworld');
 
     await vi.waitFor(() => {
       expect(writeSpy).toHaveBeenCalledWith('hello');

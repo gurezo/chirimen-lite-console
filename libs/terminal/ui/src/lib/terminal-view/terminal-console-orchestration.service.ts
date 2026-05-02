@@ -29,12 +29,13 @@ export interface TerminalConsoleSink {
  *
  * ### 生受信ミラー（issue #566）
  *
- * シリアルからの **ライブ表示** 専用は {@link SerialFacadeService#terminalText$} のみを購読する。
- * {@link #pipeTerminalOutputToSink$} がその経路。`exec` の stdout 整形表示と二重にならないよう UI 側で使い分けること。
+ * シリアルからの **ライブ表示** は {@link SerialFacadeService#receive$} の生チャンクを xterm に流す。
+ * `terminalText$` はライブラリが畳んだ**累積全文**を出すため、そのまま `write` すると二重表示になる。
+ * {@link #pipeTerminalOutputToSink$} が `receive$` 経路。`exec` の stdout 整形表示とは別。
  *
  * ### 対話コンソール表示
  *
- * ライブ表示は `terminalText$` の購読のみで行い、実行結果の表示整形（`exec$` 経路）とは責務を分離する。
+ * ライブ表示は `receive$` の購読で行い、実行結果の表示整形（`exec$` 経路）とは責務を分離する。
  */
 @Injectable({
   providedIn: 'root',
@@ -152,13 +153,13 @@ export class TerminalConsoleOrchestrationService {
   }
 
   /**
-   * {@link SerialFacadeService#terminalText$}（terminal helper の整形済み文字列）を xterm 等へ流す。
+   * {@link SerialFacadeService#receive$} の UTF-8 チャンクを xterm 等へそのまま流す（TTY 相当）。
    * プロンプト判定・コマンド結果の行処理には使わないこと。
    */
   pipeTerminalOutputToSink$(
     sink: Pick<TerminalConsoleSink, 'write'>,
   ): Observable<string> {
-    return this.serial.terminalText$.pipe(
+    return this.serial.receive$.pipe(
       filter(() => !this.suspendTerminalMirror),
       tap((chunk) => sink.write(chunk)),
     );
