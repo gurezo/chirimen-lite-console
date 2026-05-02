@@ -18,6 +18,7 @@ import { TerminalConsoleOrchestrationService } from './terminal-console-orchestr
 
 describe('TerminalConsoleOrchestrationService', () => {
   let execMock: ReturnType<typeof vi.fn>;
+  let sendMock: ReturnType<typeof vi.fn>;
 
   beforeEach(() => {
     execMock = vi.fn().mockReturnValue(
@@ -25,6 +26,7 @@ describe('TerminalConsoleOrchestrationService', () => {
         stdout: 'ok\n',
       }),
     );
+    sendMock = vi.fn().mockReturnValue(of(undefined));
     TestBed.configureTestingModule({
       providers: [
         TerminalConsoleOrchestrationService,
@@ -32,6 +34,7 @@ describe('TerminalConsoleOrchestrationService', () => {
           provide: SerialFacadeService,
           useValue: {
             exec$: execMock,
+            send$: sendMock,
             isConnected$: of(true),
             connectionEstablished$: of(undefined),
             receive$: EMPTY,
@@ -54,31 +57,27 @@ describe('TerminalConsoleOrchestrationService', () => {
     TestBed.resetTestingModule();
   });
 
-  it('delegates exec with default serial options', async () => {
+  it('delegates interactive input to send$ with newline', async () => {
     const svc = TestBed.inject(TerminalConsoleOrchestrationService);
     await svc.runInteractiveCommand('uname', PI_ZERO_PROMPT);
-    expect(execMock).toHaveBeenCalledWith('uname', {
-      prompt: PI_ZERO_PROMPT,
-      timeout: SERIAL_TIMEOUT.DEFAULT,
-    });
+    expect(sendMock).toHaveBeenCalledWith('uname\n');
+    expect(execMock).not.toHaveBeenCalled();
   });
 
-  it('coerces ls to dumb TERM and single-column for serial exec', async () => {
+  it('coerces ls to dumb TERM and single-column for serial send', async () => {
     const svc = TestBed.inject(TerminalConsoleOrchestrationService);
     await svc.runInteractiveCommand('ls -la', PI_ZERO_PROMPT);
-    expect(execMock).toHaveBeenCalledWith(
-      "LC_ALL=C LANG=C TERM=dumb LS_COLORS= ls -1 -la </dev/null 2>&1 | sed 's/^[[:blank:]]*//' | cat",
-      {
-        prompt: PI_ZERO_PROMPT,
-        timeout: SERIAL_TIMEOUT.DEFAULT,
-      },
+    expect(sendMock).toHaveBeenCalledWith(
+      "LC_ALL=C LANG=C TERM=dumb LS_COLORS= ls -1 -la </dev/null 2>&1 | sed 's/^[[:blank:]]*//' | cat\n",
     );
+    expect(execMock).not.toHaveBeenCalled();
   });
 
   it('runToolbarCommand reports not_connected when serial is down', async () => {
     TestBed.overrideProvider(SerialFacadeService, {
       useValue: {
         exec$: execMock,
+        send$: sendMock,
         isConnected$: of(false),
         connectionEstablished$: of(undefined),
         receive$: EMPTY,
@@ -147,6 +146,7 @@ describe('TerminalConsoleOrchestrationService', () => {
     TestBed.overrideProvider(SerialFacadeService, {
       useValue: {
         exec$: execMock,
+        send$: sendMock,
         isConnected$: of(true),
         connectionEstablished$: of(undefined),
         receive$: chunks.asObservable(),
@@ -170,16 +170,17 @@ describe('TerminalConsoleOrchestrationService', () => {
     sub.unsubscribe();
   });
 
-  it('suppresses receive$ mirror while runInteractiveCommand executes', async () => {
+  it('does not suppress receive$ mirror while runInteractiveCommand awaits send$', async () => {
     const chunks = new Subject<string>();
-    let resolveExec!: (v: { stdout: string }) => void;
-    const execDone = new Promise<{ stdout: string }>((r) => {
-      resolveExec = r;
+    let resolveSend!: () => void;
+    const sendDone = new Promise<void>((r) => {
+      resolveSend = r;
     });
-    const deferredExec = vi.fn(() => from(execDone));
+    const deferredSend = vi.fn(() => from(sendDone));
     TestBed.overrideProvider(SerialFacadeService, {
       useValue: {
-        exec$: deferredExec,
+        exec$: execMock,
+        send$: deferredSend,
         isConnected$: of(true),
         connectionEstablished$: of(undefined),
         receive$: chunks.asObservable(),
@@ -199,14 +200,14 @@ describe('TerminalConsoleOrchestrationService', () => {
 
     const cmdPromise = svc.runInteractiveCommand('date', PI_ZERO_PROMPT);
     await Promise.resolve();
-    chunks.next('during-exec');
-    expect(write).not.toHaveBeenCalledWith('during-exec');
+    chunks.next('during-send');
+    expect(write).toHaveBeenCalledWith('during-send');
 
-    resolveExec({ stdout: `Sat Jan  1 12:00:00 UTC 2026\r\n${PI_ZERO_PROMPT} ` });
+    resolveSend();
     await cmdPromise;
 
-    chunks.next('after-exec');
-    expect(write).toHaveBeenCalledWith('after-exec');
+    chunks.next('after-send');
+    expect(write).toHaveBeenCalledWith('after-send');
 
     mirrorSub.unsubscribe();
   });
@@ -217,6 +218,7 @@ describe('TerminalConsoleOrchestrationService', () => {
     TestBed.overrideProvider(SerialFacadeService, {
       useValue: {
         exec$: execMock,
+        send$: sendMock,
         isConnected$: of(true),
         connectionEstablished$: of(undefined),
         receive$: chunks.asObservable(),
