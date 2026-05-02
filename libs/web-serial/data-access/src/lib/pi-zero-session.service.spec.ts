@@ -199,7 +199,7 @@ describe('PiZeroSessionService', () => {
       const sub = service.initializing$.subscribe((v) => seen.push(v));
 
       await expect(firstValueFrom(service.runAfterConnect$())).rejects.toThrow(
-        'login prompt timeout',
+        'Shell readiness timeout while waiting for prompt',
       );
       sub.unsubscribe();
 
