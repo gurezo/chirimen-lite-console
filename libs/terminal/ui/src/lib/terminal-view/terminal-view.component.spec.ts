@@ -122,6 +122,26 @@ describe('TerminalViewComponent', () => {
     });
   });
 
+  it('shows explicit shell readiness timeout message from bootstrap flow', async () => {
+    runAfterConnectMock.mockReturnValue(
+      throwError(
+        () => new Error('Shell readiness timeout while waiting for prompt'),
+      ),
+    );
+
+    fixture.destroy();
+    fixture = TestBed.createComponent(TerminalViewComponent);
+    const writelnSpy = vi.spyOn(fixture.componentInstance.xterminal, 'writeln');
+    writelnSpy.mockClear();
+    fixture.detectChanges();
+
+    await vi.waitFor(() => {
+      expect(writelnSpy).toHaveBeenCalledWith(
+        '[コンソール] 接続後の初期化に失敗しました: Shell readiness timeout while waiting for prompt',
+      );
+    });
+  });
+
   it('writes only the appended delta when terminalText$ grows by suffix', async () => {
     const writeSpy = vi.spyOn(fixture.componentInstance.xterminal, 'write');
     writeSpy.mockClear();
