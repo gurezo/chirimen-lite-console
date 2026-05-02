@@ -31,12 +31,11 @@ export function attachTerminalInput(
       inputBuffer = '';
 
       if (!command) {
-        terminal.write('$ ');
         return;
       }
 
       if (!onCommand) {
-        terminal.write(`(No command handler)\r\n$ `);
+        terminal.writeln('(No command handler)');
         return;
       }
 
@@ -45,13 +44,11 @@ export function attachTerminalInput(
           if (stdout) {
             terminal.write(stdout);
           }
-          terminal.write('\r\n$ ');
         })
         .catch((error) => {
           const message =
             error instanceof Error ? error.message : String(error);
           terminal.writeln(`\r\nCommand failed: ${message}`);
-          terminal.write('$ ');
         });
     } else if (ev.code === 'Backspace') {
       if (inputBuffer.length > 0) {
