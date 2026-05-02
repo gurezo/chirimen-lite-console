@@ -42,8 +42,12 @@ interface AuthLoopState {
  *   3. **パスワード送信**（{@link sendPasswordAndAwaitShell$}）
  *   4. **timezone 初期化**（{@link timezoneSequence$}）
  *
- * シリアル送受信そのものは {@link SerialFacadeService}、接続単位での「一度だけ実行」
- * などのオーケストレーションは {@link PiZeroSessionService} が担う。
+ * シリアル送受信そのものは {@link SerialFacadeService}（`@gurezo/web-serial-rxjs` の
+ * `SerialSession` を内包）、接続単位での「一度だけ実行」などのオーケストレーションは
+ * {@link PiZeroSessionService} が担う。
+ *
+ * 接続直後のコンソール遷移（`login:` → `Password:` → シェルプロンプト）の受け入れ基準は
+ * [Issue #606](https://github.com/gurezo/chirimen-lite-console/issues/606) を参照。
  */
 @Injectable({
   providedIn: 'root',
