@@ -108,12 +108,7 @@ export class TerminalViewComponent implements AfterViewInit, OnDestroy {
     )
       .pipe(
         take(1),
-        switchMap(() =>
-          this.console.bootstrapAfterConnect$(
-            '[コンソール] シリアル接続済み。',
-            this.terminalSink,
-          ),
-        ),
+        switchMap(() => this.runPostConnectInitialization$()),
         takeUntilDestroyed(this.destroyRef),
       )
       .subscribe({
@@ -162,6 +157,16 @@ export class TerminalViewComponent implements AfterViewInit, OnDestroy {
     } catch {
       // Dimensions may be zero before layout stabilizes
     }
+  }
+
+  /**
+   * 接続後の初期化実行は orchestration service に委譲し、UI は結果表示のみ行う。
+   */
+  private runPostConnectInitialization$() {
+    return this.console.bootstrapAfterConnect$(
+      '[コンソール] シリアル接続済み。',
+      this.terminalSink,
+    );
   }
 
   /**
