@@ -264,4 +264,46 @@ describe('PiZeroSerialBootstrapService', () => {
       true,
     );
   });
+
+  it('executes timezone setup and status commands successfully', async () => {
+    const executedCommands: string[] = [];
+    const exec = vi.fn().mockImplementation((command: string) => {
+      executedCommands.push(command);
+      return of(
+        command === 'timedatectl status'
+          ? { stdout: 'Time zone: Asia/Tokyo\n' }
+          : { stdout: '' },
+      );
+    });
+    const serial = {
+      exec$: (c: string, o: unknown) => exec(c, o),
+    } as unknown as SerialFacadeService;
+
+    await expect(
+      firstValueFrom(createBootstrap(serial).setupEnvironment$()),
+    ).resolves.toBeUndefined();
+
+    expect(executedCommands).toContain(
+      'sudo -n timedatectl set-timezone Asia/Tokyo 2>/dev/null',
+    );
+    expect(executedCommands).toContain('timedatectl status');
+  });
+
+  it('fails setupEnvironment$ when timezone setup command fails', async () => {
+    const exec = vi.fn().mockImplementation((command: string) => {
+      if (command.startsWith('sudo -n timedatectl set-timezone')) {
+        return throwError(() => new Error('timedatectl permission denied'));
+      }
+      return of({ stdout: '' });
+    });
+    const serial = {
+      exec$: (c: string, o: unknown) => exec(c, o),
+    } as unknown as SerialFacadeService;
+
+    await expect(
+      firstValueFrom(createBootstrap(serial).setupEnvironment$()),
+    ).rejects.toThrow(
+      'Environment setup failed at "sudo -n timedatectl set-timezone Asia/Tokyo 2>/dev/null"',
+    );
+  });
 });
