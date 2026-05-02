@@ -27,16 +27,24 @@ export interface TerminalConsoleSink {
  * ターミナル画面向けにシリアル接続・Pi Zero bootstrap・exec を束ねる（issue #563）。
  * prompt / timeout / sanitize はここに集約し、component は表示用 sink と購読のみに寄せる。
  *
- * ### 生受信ミラー（issue #566）
+ * ### ライブ表示の経路（issue #610 / 親 #609）
  *
- * シリアルからの **ライブ表示** は {@link SerialFacadeService#receive$} の生チャンクを xterm に流す。
- * `terminalText$` はライブラリが畳んだ**累積全文**を出すため、そのまま `write` すると二重表示になる。
- * {@link #pipeTerminalOutputToSink$} が `receive$` 経路。`exec` の stdout 整形表示とは別。
+ * Issue #610 以降、ライブ表示は {@link TerminalViewComponent} 側で
+ * {@link SerialFacadeService#terminalText$} を直接購読し、累積全文との差分のみを
+ * xterm に書き込む方式に移行した。`terminalText$` はライブラリ内で `\r` 再描画を
+ * 畳んだ累積全文を emit するため、そのまま `write` すると二重表示になる点に注意する。
+ *
+ * ### 生受信ミラー（issue #566 / #610 で停止）
+ *
+ * 旧来は本サービスの {@link #pipeTerminalOutputToSink$} が
+ * {@link SerialFacadeService#receive$} の生チャンクを xterm にミラーしていた。
+ * Issue #610 で UI 側購読を停止し、シグネチャと spec のみ温存している
+ * （親 #609 配下の後続サブ issue で本メソッド自体を削除予定）。
  *
  * ### 対話コンソール表示
  *
- * ライブ表示は `receive$` の購読で行う。`exec$` 経路（対話・ツールバー）ではミラーを止め、
- * 完了後の {@link sanitizeSerialStdout} 結果だけを xterm に出して二重表示を避ける。
+ * `exec$` 経路（対話・ツールバー）ではライブミラーを抑止し、完了後の
+ * {@link sanitizeSerialStdout} 結果だけを xterm に出して二重表示を避ける。
  */
 @Injectable({
   providedIn: 'root',
@@ -165,6 +173,9 @@ export class TerminalConsoleOrchestrationService {
   /**
    * {@link SerialFacadeService#receive$} の UTF-8 チャンクを xterm 等へそのまま流す（TTY 相当）。
    * プロンプト判定・コマンド結果の行処理には使わないこと。
+   *
+   * @deprecated Issue #610 でライブ表示は {@link SerialFacadeService#terminalText$} 直購読に
+   * 移行済み。UI 側からは購読されておらず、親 issue #609 配下の後続サブ issue で削除予定。
    */
   pipeTerminalOutputToSink$(
     sink: Pick<TerminalConsoleSink, 'write'>,
