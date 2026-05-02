@@ -18,9 +18,11 @@ import { TerminalConsoleOrchestrationService } from './terminal-console-orchestr
 
 describe('TerminalConsoleOrchestrationService', () => {
   let sendMock: ReturnType<typeof vi.fn>;
+  let execMock: ReturnType<typeof vi.fn>;
 
   beforeEach(() => {
     sendMock = vi.fn().mockReturnValue(of(undefined));
+    execMock = vi.fn();
     TestBed.configureTestingModule({
       providers: [
         TerminalConsoleOrchestrationService,
@@ -28,6 +30,7 @@ describe('TerminalConsoleOrchestrationService', () => {
           provide: SerialFacadeService,
           useValue: {
             send$: sendMock,
+            exec$: execMock,
             isConnected$: of(true),
             connectionEstablished$: of(undefined),
             receive$: EMPTY,
@@ -74,6 +77,7 @@ describe('TerminalConsoleOrchestrationService', () => {
     TestBed.overrideProvider(SerialFacadeService, {
       useValue: {
         send$: sendMock,
+        exec$: execMock,
         isConnected$: of(false),
         connectionEstablished$: of(undefined),
         receive$: EMPTY,
@@ -85,6 +89,7 @@ describe('TerminalConsoleOrchestrationService', () => {
     const result = await svc.runToolbarCommand('ls');
     expect(result).toEqual({ status: 'not_connected' });
     expect(sendMock).not.toHaveBeenCalled();
+    expect(execMock).not.toHaveBeenCalled();
   });
 
   it('runToolbarCommand sends coerced command via send$ when connected', async () => {
@@ -94,6 +99,7 @@ describe('TerminalConsoleOrchestrationService', () => {
     expect(sendMock).toHaveBeenCalledWith(
       `${coerceLsForSerialListing('ls')}\n`,
     );
+    expect(execMock).not.toHaveBeenCalled();
   });
 
   it('runToolbarCommand success always has empty output (no stdout path)', async () => {
@@ -103,6 +109,7 @@ describe('TerminalConsoleOrchestrationService', () => {
     if (result.status === 'success') {
       expect(result.output).toBe('');
     }
+    expect(execMock).not.toHaveBeenCalled();
   });
 
   it('bootstrapAfterConnect$ emits skip sink messages when shouldRun is false', async () => {
@@ -159,6 +166,7 @@ describe('TerminalConsoleOrchestrationService', () => {
     TestBed.overrideProvider(SerialFacadeService, {
       useValue: {
         send$: sendMock,
+        exec$: execMock,
         isConnected$: of(true),
         connectionEstablished$: of(undefined),
         receive$: chunks.asObservable(),
@@ -192,6 +200,7 @@ describe('TerminalConsoleOrchestrationService', () => {
     TestBed.overrideProvider(SerialFacadeService, {
       useValue: {
         send$: deferredSend,
+        exec$: execMock,
         isConnected$: of(true),
         connectionEstablished$: of(undefined),
         receive$: chunks.asObservable(),
@@ -229,6 +238,7 @@ describe('TerminalConsoleOrchestrationService', () => {
     TestBed.overrideProvider(SerialFacadeService, {
       useValue: {
         send$: sendMock,
+        exec$: execMock,
         isConnected$: of(true),
         connectionEstablished$: of(undefined),
         receive$: chunks.asObservable(),
