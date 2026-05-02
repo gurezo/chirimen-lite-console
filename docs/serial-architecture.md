@@ -39,6 +39,14 @@ Issue #590 / [#601](https://github.com/gurezo/chirimen-lite-console/issues/601) 
 - **`exec$` 系**は、プロンプトまで待って **キャプチャした stdout 等をアプリが解釈する**内部処理向け。i2cdetect・setup・ログイン後初期化はその代表例であり、Wi-Fi・ファイル・リモートなど同種の同期コマンドも同じ原則に含める。
 - 詳細は [`SerialFacadeService` の JSDoc](../libs/web-serial/data-access/src/lib/serial-facade.service.ts) および [libs/web-serial/data-access/README.md](../libs/web-serial/data-access/README.md) の「`exec$` の利用方針」を参照。
 
+### `terminalText$` / `send$` / `exec$` の使い分け（[#625](https://github.com/gurezo/chirimen-lite-console/issues/625)）
+
+- **`terminalText$`**: Terminal UI のライブ表示専用。受信表示の責務に限定し、判定処理には使わない。
+- **`send$`**: ユーザー入力送信専用。結果解析や完了待ちは行わない。
+- **`exec$`**: アプリ制御専用。プロンプト同期で完了まで待ち、stdout 等を解釈する内部フローに使う。
+- **UI で `exec$` を使わない理由**: 表示系（`terminalText$`）と制御系（`exec$`）を分離し、二重表示や責務混在を防ぐため。
+- **初期化で `exec$` を使う理由**: ログイン後の環境設定では完了待ちと成功/失敗判定が必要で、キャプチャ結果を返す API が必要になるため。
+
 ### `terminalText$` の責務（[#617](https://github.com/gurezo/chirimen-lite-console/issues/617)）
 
 - **ターミナル UI は `SerialFacadeService#terminalText$` を購読**して xterm 等にライブ表示する。送信は `send$()` のみとし、`exec$` 系の戻り値で同じ画面を更新しない（上記 `exec$` 節および [#616](https://github.com/gurezo/chirimen-lite-console/issues/616) と対で読む）。
