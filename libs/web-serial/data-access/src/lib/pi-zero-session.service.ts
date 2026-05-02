@@ -1,3 +1,6 @@
+/**
+ * Issue #606: Pi Zero セッション。ブートストラップの送受信はすべて {@link SerialFacadeService} 経由（`SerialSession` / `@gurezo/web-serial-rxjs` v2.3.1）。
+ */
 import { Injectable } from '@angular/core';
 import {
   BehaviorSubject,

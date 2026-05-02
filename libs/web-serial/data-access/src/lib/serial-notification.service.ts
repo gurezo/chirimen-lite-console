@@ -1,3 +1,6 @@
+/**
+ * Issue #606: UI 通知のみ。シリアル I/O は {@link SerialFacadeService} → `SerialSession`（`@gurezo/web-serial-rxjs` v2.3.1）。
+ */
 import { inject, Injectable } from '@angular/core';
 import { ToastrService } from 'ngx-toastr';
 

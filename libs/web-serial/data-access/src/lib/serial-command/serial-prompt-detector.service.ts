@@ -1,3 +1,6 @@
+/**
+ * Issue #606: 汎用プロンプト照合。バッファは `SerialSession.lines$`（v2.3.1）由来の行連結に対して適用される。
+ */
 import { Injectable } from '@angular/core';
 
 /**

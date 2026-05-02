@@ -1,3 +1,6 @@
+/**
+ * Issue #606: コマンド直列化。実行本体は runner 経由で `SerialSession`（`@gurezo/web-serial-rxjs` v2.3.1）へ到達する。
+ */
 import { Injectable } from '@angular/core';
 import {
   EMPTY,

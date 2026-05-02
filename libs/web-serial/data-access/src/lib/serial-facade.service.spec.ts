@@ -4,7 +4,7 @@ import { SerialSessionState } from '@gurezo/web-serial-rxjs';
 import { type SerialExecOptions } from '@libs-web-serial-util';
 import { EMPTY, firstValueFrom, of, take } from 'rxjs';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { SerialCommandService } from './serial-command.service';
+import { SerialCommandService } from './serial-command/serial-command-facade.service';
 import { SerialConnectionOrchestrationService } from './serial-connection-orchestration.service';
 import { SerialFacadeService } from './serial-facade.service';
 import { SerialTransportService } from './serial-transport.service';

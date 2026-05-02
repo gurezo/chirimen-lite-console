@@ -1,5 +1,8 @@
 /// <reference types="@types/w3c-web-serial" />
 
+/**
+ * Issue #606: コマンド API。送信は {@link SerialCommandRunnerService} → {@link SerialTransportService#send$} → `SerialSession`（v2.3.1）。
+ */
 import { Injectable } from '@angular/core';
 import type { Observable } from 'rxjs';
 import {

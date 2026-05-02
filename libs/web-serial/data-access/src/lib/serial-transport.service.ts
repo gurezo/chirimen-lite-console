@@ -1,5 +1,8 @@
 /// <reference types="@types/w3c-web-serial" />
 
+/**
+ * Issue #606: `SerialSession` の唯一の生成点。`createSerialSession` は `@gurezo/web-serial-rxjs` **v2.3.1** のみを用いる。
+ */
 import { Injectable } from '@angular/core';
 import {
   createSerialSession,

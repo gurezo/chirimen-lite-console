@@ -1,3 +1,6 @@
+/**
+ * Issue #606: プロンプト判定入力は {@link SerialCommandRunnerService} が `SerialSession.lines$`（v2.3.1）から累積したバッファ。
+ */
 import { Injectable } from '@angular/core';
 
 /**
