@@ -19,7 +19,10 @@ import {
   tap,
   timer,
 } from 'rxjs';
-import { PI_ZERO_PROMPT_TARGET, PI_ZERO_TIMEZONE_STEPS } from './pi-zero-bootstrap.config';
+import {
+  PI_ZERO_ENVIRONMENT_STEPS,
+  PI_ZERO_PROMPT_TARGET,
+} from './pi-zero-bootstrap.config';
 import { PiZeroPromptDetectorService } from './pi-zero-prompt-detector.service';
 import { SerialFacadeService } from './serial-facade.service';
 
@@ -42,7 +45,7 @@ const SHELL_READINESS_TIMEOUT_MESSAGE =
  *   1. **シェルプロンプト到達確認**（{@link probeShellPrompt$}）
  *   2. **ログイン**（{@link loginSequence$}, ID 送信）
  *   3. **パスワード送信**（{@link sendPasswordAndAwaitShell$}）
- *   4. **timezone 初期化**（{@link timezoneSequence$}）
+ *   4. **環境初期化**（{@link environmentSequence$}）
  *
  * シリアル送受信そのものは {@link SerialFacadeService}（`@gurezo/web-serial-rxjs` の
  * `SerialSession` を内包）、接続単位での「一度だけ実行」などのオーケストレーションは
@@ -77,7 +80,7 @@ export class PiZeroSerialBootstrapService {
     onStatus?: PiZeroBootstrapStatusHandler,
   ): Observable<void> {
     const log = onStatus ?? (() => undefined);
-    return this.timezoneSequence$(log);
+    return this.environmentSequence$(log);
   }
 
   /**
@@ -326,13 +329,13 @@ export class PiZeroSerialBootstrapService {
     );
   }
 
-  // --- (4) timezone 初期化 ---------------------------------------------------
+  // --- (4) 環境初期化 ---------------------------------------------------------
 
-  private timezoneSequence$(
+  private environmentSequence$(
     log: PiZeroBootstrapStatusHandler,
   ): Observable<void> {
-    log('[コンソール] タイムゾーン関連の初期化を開始します。');
-    return from(PI_ZERO_TIMEZONE_STEPS).pipe(
+    log('[コンソール] 環境設定の初期化を開始します。');
+    return from(PI_ZERO_ENVIRONMENT_STEPS).pipe(
       concatMap((step) => {
         log(step.statusMessage);
         return this.serial
@@ -350,16 +353,19 @@ export class PiZeroSerialBootstrapService {
                 step.command,
                 PI_ZERO_PROMPT_TARGET,
               );
-              const tzLine = cleaned.match(/Time zone:\s*.+/im)?.[0]?.trim();
-              if (tzLine) {
-                log(`[コンソール] 現在の設定: ${tzLine}`);
+              const highlightedLine = cleaned
+                .split(/\n/)
+                .map((line) => line.trim())
+                .find((line) => /^Time zone:|^(LANG|LC_ALL|TZ)=/i.test(line));
+              if (highlightedLine) {
+                log(`[コンソール] 現在の設定: ${highlightedLine}`);
               }
               for (const line of cleaned.split(/\n/)) {
                 const t = line.trim();
                 if (t.length === 0) {
                   continue;
                 }
-                if (tzLine && /^Time zone:/i.test(t)) {
+                if (highlightedLine && t === highlightedLine) {
                   continue;
                 }
                 log(line);
@@ -369,10 +375,10 @@ export class PiZeroSerialBootstrapService {
               const message =
                 error instanceof Error ? error.message : String(error);
               log(
-                `[コンソール] タイムゾーン初期化コマンドに失敗しました: ${step.command} (${message})`,
+                `[コンソール] 環境設定初期化コマンドに失敗しました: ${step.command} (${message})`,
               );
               throw new Error(
-                `Timezone setup failed at "${step.command}": ${message}`,
+                `Environment setup failed at "${step.command}": ${message}`,
               );
             }),
           );
@@ -380,7 +386,7 @@ export class PiZeroSerialBootstrapService {
       ignoreElements(),
       defaultIfEmpty(undefined),
       tap(() =>
-        log('[コンソール] タイムゾーン関連の初期化が完了しました。'),
+        log('[コンソール] 環境設定の初期化が完了しました。'),
       ),
       map(() => undefined),
     );
