@@ -136,6 +136,16 @@ describe('TerminalViewComponent', () => {
     });
   });
 
+  it('forwards terminalText$ payload to xterm without sanitizing ANSI/CR/TAB', async () => {
+    const writeSpy = vi.spyOn(fixture.componentInstance.xterminal, 'write');
+    writeSpy.mockClear();
+
+    const raw = '\u001b[2K\ra\tb\r\n$ ';
+    terminalTextSubject.next(raw);
+
+    await vi.waitFor(() => expect(writeSpy).toHaveBeenCalledWith(raw));
+  });
+
   it('skips re-emission when terminalText$ value is identical to previous', async () => {
     const writeSpy = vi.spyOn(fixture.componentInstance.xterminal, 'write');
     writeSpy.mockClear();
