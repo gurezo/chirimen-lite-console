@@ -1,4 +1,7 @@
-import { stripSerialAnsiForPrompt } from '@libs-web-serial-util';
+import {
+  collapseCarriageRedrawsPerLine,
+  stripSerialAnsiForPrompt,
+} from '@libs-web-serial-util';
 
 /**
  * {@link stripSerialAnsiForPrompt} で落ちない端末制御（カーソル退避・文字集合・逆改行）を除く。
@@ -43,6 +46,18 @@ function stripResidualTerminalEscapes(s: string): string {
 /** ライブ表示の \\r 再描画は {@link SerialSession#terminalText$} に委譲。ここでは ANSI 除去と lone \\r の除去のみ。 */
 function stripForTerminalDisplay(s: string): string {
   let t = s.replace(/\r\n/g, '\n');
+  t = stripSerialAnsiForPrompt(t);
+  t = stripResidualTerminalEscapes(t);
+  return t.replace(/\r/g, '');
+}
+
+/**
+ * `ls` の exec キャプチャは TTY が同一行上で `\\r` 重ね描きすることがあり、単純に `\\r` を削ると列が壊れる。
+ * 論理行ごとに最終セグメントへ収束してから ANSI 除去する（echo 等は {@link stripForTerminalDisplay} のまま）。
+ */
+function stripLsExecForTerminalDisplay(s: string): string {
+  let t = s.replace(/\r\n/g, '\n');
+  t = collapseCarriageRedrawsPerLine(t);
   t = stripSerialAnsiForPrompt(t);
   t = stripResidualTerminalEscapes(t);
   return t.replace(/\r/g, '');
@@ -114,6 +129,17 @@ function dedentProbableLsLongListingLines(s: string): string {
     .join('\n');
 }
 
+/** `ls` の TTY 列揃え／\\r 残骸で行頭に残る空白を落とす（echo 等は触らない） */
+function trimLeadingOnLsOutputLines(out: string, command: string): string {
+  if (!/\bls\b/.test(command)) {
+    return out;
+  }
+  return out
+    .split('\n')
+    .map((line) => line.trimStart())
+    .join('\n');
+}
+
 /**
  * 送信列のエコーが複数行に分かれていても {@link stripThroughSentCommand} で削る。
  * 先頭に同じエコーが残る場合は繰り返し適用する。
@@ -147,7 +173,10 @@ export function sanitizeSerialStdout(
   command: string,
   prompt: string,
 ): string {
-  let out = stripForTerminalDisplay(stdout);
+  const lsExec = /\bls\b/.test(command);
+  let out = lsExec
+    ? stripLsExecForTerminalDisplay(stdout)
+    : stripForTerminalDisplay(stdout);
 
   out = stripThroughSentCommand(out, command);
 
@@ -162,6 +191,7 @@ export function sanitizeSerialStdout(
   out = stripResidualTerminalEscapes(out);
   out = expandTabsToSpaces(out);
   out = dedentProbableLsLongListingLines(out);
+  out = trimLeadingOnLsOutputLines(out, command);
 
   return out
     .replace(/^[\r\n]+/, '')

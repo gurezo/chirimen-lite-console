@@ -94,4 +94,29 @@ describe('sanitizeSerialStdout', () => {
     const out = sanitizeSerialStdout(raw, 'echo hi', 'pi@raspberrypi:');
     expect(out).toBe('  hello world');
   });
+
+  it('trims leading spaces on every ls output line (CR jitter stairs)', () => {
+    const cmd =
+      "LC_ALL=C LANG=C TERM=dumb LS_COLORS= ls -1 -la </dev/null 2>&1 | sed 's/^[[:blank:]]*//' | cat";
+    const raw =
+      'total 40\n' +
+      '        drwx------ 5 pi pi 4096 .\n' +
+      '                                                  drwxr-xr-x 3 root root 4096 ..\n' +
+      'pi@raspberrypi:~$ ';
+    const out = sanitizeSerialStdout(raw, cmd, 'pi@raspberrypi:~$ ');
+    expect(out).toBe(
+      'total 40\ndrwx------ 5 pi pi 4096 .\ndrwxr-xr-x 3 root root 4096 ..',
+    );
+  });
+
+  it('collapses intra-line \\r for ls before trim (TTY column redraw)', () => {
+    const cmd =
+      "LC_ALL=C LANG=C TERM=dumb LS_COLORS= ls -1 -la </dev/null 2>&1 | sed 's/^[[:blank:]]*//' | cat";
+    const raw =
+      'total 40\n' +
+      '     drwx------\r        drwx------ 5 pi pi 4096 .\n' +
+      'pi@raspberrypi:~$ ';
+    const out = sanitizeSerialStdout(raw, cmd, 'pi@raspberrypi:~$ ');
+    expect(out).toBe('total 40\ndrwx------ 5 pi pi 4096 .');
+  });
 });
