@@ -35,7 +35,8 @@ export interface TerminalConsoleSink {
  *
  * ### 対話コンソール表示
  *
- * ライブ表示は `receive$` の購読で行い、実行結果の表示整形（`exec$` 経路）とは責務を分離する。
+ * ライブ表示は `receive$` の購読で行う。`exec$` 経路（対話・ツールバー）ではミラーを止め、
+ * 完了後の {@link sanitizeSerialStdout} 結果だけを xterm に出して二重表示を避ける。
  */
 @Injectable({
   providedIn: 'root',
@@ -45,7 +46,8 @@ export class TerminalConsoleOrchestrationService {
   private readonly piZeroSession = inject(PiZeroSessionService);
   private activeBootstrap$: Observable<void> | null = null;
   private activeBootstrapEpoch: number | null = null;
-  private suspendTerminalMirror = false;
+  /** bootstrap / exec 中は 0 より大きくし、{@link #pipeTerminalOutputToSink$} を止める */
+  private terminalMirrorSuppressDepth = 0;
 
   /** 対話入力とツールバー経由の exec を直列化する */
   private execTail: Promise<void> = Promise.resolve();
@@ -67,14 +69,19 @@ export class TerminalConsoleOrchestrationService {
    */
   runInteractiveCommand(command: string, remotePrompt: string): Promise<string> {
     return this.enqueueExec(async () => {
-      const send = coerceLsForSerialListing(command);
-      const { stdout } = await firstValueFrom(
-        this.serial.exec$(send, {
-          prompt: remotePrompt,
-          timeout: SERIAL_TIMEOUT.DEFAULT,
-        }),
-      );
-      return sanitizeSerialStdout(stdout, send, remotePrompt);
+      this.terminalMirrorSuppressDepth++;
+      try {
+        const send = coerceLsForSerialListing(command);
+        const { stdout } = await firstValueFrom(
+          this.serial.exec$(send, {
+            prompt: remotePrompt,
+            timeout: SERIAL_TIMEOUT.DEFAULT,
+          }),
+        );
+        return sanitizeSerialStdout(stdout, send, remotePrompt);
+      } finally {
+        this.terminalMirrorSuppressDepth--;
+      }
     });
   }
 
@@ -96,6 +103,7 @@ export class TerminalConsoleOrchestrationService {
       if (!connected) {
         return { status: 'not_connected' };
       }
+      this.terminalMirrorSuppressDepth++;
       try {
         const send = coerceLsForSerialListing(cmd);
         const { stdout } = await firstValueFrom(
@@ -110,6 +118,8 @@ export class TerminalConsoleOrchestrationService {
         const message =
           error instanceof Error ? error.message : String(error);
         return { status: 'error', message };
+      } finally {
+        this.terminalMirrorSuppressDepth--;
       }
     });
   }
@@ -128,7 +138,7 @@ export class TerminalConsoleOrchestrationService {
     this.activeBootstrapEpoch = epoch;
     this.activeBootstrap$ = this.piZeroSession.shouldRunAfterConnect$().pipe(
       switchMap((should) => {
-        this.suspendTerminalMirror = true;
+        this.terminalMirrorSuppressDepth++;
         if (!should) {
           this.writeConsoleLine(sink, `${prefixMessage} 初期化済みのためスキップします。`);
           return EMPTY;
@@ -140,8 +150,8 @@ export class TerminalConsoleOrchestrationService {
       }),
       catchError(() => EMPTY),
       finalize(() => {
-        this.suspendTerminalMirror = false;
-        sink.write('$ ');
+        this.terminalMirrorSuppressDepth--;
+        sink.write('\r\n$ ');
         if (this.activeBootstrapEpoch === epoch) {
           this.activeBootstrap$ = null;
           this.activeBootstrapEpoch = null;
@@ -160,7 +170,7 @@ export class TerminalConsoleOrchestrationService {
     sink: Pick<TerminalConsoleSink, 'write'>,
   ): Observable<string> {
     return this.serial.receive$.pipe(
-      filter(() => !this.suspendTerminalMirror),
+      filter(() => this.terminalMirrorSuppressDepth === 0),
       tap((chunk) => sink.write(chunk)),
     );
   }

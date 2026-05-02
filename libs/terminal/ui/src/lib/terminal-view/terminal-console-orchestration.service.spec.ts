@@ -4,6 +4,7 @@ import {
   EMPTY,
   firstValueFrom,
   forkJoin,
+  from,
   of,
   Subject,
 } from 'rxjs';
@@ -110,7 +111,7 @@ describe('TerminalConsoleOrchestrationService', () => {
     expect(write).toHaveBeenCalledWith(
       '\r\nprefix 初期化済みのためスキップします。\r\n',
     );
-    expect(write).toHaveBeenCalledWith('$ ');
+    expect(write).toHaveBeenCalledWith('\r\n$ ');
   });
 
   it('bootstrapAfterConnect$ deduplicates concurrent bootstrap calls in same epoch', async () => {
@@ -167,6 +168,47 @@ describe('TerminalConsoleOrchestrationService', () => {
     expect(write).toHaveBeenNthCalledWith(1, 'a');
     expect(write).toHaveBeenNthCalledWith(2, 'b');
     sub.unsubscribe();
+  });
+
+  it('suppresses receive$ mirror while runInteractiveCommand executes', async () => {
+    const chunks = new Subject<string>();
+    let resolveExec!: (v: { stdout: string }) => void;
+    const execDone = new Promise<{ stdout: string }>((r) => {
+      resolveExec = r;
+    });
+    const deferredExec = vi.fn(() => from(execDone));
+    TestBed.overrideProvider(SerialFacadeService, {
+      useValue: {
+        exec$: deferredExec,
+        isConnected$: of(true),
+        connectionEstablished$: of(undefined),
+        receive$: chunks.asObservable(),
+        terminalText$: EMPTY,
+        getConnectionEpoch: () => 1,
+      },
+    });
+    TestBed.overrideProvider(PiZeroSessionService, {
+      useValue: {
+        shouldRunAfterConnect$: () => of(true),
+        runAfterConnect$: () => of(undefined),
+      },
+    });
+    const write = vi.fn();
+    const svc = TestBed.inject(TerminalConsoleOrchestrationService);
+    const mirrorSub = svc.pipeTerminalOutputToSink$({ write }).subscribe();
+
+    const cmdPromise = svc.runInteractiveCommand('date', PI_ZERO_PROMPT);
+    await Promise.resolve();
+    chunks.next('during-exec');
+    expect(write).not.toHaveBeenCalledWith('during-exec');
+
+    resolveExec({ stdout: `Sat Jan  1 12:00:00 UTC 2026\r\n${PI_ZERO_PROMPT} ` });
+    await cmdPromise;
+
+    chunks.next('after-exec');
+    expect(write).toHaveBeenCalledWith('after-exec');
+
+    mirrorSub.unsubscribe();
   });
 
   it('suppresses receive$ mirror while bootstrap is running', async () => {
