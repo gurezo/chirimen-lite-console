@@ -16,10 +16,10 @@ import {
   throwError,
 } from 'rxjs';
 import type { PiZeroBootstrapStatusHandler } from './pi-zero-serial-bootstrap.service';
-import { PiZeroSerialBootstrapService } from './pi-zero-serial-bootstrap.service';
 import { PiZeroShellReadinessService } from './pi-zero-shell-readiness.service';
 import type { SerialFacadeConnectResult } from './serial-facade.service';
 import { SerialFacadeService } from './serial-facade.service';
+import { SerialSetupService } from './serial-setup.service';
 
 /**
  * Pi Zero / CHIRIMEN 固有シリアルセッションの単一エントリ（issue #562）。
@@ -43,7 +43,7 @@ export class PiZeroSessionService {
 
   constructor(
     private readonly serial: SerialFacadeService,
-    private readonly bootstrap: PiZeroSerialBootstrapService,
+    private readonly setup: SerialSetupService,
     readonly shellReadiness: PiZeroShellReadinessService,
   ) {}
 
@@ -58,13 +58,13 @@ export class PiZeroSessionService {
   loginIfNeeded$(
     onStatus?: PiZeroBootstrapStatusHandler,
   ): Observable<void> {
-    return this.bootstrap.loginIfNeeded$(onStatus);
+    return this.setup.loginIfNeeded$(onStatus);
   }
 
   setupEnvironment$(
     onStatus?: PiZeroBootstrapStatusHandler,
   ): Observable<void> {
-    return this.bootstrap.setupEnvironment$(onStatus);
+    return this.setup.setupEnvironment$(onStatus);
   }
 
   /**
@@ -112,7 +112,7 @@ export class PiZeroSessionService {
 
         this.activeBootstrap$ = defer(() => {
           this.initializingSubject.next(true);
-          return this.bootstrap.runPostConnectPipeline$(onStatus);
+          return this.setup.setupAfterConnect$(onStatus).pipe(map(() => undefined));
         }).pipe(
           switchMap(() =>
             this.serial.isConnected$.pipe(
