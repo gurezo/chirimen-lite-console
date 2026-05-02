@@ -3,8 +3,7 @@ import {
   PiZeroSessionService,
   SerialFacadeService,
 } from '@libs-web-serial-data-access';
-import { SERIAL_TIMEOUT } from '@libs-web-serial-util';
-import { coerceLsForSerialListing, sanitizeSerialStdout } from '@libs-terminal-util';
+import { coerceLsForSerialListing } from '@libs-terminal-util';
 import {
   EMPTY,
   Observable,
@@ -24,8 +23,9 @@ export interface TerminalConsoleSink {
 }
 
 /**
- * ターミナル画面向けにシリアル接続・Pi Zero bootstrap・exec を束ねる（issue #563）。
- * prompt / timeout / sanitize はここに集約し、component は表示用 sink と購読のみに寄せる。
+ * ターミナル画面向けにシリアル接続・Pi Zero bootstrap・送信を束ねる（issue #563）。
+ * 対話・ツールバーとも {@link SerialFacadeService#send$} で送信し、表示は
+ * {@link SerialFacadeService#terminalText$} に任せる（issue #610 / #611 / #612）。
  *
  * ### ライブ表示の経路（issue #610 / 親 #609）
  *
@@ -41,12 +41,11 @@ export interface TerminalConsoleSink {
  * Issue #610 で UI 側購読を停止し、シグネチャと spec のみ温存している
  * （親 #609 配下の後続サブ issue で本メソッド自体を削除予定）。
  *
- * ### 対話コンソール表示
+ * ### 対話・ツールバー（issue #611 / #612）
  *
- * キーボード入力は issue #611 以降 {@link SerialFacadeService#send$} で生送信し、
- * 表示は {@link SerialFacadeService#terminalText$} に任せる。
- * ツールバー経由の {@link SerialFacadeService#exec$} ではライブミラーを抑止し、完了後の
- * {@link sanitizeSerialStdout} 結果だけを xterm に出して二重表示を避ける。
+ * キーボード入力もツールバー経由のコマンドも {@link SerialFacadeService#send$} で
+ * 送信する。完了待ちや stdout の切り出しは行わず、シェル出力は
+ * {@link SerialFacadeService#terminalText$} 側のストリームに任せる。
  */
 @Injectable({
   providedIn: 'root',
@@ -56,23 +55,11 @@ export class TerminalConsoleOrchestrationService {
   private readonly piZeroSession = inject(PiZeroSessionService);
   private activeBootstrap$: Observable<void> | null = null;
   private activeBootstrapEpoch: number | null = null;
-  /** bootstrap / exec 中は 0 より大きくし、{@link #pipeTerminalOutputToSink$} を止める */
+  /** bootstrap 中は 0 より大きくし、{@link #pipeTerminalOutputToSink$} を止める */
   private terminalMirrorSuppressDepth = 0;
-
-  /** 対話入力とツールバー経由の exec を直列化する */
-  private execTail: Promise<void> = Promise.resolve();
 
   readonly connectionEstablished$ = this.serial.connectionEstablished$;
   readonly isConnected$ = this.serial.isConnected$;
-
-  private enqueueExec<T>(job: () => Promise<T>): Promise<T> {
-    const run = this.execTail.then(() => job());
-    this.execTail = run.then(
-      () => undefined,
-      () => undefined,
-    );
-    return run;
-  }
 
   /**
    * キーボードから入力されたコマンドをシリアルへ送る（issue #611）。
@@ -81,51 +68,44 @@ export class TerminalConsoleOrchestrationService {
    *
    * @param _remotePrompt 互換のため残す（プロンプト待ちは行わない）
    */
-  runInteractiveCommand(command: string, _remotePrompt: string): Promise<string> {
-    return this.enqueueExec(async () => {
-      const payload = `${coerceLsForSerialListing(command)}\n`;
-      await firstValueFrom(this.serial.send$(payload));
-      return '';
-    });
+  async runInteractiveCommand(
+    command: string,
+    _remotePrompt: string,
+  ): Promise<string> {
+    const payload = `${coerceLsForSerialListing(command)}\n`;
+    await firstValueFrom(this.serial.send$(payload));
+    return '';
   }
 
   /**
-   * ツールバー等から要求されたコマンドを実行する。
+   * ツールバー等から要求されたコマンドを {@link SerialFacadeService#send$} で送る（issue #612）。
+   * シェル側の完了や stdout の取得は行わず、表示は {@link SerialFacadeService#terminalText$} に任せる。
+   *
+   * @param _remotePrompt 互換のため残す（プロンプト待ちは行わない）
    */
   async runToolbarCommand(
     cmd: string,
-    remotePrompt: string,
+    _remotePrompt: string,
   ): Promise<
     | { status: 'success'; output: string }
     | { status: 'not_connected' }
     | { status: 'error'; message: string }
   > {
-    return this.enqueueExec(async () => {
-      const connected = await firstValueFrom(
-        this.serial.isConnected$.pipe(take(1)),
-      );
-      if (!connected) {
-        return { status: 'not_connected' };
-      }
-      this.terminalMirrorSuppressDepth++;
-      try {
-        const send = coerceLsForSerialListing(cmd);
-        const { stdout } = await firstValueFrom(
-          this.serial.exec$(send, {
-            prompt: remotePrompt,
-            timeout: SERIAL_TIMEOUT.DEFAULT,
-          }),
-        );
-        const output = sanitizeSerialStdout(stdout, send, remotePrompt);
-        return { status: 'success', output };
-      } catch (error: unknown) {
-        const message =
-          error instanceof Error ? error.message : String(error);
-        return { status: 'error', message };
-      } finally {
-        this.terminalMirrorSuppressDepth--;
-      }
-    });
+    const connected = await firstValueFrom(
+      this.serial.isConnected$.pipe(take(1)),
+    );
+    if (!connected) {
+      return { status: 'not_connected' };
+    }
+    try {
+      const payload = `${coerceLsForSerialListing(cmd)}\n`;
+      await firstValueFrom(this.serial.send$(payload));
+      return { status: 'success', output: '' };
+    } catch (error: unknown) {
+      const message =
+        error instanceof Error ? error.message : String(error);
+      return { status: 'error', message };
+    }
   }
 
   /**

@@ -146,17 +146,13 @@ export class TerminalViewComponent implements AfterViewInit, OnDestroy {
               this.xterminal.write('$ ');
               return;
             }
-            this.xterminal.writeln(`$ ${cmd}`);
             if (result.status === 'error') {
+              this.xterminal.writeln(`$ ${cmd}`);
               this.xterminal.writeln(`\r\nCommand failed: ${result.message}`);
               this.xterminal.write('$ ');
               return;
             }
-            const out = result.output;
-            if (out) {
-              this.xterminal.write(out);
-            }
-            this.xterminal.write('\r\n$ ');
+            // success: シェル出力とプロンプトは terminalText$ 差分描画に任せる（#612）
           },
         );
       },
