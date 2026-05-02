@@ -9,19 +9,22 @@ import { PiZeroShellReadinessService } from './pi-zero-shell-readiness.service';
 import { SerialFacadeService } from './serial-facade.service';
 import { SerialNotificationService } from './serial-notification.service';
 import { SerialConnectionViewModelFacade } from './serial-connection-view-model.facade';
+import type { SerialSetupStatus } from './serial-setup-status';
 
 describe('SerialConnectionViewModelFacade', () => {
   it('combines state into vm$', async () => {
-    const state$ = new BehaviorSubject(SerialSessionState.Idle);
+    const state$ = new BehaviorSubject<SerialSessionState>(
+      SerialSessionState.Idle,
+    );
     const connected$ = new BehaviorSubject(false);
-    const initializing$ = new BehaviorSubject(false);
+    const setupStatus$ = new BehaviorSubject<SerialSetupStatus>('idle');
     const ready$ = new BehaviorSubject(false);
 
     const serial: Partial<SerialFacadeService> = {
       state$: state$.asObservable(),
       isConnected$: connected$.asObservable(),
       isBrowserSupported: vi.fn(() => true),
-      connect$: vi.fn(() => of({ ok: true })),
+      connect$: vi.fn(() => of({ ok: true as const })),
       disconnect$: vi.fn(() => of(undefined)),
     };
 
@@ -31,7 +34,7 @@ describe('SerialConnectionViewModelFacade', () => {
         { provide: SerialFacadeService, useValue: serial },
         {
           provide: PiZeroSessionService,
-          useValue: { initializing$: initializing$.asObservable() },
+          useValue: { setupStatus$: setupStatus$.asObservable() },
         },
         {
           provide: PiZeroShellReadinessService,
@@ -68,9 +71,10 @@ describe('SerialConnectionViewModelFacade', () => {
     expect(vm.isConnecting).toBe(false);
     expect(vm.isLoggedIn).toBe(true);
 
-    initializing$.next(true);
+    setupStatus$.next('setting-timezone');
     vm = await firstValueFrom(facade.vm$);
     expect(vm.isInitializing).toBe(true);
+    expect(vm.setupStatus).toBe('setting-timezone');
   });
 
   it('clearError resets errorMessage in vm$', async () => {
@@ -88,7 +92,7 @@ describe('SerialConnectionViewModelFacade', () => {
         { provide: SerialFacadeService, useValue: serial },
         {
           provide: PiZeroSessionService,
-          useValue: { initializing$: of(false) },
+          useValue: { setupStatus$: of('idle') },
         },
         {
           provide: PiZeroShellReadinessService,
@@ -138,7 +142,7 @@ describe('SerialConnectionViewModelFacade', () => {
         },
         {
           provide: PiZeroSessionService,
-          useValue: { initializing$: of(false) },
+          useValue: { setupStatus$: of('idle') },
         },
         {
           provide: PiZeroShellReadinessService,
