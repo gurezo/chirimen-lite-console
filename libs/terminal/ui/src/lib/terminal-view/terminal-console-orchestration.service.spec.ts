@@ -7,6 +7,7 @@ import {
   from,
   of,
   Subject,
+  throwError,
 } from 'rxjs';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
@@ -159,6 +160,30 @@ describe('TerminalConsoleOrchestrationService', () => {
     expect(shouldRunAfterConnect$).toHaveBeenCalledTimes(1);
     expect(runAfterConnect$).toHaveBeenCalledTimes(1);
     expect(write).toHaveBeenCalledWith('\r\nprefix 初期化しています...\r\n');
+  });
+
+  it('bootstrapAfterConnect$ rethrows bootstrap errors for caller handling', async () => {
+    const writeln = vi.fn();
+    const write = vi.fn();
+    TestBed.overrideProvider(PiZeroSessionService, {
+      useValue: {
+        shouldRunAfterConnect$: () => of(true),
+        runAfterConnect$: () => throwError(() => new Error('auth failed')),
+      },
+    });
+    const svc = TestBed.inject(TerminalConsoleOrchestrationService);
+
+    await expect(
+      firstValueFrom(
+        svc.bootstrapAfterConnect$('prefix', { writeln, write }).pipe(
+          defaultIfEmpty(undefined),
+        ),
+      ),
+    ).rejects.toThrow('auth failed');
+    expect(write).toHaveBeenCalledWith('\r\nprefix 初期化しています...\r\n');
+    expect(write).toHaveBeenCalledWith(
+      '\r\nprefix 初期化に失敗しました: auth failed\r\n',
+    );
   });
 
   it('pipeTerminalOutputToSink$ forwards receive$ chunks to sink.write', async () => {
