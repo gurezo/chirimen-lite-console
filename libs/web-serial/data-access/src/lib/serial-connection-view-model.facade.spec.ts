@@ -20,6 +20,7 @@ describe('SerialConnectionViewModelFacade', () => {
     const serial: Partial<SerialFacadeService> = {
       state$: state$.asObservable(),
       isConnected$: connected$.asObservable(),
+      isBrowserSupported: vi.fn(() => true),
       connect$: vi.fn(() => of({ ok: true })),
       disconnect$: vi.fn(() => of(undefined)),
     };
@@ -76,6 +77,7 @@ describe('SerialConnectionViewModelFacade', () => {
     const serial: Partial<SerialFacadeService> = {
       state$: of(SerialSessionState.Idle),
       isConnected$: of(false),
+      isBrowserSupported: vi.fn(() => true),
       connect$: vi.fn(() => of({ ok: false, errorMessage: 'fail' })),
       disconnect$: vi.fn(() => of(undefined)),
     };
@@ -129,6 +131,7 @@ describe('SerialConnectionViewModelFacade', () => {
           useValue: {
             state$: of(SerialSessionState.Idle),
             isConnected$: of(false),
+            isBrowserSupported: vi.fn(() => true),
             connect$: vi.fn(),
             disconnect$: vi.fn(),
           },
