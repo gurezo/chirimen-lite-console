@@ -31,7 +31,9 @@ chirimen-lite-console（本リポジトリ）
 
 本リポジトリでは `SerialSession`（`state$` / `isConnected$` / `errors$` 等）を **接続状態などの唯一のソース** とし、[`SerialTransportService`](../libs/web-serial/data-access/src/lib/serial-transport.service.ts) は `activeSession$` 経由内の **橋渡し（thin adapter）** に留める。Pi Zero 向けの接続・ログイン・初期化は `PiZeroSessionService` やオーケストレーション層に集約し、機能コンポーネントから `SerialTransportService` を直接注入しない方針とする（[`SerialFacadeService`](../libs/web-serial/data-access/src/lib/serial-facade.service.ts) 経由）。
 
-## 受信ストリーム `receive$` / `receiveReplay$` / `lines$`
+Issue #590 / [#601](https://github.com/gurezo/chirimen-lite-console/issues/601) 以降は、外部公開 API を `SerialFacadeService` に集約し、利用側は `terminalText$` / `lines$` / `state$` / `isConnected$` / `errors$` / `portInfo$` と `connect$()` / `disconnect$()` / `send$()` / `exec$()` / `execRaw$()` / `readUntilPrompt$()` を基本導線とする。Pi Zero のログイン〜タイムゾーン初期化の期待シーケンスは [Issue #606](https://github.com/gurezo/chirimen-lite-console/issues/606) を参照。
+
+## 受信ストリーム（ライブラリ vs 本アプリの公開面）
 
 ライブラリの `SerialSession` は `receive$` / `receiveReplay$` / `lines$` / `terminalText$` 等を提供する。本アプリの **`SerialFacadeService` では `terminalText$` と `lines$` のみ**を公開し、ライブ表示の `\r` 再描画やバッファ正規化は **ライブラリの `terminalText$`** に委譲する（[#601](https://github.com/gurezo/chirimen-lite-console/issues/601)）。
 
