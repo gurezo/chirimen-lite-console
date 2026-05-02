@@ -15,6 +15,7 @@ import {
   switchMap,
   take,
   tap,
+  throwError,
 } from 'rxjs';
 
 export interface TerminalConsoleSink {
@@ -106,6 +107,7 @@ export class TerminalConsoleOrchestrationService {
 
   /**
    * 接続確立後の Pi Zero 初期化。表示は {@link TerminalConsoleSink} に委譲する。
+   * 初期化失敗時はエラーを握り潰さず呼び出し元へ伝播し、UI 側で扱えるようにする（issue #619）。
    */
   bootstrapAfterConnect$(
     prefixMessage: string,
@@ -128,7 +130,15 @@ export class TerminalConsoleOrchestrationService {
           this.writeConsoleLine(sink, line),
         );
       }),
-      catchError(() => EMPTY),
+      catchError((error: unknown) => {
+        const message =
+          error instanceof Error ? error.message : String(error);
+        this.writeConsoleLine(
+          sink,
+          `${prefixMessage} 初期化に失敗しました: ${message}`,
+        );
+        return throwError(() => error);
+      }),
       finalize(() => {
         this.terminalMirrorSuppressDepth--;
         if (this.activeBootstrapEpoch === epoch) {
