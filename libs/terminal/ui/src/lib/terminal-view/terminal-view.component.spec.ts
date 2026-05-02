@@ -1,5 +1,5 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { BehaviorSubject, NEVER, Subject, from, of } from 'rxjs';
+import { BehaviorSubject, NEVER, Subject, of } from 'rxjs';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 vi.mock('@xterm/xterm', () => {
@@ -24,13 +24,14 @@ import {
   PiZeroSessionService,
   SerialFacadeService,
 } from '@libs-web-serial-data-access';
-import { PI_ZERO_PROMPT, SERIAL_TIMEOUT } from '@libs-web-serial-util';
+import { PI_ZERO_PROMPT } from '@libs-web-serial-util';
+import { coerceLsForSerialListing } from '@libs-terminal-util';
 import { TerminalCommandRequestService } from '@libs-terminal-util';
 import { TerminalViewComponent } from './terminal-view.component';
 
 describe('TerminalViewComponent', () => {
   let fixture: ComponentFixture<TerminalViewComponent>;
-  let execMock: ReturnType<typeof vi.fn>;
+  let sendMock: ReturnType<typeof vi.fn>;
   let shouldRunAfterConnectMock: ReturnType<typeof vi.fn>;
   let runAfterConnectMock: ReturnType<typeof vi.fn>;
   let receiveSubject: Subject<string>;
@@ -38,9 +39,7 @@ describe('TerminalViewComponent', () => {
   let isConnectedSubject: BehaviorSubject<boolean>;
 
   beforeEach(async () => {
-    execMock = vi.fn().mockResolvedValue({
-      stdout: `i2cdetect -y 1\n     0  1\n${PI_ZERO_PROMPT} `,
-    });
+    sendMock = vi.fn().mockReturnValue(of(undefined));
     receiveSubject = new Subject<string>();
     terminalTextSubject = new Subject<string>();
     isConnectedSubject = new BehaviorSubject<boolean>(true);
@@ -52,9 +51,8 @@ describe('TerminalViewComponent', () => {
       .overrideProvider(SerialFacadeService, {
         useValue: {
           isConnected$: isConnectedSubject.asObservable(),
-          exec$: (...args: unknown[]) =>
-            from(execMock(...(args as [string, unknown]))),
-          send$: () => of(undefined),
+          send$: (...args: unknown[]) =>
+            sendMock(...(args as [string])),
           connectionEstablished$: NEVER,
           receive$: receiveSubject.asObservable(),
           terminalText$: terminalTextSubject.asObservable(),
@@ -82,15 +80,14 @@ describe('TerminalViewComponent', () => {
     expect(fixture.componentInstance).toBeTruthy();
   });
 
-  it('runs toolbar-requested commands via serial exec', async () => {
+  it('runs toolbar-requested commands via serial send$', async () => {
     const requests = TestBed.inject(TerminalCommandRequestService);
     requests.requestCommand('i2cdetect -y 1');
 
     await vi.waitFor(() => {
-      expect(execMock).toHaveBeenCalledWith('i2cdetect -y 1', {
-        prompt: PI_ZERO_PROMPT,
-        timeout: SERIAL_TIMEOUT.DEFAULT,
-      });
+      expect(sendMock).toHaveBeenCalledWith(
+        `${coerceLsForSerialListing('i2cdetect -y 1')}\n`,
+      );
     });
   });
 
