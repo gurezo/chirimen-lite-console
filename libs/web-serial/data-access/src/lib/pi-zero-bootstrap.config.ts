@@ -14,17 +14,17 @@ export interface PiZeroTimezoneStep {
  * prompt 待機・コマンド完了判定の比較用に利用する。
  */
 export const PI_ZERO_PROMPT_TARGET = PI_ZERO_PROMPT;
+export const PI_ZERO_TIMEZONE = 'Asia/Tokyo' as const;
 
 /**
  * 接続直後のタイムゾーン初期化（各ステップの説明とコマンド）。
- * `sudo -n` で対話的パスワード待ちを避け、失敗時も `|| true` で後続へ進める。
+ * `sudo -n` で対話的パスワード待ちを避ける。
  */
 export const PI_ZERO_TIMEZONE_STEPS: readonly PiZeroTimezoneStep[] = [
   {
     statusMessage:
-      '[コンソール] タイムゾーンを Asia/Tokyo に設定しています...',
-    command:
-      'sudo -n timedatectl set-timezone Asia/Tokyo 2>/dev/null || true',
+      `[コンソール] タイムゾーンを ${PI_ZERO_TIMEZONE} に設定しています...`,
+    command: `sudo -n timedatectl set-timezone ${PI_ZERO_TIMEZONE} 2>/dev/null`,
   },
   {
     statusMessage: '[コンソール] タイムゾーンの状態を表示します。',
