@@ -43,7 +43,9 @@ export interface TerminalConsoleSink {
  *
  * ### 対話コンソール表示
  *
- * `exec$` 経路（対話・ツールバー）ではライブミラーを抑止し、完了後の
+ * キーボード入力は issue #611 以降 {@link SerialFacadeService#send$} で生送信し、
+ * 表示は {@link SerialFacadeService#terminalText$} に任せる。
+ * ツールバー経由の {@link SerialFacadeService#exec$} ではライブミラーを抑止し、完了後の
  * {@link sanitizeSerialStdout} 結果だけを xterm に出して二重表示を避ける。
  */
 @Injectable({
@@ -73,23 +75,17 @@ export class TerminalConsoleOrchestrationService {
   }
 
   /**
-   * キーボードから入力されたコマンドを実行し、表示用に整形した stdout を返す。
+   * キーボードから入力されたコマンドをシリアルへ送る（issue #611）。
+   * 改行は {@link SerialFacadeService#send$} 用ペイロードに `\n` を付与する。
+   * 表示は {@link SerialFacadeService#terminalText$} 側のため、戻り値は空文字。
+   *
+   * @param _remotePrompt 互換のため残す（プロンプト待ちは行わない）
    */
-  runInteractiveCommand(command: string, remotePrompt: string): Promise<string> {
+  runInteractiveCommand(command: string, _remotePrompt: string): Promise<string> {
     return this.enqueueExec(async () => {
-      this.terminalMirrorSuppressDepth++;
-      try {
-        const send = coerceLsForSerialListing(command);
-        const { stdout } = await firstValueFrom(
-          this.serial.exec$(send, {
-            prompt: remotePrompt,
-            timeout: SERIAL_TIMEOUT.DEFAULT,
-          }),
-        );
-        return sanitizeSerialStdout(stdout, send, remotePrompt);
-      } finally {
-        this.terminalMirrorSuppressDepth--;
-      }
+      const payload = `${coerceLsForSerialListing(command)}\n`;
+      await firstValueFrom(this.serial.send$(payload));
+      return '';
     });
   }
 
