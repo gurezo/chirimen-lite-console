@@ -18,6 +18,7 @@ import {
 } from '@libs-terminal-util';
 import { attachTerminalInput } from '../terminal-input';
 import { PI_ZERO_PROMPT } from '@libs-web-serial-util';
+import { SerialFacadeService } from '@libs-web-serial-data-access';
 import {
   TerminalConsoleOrchestrationService,
   type TerminalConsoleSink,
@@ -40,6 +41,7 @@ export class TerminalViewComponent implements AfterViewInit, OnDestroy {
   private consoleDomRef?: ElementRef<HTMLElement>;
 
   private console = inject(TerminalConsoleOrchestrationService);
+  private serial = inject(SerialFacadeService);
   private commandRequests = inject(TerminalCommandRequestService);
   private destroyRef = inject(DestroyRef);
 
@@ -52,6 +54,13 @@ export class TerminalViewComponent implements AfterViewInit, OnDestroy {
 
   /** キー入力可否（{@link TerminalConsoleOrchestrationService#isConnected$} のミラー） */
   private serialInputEnabled = false;
+
+  /**
+   * 直前に terminalText$ から受け取った累積全文。差分書き込みの基準として使う（issue #610）。
+   * `terminalText$` はライブラリが `\r` 再描画を畳んで累積で emit するため、
+   * 末尾差分のみを xterm に流し、prefix が一致しない場合は reset + 全文書き込みでフォールバックする。
+   */
+  private lastTerminalText = '';
 
   ngAfterViewInit(): void {
     this.configTerminal();
@@ -84,6 +93,9 @@ export class TerminalViewComponent implements AfterViewInit, OnDestroy {
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe((c) => {
         this.serialInputEnabled = c;
+        if (!c) {
+          this.lastTerminalText = '';
+        }
       });
 
     this.xterminal.reset();
@@ -91,6 +103,10 @@ export class TerminalViewComponent implements AfterViewInit, OnDestroy {
       .pipeTerminalOutputToSink$(this.terminalSink)
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe();
+
+    this.serial.terminalText$
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe((text) => this.writeTerminalDelta(text));
 
     merge(
       this.console.connectionEstablished$,
@@ -157,5 +173,28 @@ export class TerminalViewComponent implements AfterViewInit, OnDestroy {
     } catch {
       // Dimensions may be zero before layout stabilizes
     }
+  }
+
+  /**
+   * `terminalText$` の累積全文を xterm に流す（issue #610）。
+   * 通常は前回 emission の末尾に追加された差分のみを `write` し、
+   * prefix が変化した場合は安全側に寄せて `reset` してから全文を書き戻す。
+   */
+  private writeTerminalDelta(text: string): void {
+    if (text === this.lastTerminalText) {
+      return;
+    }
+    if (text.startsWith(this.lastTerminalText)) {
+      const delta = text.slice(this.lastTerminalText.length);
+      if (delta) {
+        this.xterminal.write(delta);
+      }
+    } else {
+      this.xterminal.reset();
+      if (text) {
+        this.xterminal.write(text);
+      }
+    }
+    this.lastTerminalText = text;
   }
 }
