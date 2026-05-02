@@ -19,6 +19,7 @@ import {
   timeout,
 } from 'rxjs';
 import {
+  collapseCarriageRedrawsPerLine,
   DEFAULT_SERIAL_EXEC_OPTIONS,
   mergeSerialExecOptions,
   stripSerialAnsiForPrompt,
@@ -95,9 +96,16 @@ export class SerialCommandRunnerService {
     this.readBuffer = '';
   }
 
-  /** プロンプト照合用のバッファ（{@link SerialTransportService#lines$} 由来の連結テキスト） */
+  /**
+   * バッファ正規化: `\r`・`\r\n` を「論理表示」へ収束させる（{@link collapseCarriageRedrawsPerLine}）。
+   */
+  private normalizeInspectionBufferText(s: string): string {
+    return collapseCarriageRedrawsPerLine(s);
+  }
+
+  /** プロンプト照合用のバッファ */
   private promptInspectionBuffer(): string {
-    return this.readBuffer;
+    return this.normalizeInspectionBufferText(this.readBuffer);
   }
 
   /**
