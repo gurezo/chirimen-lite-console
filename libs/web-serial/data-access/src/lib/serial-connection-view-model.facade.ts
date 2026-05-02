@@ -50,9 +50,6 @@ export class SerialConnectionViewModelFacade {
 
   private readonly errorSubject = new BehaviorSubject<string | null>(null);
 
-  private readonly browserSupported =
-    typeof navigator !== 'undefined' && 'serial' in navigator;
-
   readonly vm$: Observable<SerialConnectionViewModel> = combineLatest([
     this.serial.state$,
     this.serial.isConnected$,
@@ -61,7 +58,7 @@ export class SerialConnectionViewModelFacade {
     this.errorSubject.asObservable(),
   ]).pipe(
     map(([state, connected, initializing, loggedInReady, errorMessage]) => ({
-      isBrowserSupported: this.browserSupported,
+      isBrowserSupported: this.serial.isBrowserSupported(),
       isConnected: connected,
       isConnecting: state === SerialSessionState.Connecting,
       isLoggedIn: loggedInReady,

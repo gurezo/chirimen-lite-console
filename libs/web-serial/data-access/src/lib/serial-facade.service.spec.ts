@@ -2,7 +2,7 @@ import '@angular/compiler';
 import { Injector } from '@angular/core';
 import { SerialSessionState } from '@gurezo/web-serial-rxjs';
 import { type SerialExecOptions } from '@libs-web-serial-util';
-import { EMPTY, firstValueFrom, of, take } from 'rxjs';
+import { EMPTY, firstValueFrom, of } from 'rxjs';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { SerialCommandService } from './serial-command/serial-command-facade.service';
 import { SerialConnectionOrchestrationService } from './serial-connection-orchestration.service';
@@ -21,6 +21,7 @@ describe('SerialFacadeService', () => {
     transport = {
       state$: of(SerialSessionState.Idle),
       isConnected$: of(false),
+      isBrowserSupported: vi.fn(() => true),
       errors$: EMPTY,
       portInfo$: of(null),
       lines$: of('line'),
@@ -103,10 +104,8 @@ describe('SerialFacadeService', () => {
     expect(line).toBe('line');
   });
 
-  it('terminalText$ delegates to transport.terminalText$', async () => {
-    Object.assign(transport, { terminalText$: of('chunk') });
-    const chunk = await firstValueFrom(facade.terminalText$.pipe(take(1)));
-    expect(chunk).toBe('chunk');
+  it('terminalText$ is the same stream as transport.terminalText$', () => {
+    expect(facade.terminalText$).toBe(transport.terminalText$);
   });
 
   it('getConnectionEpoch delegates to connection', () => {
