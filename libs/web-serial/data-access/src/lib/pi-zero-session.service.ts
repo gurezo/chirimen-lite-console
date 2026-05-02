@@ -16,11 +16,11 @@ import {
   throwError,
 } from 'rxjs';
 import type { PiZeroBootstrapStatusHandler } from './pi-zero-serial-bootstrap.service';
+import { PiZeroSerialBootstrapService } from './pi-zero-serial-bootstrap.service';
 import { PiZeroShellReadinessService } from './pi-zero-shell-readiness.service';
 import type { SerialSetupStatus } from './serial-setup-status';
 import type { SerialFacadeConnectResult } from './serial-facade.service';
 import { SerialFacadeService } from './serial-facade.service';
-import { SerialSetupService } from './serial-setup.service';
 
 /**
  * Pi Zero / CHIRIMEN 固有シリアルセッションの単一エントリ（issue #562）。
@@ -47,7 +47,7 @@ export class PiZeroSessionService {
 
   constructor(
     private readonly serial: SerialFacadeService,
-    private readonly setup: SerialSetupService,
+    private readonly bootstrap: PiZeroSerialBootstrapService,
     readonly shellReadiness: PiZeroShellReadinessService,
   ) {
     this.setupStatus$.subscribe((status) => {
@@ -68,13 +68,13 @@ export class PiZeroSessionService {
   loginIfNeeded$(
     onStatus?: PiZeroBootstrapStatusHandler,
   ): Observable<void> {
-    return this.setup.loginIfNeeded$(onStatus);
+    return this.bootstrap.loginIfNeeded$(onStatus);
   }
 
   setupEnvironment$(
     onStatus?: PiZeroBootstrapStatusHandler,
   ): Observable<void> {
-    return this.setup.setupEnvironment$(onStatus);
+    return this.bootstrap.setupEnvironment$(onStatus);
   }
 
   /**
@@ -132,10 +132,10 @@ export class PiZeroSessionService {
           this.setupStatusSubject.next('waiting-login');
           return of(undefined);
         }).pipe(
-          switchMap(() => this.setup.loginIfNeeded$(onBootstrapStatus)),
+          switchMap(() => this.bootstrap.loginIfNeeded$(onBootstrapStatus)),
           tap(() => this.setupStatusSubject.next('waiting-shell')),
           tap(() => this.setupStatusSubject.next('setting-timezone')),
-          switchMap(() => this.setup.setupEnvironment$(onBootstrapStatus)),
+          switchMap(() => this.bootstrap.setupEnvironment$(onBootstrapStatus)),
           switchMap(() =>
             this.serial.isConnected$.pipe(
               take(1),
