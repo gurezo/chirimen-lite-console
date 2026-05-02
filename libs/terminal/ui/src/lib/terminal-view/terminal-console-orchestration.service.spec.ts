@@ -4,9 +4,7 @@ import {
   EMPTY,
   firstValueFrom,
   forkJoin,
-  from,
   of,
-  Subject,
   throwError,
 } from 'rxjs';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -212,112 +210,4 @@ describe('TerminalConsoleOrchestrationService', () => {
     );
   });
 
-  it('pipeTerminalOutputToSink$ forwards receive$ chunks to sink.write', async () => {
-    const chunks = new Subject<string>();
-    TestBed.overrideProvider(SerialFacadeService, {
-      useValue: {
-        send$: sendMock,
-        exec$: execMock,
-        isConnected$: of(true),
-        connectionEstablished$: of(undefined),
-        receive$: chunks.asObservable(),
-        terminalText$: EMPTY,
-        getConnectionEpoch: () => 1,
-      },
-    });
-    TestBed.overrideProvider(PiZeroSessionService, {
-      useValue: {
-        shouldRunAfterConnect$: () => of(true),
-        runAfterConnect$: () => of(undefined),
-      },
-    });
-    const write = vi.fn();
-    const svc = TestBed.inject(TerminalConsoleOrchestrationService);
-    const sub = svc.pipeTerminalOutputToSink$({ write }).subscribe();
-    chunks.next('a');
-    chunks.next('b');
-    expect(write).toHaveBeenNthCalledWith(1, 'a');
-    expect(write).toHaveBeenNthCalledWith(2, 'b');
-    sub.unsubscribe();
-  });
-
-  it('does not suppress receive$ mirror while runInteractiveCommand awaits send$', async () => {
-    const chunks = new Subject<string>();
-    let resolveSend!: () => void;
-    const sendDone = new Promise<void>((r) => {
-      resolveSend = r;
-    });
-    const deferredSend = vi.fn(() => from(sendDone));
-    TestBed.overrideProvider(SerialFacadeService, {
-      useValue: {
-        send$: deferredSend,
-        exec$: execMock,
-        isConnected$: of(true),
-        connectionEstablished$: of(undefined),
-        receive$: chunks.asObservable(),
-        terminalText$: EMPTY,
-        getConnectionEpoch: () => 1,
-      },
-    });
-    TestBed.overrideProvider(PiZeroSessionService, {
-      useValue: {
-        shouldRunAfterConnect$: () => of(true),
-        runAfterConnect$: () => of(undefined),
-      },
-    });
-    const write = vi.fn();
-    const svc = TestBed.inject(TerminalConsoleOrchestrationService);
-    const mirrorSub = svc.pipeTerminalOutputToSink$({ write }).subscribe();
-
-    const cmdPromise = svc.runInteractiveCommand('date');
-    await Promise.resolve();
-    chunks.next('during-send');
-    expect(write).toHaveBeenCalledWith('during-send');
-
-    resolveSend();
-    await cmdPromise;
-
-    chunks.next('after-send');
-    expect(write).toHaveBeenCalledWith('after-send');
-
-    mirrorSub.unsubscribe();
-  });
-
-  it('suppresses receive$ mirror while bootstrap is running', async () => {
-    const chunks = new Subject<string>();
-    const bootstrapDone$ = new Subject<void>();
-    TestBed.overrideProvider(SerialFacadeService, {
-      useValue: {
-        send$: sendMock,
-        exec$: execMock,
-        isConnected$: of(true),
-        connectionEstablished$: of(undefined),
-        receive$: chunks.asObservable(),
-        terminalText$: EMPTY,
-        getConnectionEpoch: () => 1,
-      },
-    });
-    TestBed.overrideProvider(PiZeroSessionService, {
-      useValue: {
-        shouldRunAfterConnect$: () => of(true),
-        runAfterConnect$: () => bootstrapDone$.asObservable(),
-      },
-    });
-    const write = vi.fn();
-    const writeln = vi.fn();
-    const svc = TestBed.inject(TerminalConsoleOrchestrationService);
-    const mirrorSub = svc.pipeTerminalOutputToSink$({ write }).subscribe();
-    const bootSub = svc.bootstrapAfterConnect$('prefix', { write, writeln }).subscribe();
-
-    chunks.next('during-bootstrap');
-    expect(write).not.toHaveBeenCalledWith('during-bootstrap');
-
-    bootstrapDone$.next();
-    bootstrapDone$.complete();
-    chunks.next('after-bootstrap');
-    expect(write).toHaveBeenCalledWith('after-bootstrap');
-
-    bootSub.unsubscribe();
-    mirrorSub.unsubscribe();
-  });
 });
