@@ -1,9 +1,5 @@
 /// <reference types="@types/w3c-web-serial" />
 
-/**
- * Full rewrite (#606). Pi Zero 向け Web Serial の唯一のセッション境界。
- * `@gurezo/web-serial-rxjs` **v2.3.1** の {@link createSerialSession} / `SerialSession` のみを使用する。
- */
 import { Injectable } from '@angular/core';
 import {
   createSerialSession,
@@ -13,6 +9,7 @@ import {
 } from '@gurezo/web-serial-rxjs';
 import {
   BehaviorSubject,
+  Observable,
   catchError,
   concat,
   defaultIfEmpty,
@@ -20,7 +17,6 @@ import {
   distinctUntilChanged,
   EMPTY,
   NEVER,
-  Observable,
   of,
   switchMap,
   tap,
@@ -32,57 +28,93 @@ import {
   RASPBERRY_PI_ZERO_INFO,
 } from '@libs-web-serial-util';
 
+/**
+ * Angular 向けの薄いアダプタ。実体は常に `@gurezo/web-serial-rxjs` v2.3.1 の {@link SerialSession} 1 個。
+ *
+ * アプリは未接続時でも次をそのまま購読できる（接続後はライブラリの Observable に切り替わる）。
+ * - {@link SerialSession.isBrowserSupported} … {@link #isBrowserSupported}
+ * - {@link SerialSession.connect$} / {@link SerialSession.disconnect$} … {@link #connect$} / {@link #disconnect$}
+ * - {@link SerialSession.isConnected$} … {@link #isConnected$}
+ * - {@link SerialSession.terminalText$} … {@link #terminalText$}
+ * - {@link SerialSession.lines$} … {@link #lines$}
+ * - {@link SerialSession.receive$} … {@link #receive$}（`SerialCommandRunnerService` がプロンプト照合に利用）
+ * - {@link SerialSession.errors$} … {@link #errors$}
+ *
+ * `state$` / `portInfo$` / `send$` は接続オーケストレーション・機種判定のため引き続き公開する。
+ */
 @Injectable({
   providedIn: 'root',
 })
 export class SerialTransportService {
   private active: SerialSession | undefined;
 
-  private readonly sessionSubject = new BehaviorSubject<
+  private readonly activeSession$ = new BehaviorSubject<
     SerialSession | undefined
   >(undefined);
 
-  private whenSession<T>(
-    use: (session: SerialSession) => Observable<T>,
-    ifNone: Observable<T>,
+  /** {@link SerialSession.isBrowserSupported}（ポート未生成でも利用可） */
+  isBrowserSupported(): boolean {
+    return createSerialSession().isBrowserSupported();
+  }
+
+  /**
+   * 接続中は `from(session)`、未接続時は `whenIdle` を流す。
+   * ライブラリが multicast なストリームをそのまま橋渡しする。
+   */
+  private fromSession<T>(
+    from: (session: SerialSession) => Observable<T>,
+    whenIdle: Observable<T>,
   ): Observable<T> {
-    return this.sessionSubject.pipe(
-      switchMap((session) => (session ? use(session) : ifNone)),
+    return this.activeSession$.pipe(
+      switchMap((session) => (session ? from(session) : whenIdle)),
     );
   }
 
-  readonly state$ = this.whenSession(
+  readonly state$ = this.fromSession(
     (s) => s.state$,
     concat(of(SerialSessionState.Idle), NEVER),
   ).pipe(distinctUntilChanged());
 
-  readonly isConnected$ = this.whenSession(
+  /** {@link SerialSession.isConnected$} */
+  readonly isConnected$ = this.fromSession(
     (s) => s.isConnected$,
     concat(of(false), NEVER),
   ).pipe(distinctUntilChanged());
 
-  readonly lines$ = this.whenSession((s) => s.lines$, NEVER);
+  /** {@link SerialSession.lines$} */
+  readonly lines$ = this.fromSession((s) => s.lines$, NEVER);
 
-  readonly terminalText$ = this.whenSession((s) => s.terminalText$, NEVER);
+  /**
+   * {@link SerialSession.receive$}（UTF-8 デコード済みの生チャンク）。
+   * getty が行末を lone `\r` のみにすると {@link #lines$} では行が emit されないことがあるため、
+   * プロンプト待ちは {@link import('./serial-command/serial-command-runner.service').SerialCommandRunnerService} がこちらを購読する。
+   */
+  readonly receive$ = this.fromSession((s) => s.receive$, NEVER);
 
+  /** {@link SerialSession.terminalText$} */
+  readonly terminalText$ = this.fromSession((s) => s.terminalText$, NEVER);
+
+  /** {@link SerialSession.errors$} */
   get errors$(): Observable<SerialError> {
-    return this.whenSession((s) => s.errors$ ?? EMPTY, EMPTY);
+    return this.fromSession((s) => s.errors$ ?? EMPTY, EMPTY);
   }
 
-  get portInfo$(): Observable<SerialPortInfo | null> {
-    return this.whenSession((s) => s.portInfo$ ?? of(null), of(null));
-  }
+  readonly portInfo$ = this.fromSession((s) => s.portInfo$ ?? of(null), of(null));
 
   getPortInfo(): SerialPortInfo | null {
     return this.active?.getPortInfo() ?? null;
   }
 
+  /**
+   * {@link SerialSession.connect$} を呼び出し、Pi Zero フィルタでポートを開く。
+   * 戻り値だけアプリ向けに `{ port } | { error }` に整形する。
+   */
   connect$(
     baudRate = 115200,
   ): Observable<{ port: SerialPort } | { error: string }> {
     return defer(() => {
-      this.resetSession();
-      const created = createSerialSession({
+      this.detachSession();
+      const session = createSerialSession({
         baudRate,
         filters: [
           {
@@ -91,13 +123,13 @@ export class SerialTransportService {
           },
         ],
       });
-      this.active = created;
-      this.sessionSubject.next(created);
-      return created.connect$().pipe(
+      this.active = session;
+      this.activeSession$.next(session);
+      return session.connect$().pipe(
         switchMap(() => {
-          const port = created.getCurrentPort();
+          const port = session.getCurrentPort();
           if (!port) {
-            this.resetSession();
+            this.detachSession();
             return of({
               error: getConnectionErrorMessage(
                 new Error('Port is not available after connection'),
@@ -107,13 +139,14 @@ export class SerialTransportService {
           return of({ port });
         }),
         catchError((error) => {
-          this.resetSession();
+          this.detachSession();
           return of({ error: getConnectionErrorMessage(error) });
         }),
       );
     });
   }
 
+  /** {@link SerialSession.disconnect$} */
   disconnect$(): Observable<void> {
     return defer(() => {
       if (!this.active) {
@@ -124,7 +157,7 @@ export class SerialTransportService {
         defaultIfEmpty(undefined),
         tap(() => {
           if (this.active === snapshot) {
-            this.resetSession();
+            this.detachSession();
           }
         }),
         catchError((error) => {
@@ -139,6 +172,7 @@ export class SerialTransportService {
     return this.active?.getCurrentPort() ?? undefined;
   }
 
+  /** {@link SerialSession.send$} */
   send$(data: string): Observable<void> {
     return defer(() => {
       const s = this.active;
@@ -153,8 +187,8 @@ export class SerialTransportService {
     });
   }
 
-  private resetSession(): void {
+  private detachSession(): void {
     this.active = undefined;
-    this.sessionSubject.next(undefined);
+    this.activeSession$.next(undefined);
   }
 }

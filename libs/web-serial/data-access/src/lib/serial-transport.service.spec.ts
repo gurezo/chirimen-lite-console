@@ -34,6 +34,7 @@ function buildMockSession(
   port: SerialPort | null,
   lines$?: Observable<string>,
   terminalText$?: Observable<string>,
+  receive$?: Observable<string>,
 ): SerialSession {
   const state$ = new BehaviorSubject<SerialSessionState>(
     SerialSessionState.Connecting,
@@ -62,7 +63,7 @@ function buildMockSession(
     getPortInfo: vi.fn(() => null),
     getCurrentPort,
     errors$: EMPTY,
-    receive$: EMPTY,
+    receive$: receive$ ?? EMPTY,
     receiveReplay$: EMPTY,
     lines$: lines$ ?? of('line1'),
     terminalText$: terminalText$ ?? of('terminal-line'),
@@ -172,6 +173,24 @@ describe('SerialTransportService', () => {
     const [a, b] = await Promise.all([p1, p2]);
     expect(a).toBe('shared-line');
     expect(b).toBe('shared-line');
+  });
+
+  it('should emit receive$ from session receive$', async () => {
+    const mockPort = {} as SerialPort;
+    const chunkSubject = new Subject<string>();
+    mockCreateSerialSession.mockReturnValue(
+      buildMockSession(
+        mockPort,
+        undefined,
+        undefined,
+        chunkSubject.asObservable(),
+      ),
+    );
+
+    await firstValueFrom(service.connect$());
+    const textPromise = firstValueFrom(service.receive$.pipe(take(1)));
+    queueMicrotask(() => chunkSubject.next('raw-chunk'));
+    expect(await textPromise).toBe('raw-chunk');
   });
 
   it('should emit terminalText$ from session terminalText$', async () => {
