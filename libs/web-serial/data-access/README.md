@@ -24,7 +24,7 @@ Angular 向けのシリアル（Web Serial + `@gurezo/web-serial-rxjs` v2.3.1）
 
 - **`SerialTransportService`** が上記各ストリームを `activeSession$` 経由で橋渡しする。
 - **`SerialCommandRunnerService`（`serial-command-runner.service.ts`）／`SerialCommandService` facade** が `lines$` を購読し、プロンプト待ち用に行連結バッファを保持する（表示の `\r` 処理は `terminalText$` と `@libs-web-serial-util` の `collapseCarriageRedrawsPerLine` に委譲）。
-- **ターミナル UI** は `TerminalConsoleOrchestrationService#pipeTerminalOutputToSink$` で **`terminalText$` のみ** をライブミラーに接続できる。`exec` の stdout 整形表示と二重にならないよう使い分けること。
+- **ターミナル UI** は **`SerialFacadeService#terminalText$` を購読**し、ライブ表示を xterm 等に反映する（例: `TerminalViewComponent`）。`exec$` の戻り値で同じ画面を二重更新しない。
 
 ## 接続状態の単一ビューモデル（[#564](https://github.com/gurezo/chirimen-lite-console/issues/564)）
 
@@ -38,6 +38,13 @@ Angular 向けのシリアル（Web Serial + `@gurezo/web-serial-rxjs` v2.3.1）
   - stream: `terminalText$`, `lines$`, `state$`, `isConnected$`, `errors$`, `portInfo$`
   - methods: `connect$()`, `disconnect$()`, `send$()`, `exec$()`, `execRaw$()`, `readUntilPrompt$()`, `read$()`, `getPort()`, `isRaspberryPiZero()`, `getConnectionEpoch()`, `isReading()`, `getPendingCommandCount()`
 - 生 `receive$` / `receiveReplay$` は facade では公開しない（[#601](https://github.com/gurezo/chirimen-lite-console/issues/601)）。ライブ表示の `\r` 再描画は `terminalText$` に委譲する。
+
+### `terminalText$` の責務（[#617](https://github.com/gurezo/chirimen-lite-console/issues/617)）
+
+- **ターミナル UI（xterm のライブ表示）は `SerialFacadeService#terminalText$` を購読する**唯一のソースとする。受信テキストの TTY 相当の扱い（累積全文の emit 等）は `@gurezo/web-serial-rxjs` の `SerialSession.terminalText$` に委譲する（[#601](https://github.com/gurezo/chirimen-lite-console/issues/601)、[#613](https://github.com/gurezo/chirimen-lite-console/issues/613)）。
+- **送信**は `send$()` のみ。ライブ表示の更新に **`exec$()` / `execRaw$()` / `readUntilPrompt$()` の戻り値を流用しない**（`exec$` 系は stdout キャプチャ用。使い分けは次節および [#616](https://github.com/gurezo/chirimen-lite-console/issues/616)）。
+- **プロンプト検出・ログイン判定**は **`lines$`** 側のバッファを用い、`terminalText$` をプロンプト照合に使わない（上表・[#593](https://github.com/gurezo/chirimen-lite-console/issues/593)）。
+- 契約の一次情報は `SerialFacadeService`（`serial-facade.service.ts`）の **`terminalText$` および `exec$` の JSDoc** を参照する。
 
 ### `exec$` / `execRaw$` / `readUntilPrompt$` の利用方針（[#616](https://github.com/gurezo/chirimen-lite-console/issues/616)）
 
