@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { Observable, Subject, firstValueFrom, take } from 'rxjs';
+import { NEVER, Observable, Subject, firstValueFrom, take } from 'rxjs';
 import {
   PI_ZERO_PROMPT,
 } from '@libs-web-serial-util';
@@ -13,17 +13,18 @@ import { SerialCommandService } from './serial-command-facade.service';
 /** モックの入力待ち行（実機 PS1 で `matchesPrompt` が厳格になる）。単独の `pi@…:` だけでは終了しない。 */
 const MOCK_PS1_TAIL = `${PI_ZERO_PROMPT}~$`;
 
-/** `SerialSession.lines$` と同様に、論理行ごとに emit する。 */
-function emitIncomingLines(subject: Subject<string>, lines: string[]): void {
+/** `SerialSession.receive$` を模し、行単位の入力は `\n` で区切って送る。 */
+function emitIncomingChunks(subject: Subject<string>, lines: string[]): void {
   for (const line of lines) {
-    subject.next(line);
+    subject.next(`${line}\n`);
   }
 }
 
 function createService() {
-  const linesSubject = new Subject<string>();
+  const receiveSubject = new Subject<string>();
   const transport = {
-    lines$: linesSubject.asObservable(),
+    receive$: receiveSubject.asObservable(),
+    lines$: NEVER,
     send$: vi.fn(
       () =>
         new Observable<void>((subscriber) => {
@@ -42,7 +43,15 @@ function createService() {
   );
   const service = new SerialCommandService(runner, queue);
   service.startReadLoop();
-  return { service, linesSubject, transport, promptDetector, piPromptDetector };
+  return {
+    service,
+    receiveSubject,
+    /** @deprecated 互換: `receiveSubject` と同一 */
+    linesSubject: receiveSubject,
+    transport,
+    promptDetector,
+    piPromptDetector,
+  };
 }
 
 describe('SerialCommandService', () => {
@@ -65,7 +74,7 @@ describe('SerialCommandService', () => {
     );
 
     releaseWrite?.();
-    emitIncomingLines(linesSubject, ['ls', 'output', MOCK_PS1_TAIL]);
+    emitIncomingChunks(linesSubject, ['ls', 'output', MOCK_PS1_TAIL]);
 
     const result = await execPromise;
     expect(result.stdout).toContain(PI_ZERO_PROMPT);
@@ -84,14 +93,31 @@ describe('SerialCommandService', () => {
     );
 
     queueMicrotask(() => {
-      emitIncomingLines(linesSubject, ['welcome', MOCK_PS1_TAIL]);
+      emitIncomingChunks(linesSubject, ['welcome', MOCK_PS1_TAIL]);
     });
 
     const result = await readPromise;
     expect(result.stdout).toContain(PI_ZERO_PROMPT);
   });
 
-  it('readUntilPrompt matches shell prompt split across sequential lines$ emissions', async () => {
+  it('readUntilPrompt sees Password: when getty ends the line with lone CR (lines$ would not emit)', async () => {
+    const { service, receiveSubject } = createService();
+    const readPromise = firstValueFrom(
+      service.readUntilPrompt$({
+        prompt: '',
+        promptMatch: (buf) => /[Pp]assword:\s*/m.test(buf),
+        timeout: 1000,
+        retry: 0,
+      }),
+    );
+    queueMicrotask(() => {
+      receiveSubject.next('Password:\r');
+    });
+    const result = await readPromise;
+    expect(result.stdout).toMatch(/Password:/i);
+  });
+
+  it('readUntilPrompt matches shell prompt split across sequential receive$ chunks', async () => {
     const { service, linesSubject } = createService();
 
     const readPromise = firstValueFrom(
@@ -105,7 +131,7 @@ describe('SerialCommandService', () => {
     );
 
     queueMicrotask(() => {
-      emitIncomingLines(linesSubject, [`${PI_ZERO_PROMPT}~`, '$ ']);
+      emitIncomingChunks(linesSubject, [`${PI_ZERO_PROMPT}~`, '$ ']);
     });
 
     const result = await readPromise;
@@ -115,7 +141,7 @@ describe('SerialCommandService', () => {
 
   it('readUntilPrompt sees data already buffered before the wait starts', async () => {
     const { service, linesSubject, piPromptDetector } = createService();
-    emitIncomingLines(linesSubject, [
+    emitIncomingChunks(linesSubject, [
       'Raspberry Pi OS',
       '',
       'raspberrypi login: ',
@@ -133,7 +159,7 @@ describe('SerialCommandService', () => {
 
   it('readUntilPrompt matches Japanese login prompt in buffer', async () => {
     const { service, linesSubject, piPromptDetector } = createService();
-    emitIncomingLines(linesSubject, ['ホスト名 ログイン: ']);
+    emitIncomingChunks(linesSubject, ['ホスト名 ログイン: ']);
     const result = await firstValueFrom(
       service.readUntilPrompt$({
         prompt: '',
@@ -147,7 +173,7 @@ describe('SerialCommandService', () => {
 
   it('readUntilPrompt matches login when line contains ANSI escape sequences', async () => {
     const { service, linesSubject, piPromptDetector } = createService();
-    emitIncomingLines(linesSubject, [
+    emitIncomingChunks(linesSubject, [
       '\u001b[2J\u001b[Hraspberrypi login: ',
     ]);
     const result = await firstValueFrom(
@@ -185,7 +211,7 @@ describe('SerialCommandService', () => {
     );
 
     releaseWrite?.();
-    emitIncomingLines(linesSubject, ['echo hi', 'hi', MOCK_PS1_TAIL]);
+    emitIncomingChunks(linesSubject, ['echo hi', 'hi', MOCK_PS1_TAIL]);
 
     const result = await execPromise;
     expect(result.stdout).toContain('hi');
@@ -210,7 +236,7 @@ describe('SerialCommandService', () => {
     );
 
     releaseWrite?.();
-    emitIncomingLines(linesSubject, ['ls', 'output', MOCK_PS1_TAIL]);
+    emitIncomingChunks(linesSubject, ['ls', 'output', MOCK_PS1_TAIL]);
 
     const result = await resultPromise;
     expect(result.stdout).toContain(PI_ZERO_PROMPT);
@@ -254,7 +280,7 @@ describe('SerialCommandService', () => {
       }),
     );
     await new Promise((r) => setTimeout(r, 70));
-    emitIncomingLines(linesSubject, ['out', MOCK_PS1_TAIL]);
+    emitIncomingChunks(linesSubject, ['out', MOCK_PS1_TAIL]);
     const result = await execPromise;
     expect(result.stdout).toContain(PI_ZERO_PROMPT);
     expect(writeCount).toBe(2);
@@ -376,18 +402,18 @@ describe('SerialCommandService', () => {
 
     finishFirst.next();
     finishFirst.complete();
-    emitIncomingLines(linesSubject, [MOCK_PS1_TAIL]);
+    emitIncomingChunks(linesSubject, [MOCK_PS1_TAIL]);
 
     await expect(p2).rejects.toThrow('All commands cancelled');
 
-    emitIncomingLines(linesSubject, [MOCK_PS1_TAIL]);
+    emitIncomingChunks(linesSubject, [MOCK_PS1_TAIL]);
 
     const [r1, r3] = await Promise.all([p1, p3]);
     expect(r1.stdout).toContain(PI_ZERO_PROMPT);
     expect(r3.stdout).toContain(PI_ZERO_PROMPT);
   });
 
-  it('exec stdout aggregates successive lines$ emissions through prompt', async () => {
+  it('exec stdout aggregates successive receive$ chunks through prompt', async () => {
     const { service, linesSubject, transport } = createService();
     let releaseWrite: (() => void) | undefined;
     transport.send$ = vi.fn(
@@ -403,7 +429,7 @@ describe('SerialCommandService', () => {
       service.exec$('ls', { prompt: PI_ZERO_PROMPT, timeout: 1000, retry: 0 }),
     );
     releaseWrite?.();
-    emitIncomingLines(linesSubject, [
+    emitIncomingChunks(linesSubject, [
       'total 36',
       '        xxx',
       'yyy zzz',
