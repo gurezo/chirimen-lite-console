@@ -37,6 +37,11 @@ export class SerialCommandService {
     return this.runner.isReading();
   }
 
+  /**
+   * キュー経由で exec パイプラインを実行する実装入口。
+   *
+   * 呼び出し側の方針・ターミナル UI での禁止事項は {@link SerialFacadeService#exec$} の JSDoc を参照（#616）。
+   */
   exec$(
     cmd: string,
     options: SerialExecOptions,
@@ -45,6 +50,7 @@ export class SerialCommandService {
     return this.enqueueExec$(cmd + '\n', options, onAttemptStart);
   }
 
+  /** @see {@link SerialFacadeService#execRaw$} */
   execRaw$(
     cmdRaw: string,
     options: SerialExecOptions,
@@ -53,6 +59,7 @@ export class SerialCommandService {
     return this.enqueueExec$(cmdRaw, options, onAttemptStart);
   }
 
+  /** @see {@link SerialFacadeService#readUntilPrompt$} */
   readUntilPrompt$(
     options: SerialExecOptions,
     onAttemptStart?: () => void,
