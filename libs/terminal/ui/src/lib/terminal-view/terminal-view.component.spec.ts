@@ -54,6 +54,7 @@ describe('TerminalViewComponent', () => {
           isConnected$: isConnectedSubject.asObservable(),
           exec$: (...args: unknown[]) =>
             from(execMock(...(args as [string, unknown]))),
+          send$: () => of(undefined),
           connectionEstablished$: NEVER,
           receive$: receiveSubject.asObservable(),
           terminalText$: terminalTextSubject.asObservable(),
