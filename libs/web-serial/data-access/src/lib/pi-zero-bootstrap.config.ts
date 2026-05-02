@@ -20,8 +20,8 @@ export const PI_ZERO_LC_ALL = 'C.UTF-8' as const;
 export const PI_ZERO_TZ_ENV = PI_ZERO_TIMEZONE;
 
 /**
- * 接続直後のタイムゾーン初期化（各ステップの説明とコマンド）。
- * `sudo -n` で対話的パスワード待ちを避ける。
+ * 接続直後の環境初期化（timezone/language/locale/env 各ステップの説明とコマンド）。
+ * timezone 設定では `sudo -n` を使い、対話的パスワード待ちを避ける。
  */
 export const PI_ZERO_ENVIRONMENT_STEPS: readonly PiZeroEnvironmentStep[] = [
   {

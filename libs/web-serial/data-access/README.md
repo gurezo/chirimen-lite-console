@@ -61,13 +61,13 @@ Angular 向けのシリアル（Web Serial + `@gurezo/web-serial-rxjs` v2.3.1）
 2. **ユーザー名送信後** — `Password:` プロンプト。
 3. **パスワード送信後** — Debian MOTD と `pi@raspberrypi:~$` 形式のシェルプロンプト。
 
-シェル到達後は **タイムゾーン等の初期化**（`PI_ZERO_TIMEZONE_STEPS`）を `exec$` で実行する。ターミナルへのライブ表示は **`terminalText$`**、プロンプト照合・ログイン判定は **`lines$`** 由来のバッファを用いる。
+シェル到達後は **環境設定の初期化**（`PI_ZERO_ENVIRONMENT_STEPS`）を `exec$` で実行する。初期化には timezone に加えて language / locale / `TZ` などを含める。ターミナルへのライブ表示は **`terminalText$`**、プロンプト照合・ログイン判定は **`lines$`** 由来のバッファを用いる。
 
 ## CHIRIMEN / Pi Zero 固有ロジックの集約（Issue [#594](https://github.com/gurezo/chirimen-lite-console/issues/594)）
 
-- Pi Zero 向けの **login / password / シェルプロンプト到達確認 / timezone 初期化** は **`PiZeroSerialBootstrapService` に集約**する（[`pi-zero-serial-bootstrap.service.ts`](src/lib/pi-zero-serial-bootstrap.service.ts)）。
+- Pi Zero 向けの **login / password / シェルプロンプト到達確認 / 環境初期化（timezone/language/locale/env）** は **`PiZeroSerialBootstrapService` に集約**する（[`pi-zero-serial-bootstrap.service.ts`](src/lib/pi-zero-serial-bootstrap.service.ts)）。
   - 接続単位の「一度だけ実行」などのオーケストレーションは `PiZeroSessionService`（[`pi-zero-session.service.ts`](src/lib/pi-zero-session.service.ts)）。
-  - timezone ステップ／期待プロンプトの定数は [`pi-zero-bootstrap.config.ts`](src/lib/pi-zero-bootstrap.config.ts) に集約。
+  - 環境初期化ステップ（timezone/language/locale/env）／期待プロンプトの定数は [`pi-zero-bootstrap.config.ts`](src/lib/pi-zero-bootstrap.config.ts) に集約。
 - Pi Zero 固有のプロンプト判定（`pi@…` シェル / `login:` / `Password:` 等）は **`PiZeroPromptDetectorService`** に分離（[`pi-zero-prompt-detector.service.ts`](src/lib/pi-zero-prompt-detector.service.ts)）。
 - `SerialPromptDetectorService` は **汎用 `matchesPrompt` のみ**を提供し、`SerialCommandRunnerService` から共有利用する。
 - 他サービス（`wifi`, `file-manager`, `remote`, `chirimen-setup`, `i2cdetect` など）は Pi Zero 固有ロジックを保持しない。期待プロンプト文字列としての `PI_ZERO_PROMPT` 利用は許容する。
