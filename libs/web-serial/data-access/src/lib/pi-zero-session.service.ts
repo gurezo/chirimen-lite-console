@@ -32,8 +32,15 @@ import { SerialFacadeService } from './serial-facade.service';
   providedIn: 'root',
 })
 export class PiZeroSessionService {
-  private lastBootstrappedEpoch = -1;
+  /**
+   * 最後に接続後 bootstrap が完了した接続 epoch。`SerialConnectionOrchestrationService` の値と突き合わせる。
+   */
+  private bootstrappedEpoch = -1;
+
+  /** 現在進行中の `runAfterConnect$` パイプライン（同一接続 epoch での重複起動を防ぐ）。 */
   private activeBootstrap$: Observable<void> | null = null;
+
+  /** `activeBootstrap$` が属する接続 epoch。finalize で当該 epoch のみクリーンアップする。 */
   private activeBootstrapEpoch: number | null = null;
 
   private readonly initializingSubject = new BehaviorSubject(false);
@@ -90,7 +97,7 @@ export class PiZeroSessionService {
           return false;
         }
         const epoch = this.connection.getConnectionEpoch();
-        if (epoch === this.lastBootstrappedEpoch) {
+        if (epoch === this.bootstrappedEpoch) {
           return false;
         }
         return true;
@@ -142,10 +149,18 @@ export class PiZeroSessionService {
             this.serial.isConnected$.pipe(
               take(1),
               tap((connected) => {
-                if (connected) {
-                  this.lastBootstrappedEpoch = epoch;
+                const currentEpoch = this.connection.getConnectionEpoch();
+                if (
+                  connected &&
+                  currentEpoch === epoch &&
+                  this.activeBootstrapEpoch === epoch
+                ) {
+                  this.bootstrappedEpoch = epoch;
                   this.shellReadiness.setReady(true);
                   this.setupStatusSubject.next('ready');
+                } else if (connected && currentEpoch !== epoch) {
+                  // 再接続などで接続 epoch が進んだあとに遅延完了したパイプラインは成功扱いにしない
+                  this.setupStatusSubject.next('idle');
                 }
               }),
               map(() => undefined),
