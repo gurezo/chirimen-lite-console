@@ -30,6 +30,25 @@ PiZeroSerialBootstrapService
   -> login / environment setup の具体処理
 ```
 
+### 実装時のルール（要約）
+
+- Feature 側から `SerialTransportService` を直接参照しない（入口は `SerialFacadeService` のみ）。
+- ターミナル表示には `terminalText$` を使う。
+- 生の `receive$` は原則 **data-access internal**（Feature から購読しない。プロンプト照合は `SerialCommandRunnerService` が `receive$` からバッファを構築）。
+- コマンド実行（stdout キャプチャ付き）には `exec$` / `execRaw$` を使う。
+- prompt 待ちには `readUntilPrompt$` を使う。
+- Pi Zero 固有の login / 環境初期化 / 接続後オーケストレーションは **`PiZeroSerialBootstrapService` / `PiZeroSessionService` に集約**し、Feature 側に散らさない。
+
+### 受信ストリーム（`terminalText$` / `receive$` / `lines$`）の一行要約
+
+| Stream / 経路 | 役割（誰が使うか） |
+| --- | --- |
+| `terminalText$` | **ターミナル UI のライブ表示**（`\r` 再描画を含む）。Feature は Facade 経由で購読。プロンプト判定には使わない。 |
+| `lines$` | **行境界が確まった行**の購読（単発 1 行は `take(1)` 等）。コマンドランナーの唯一の入力ではない（[#593](https://github.com/gurezo/chirimen-lite-console/issues/593) 参照）。 |
+| `receive$`（Transport） | **UTF-8 デコード済みの生チャンク**。Facade では露出しない。プロンプト同期・`exec$` の stdout 照合は **`SerialCommandRunnerService` が `receive$` を購読**してバッファする。 |
+
+詳細な使い分け表・根拠は下記「受信ストリームの使い分け」節を参照する。
+
 ## 受信ストリームの使い分け（`SerialSession` / `SerialTransportService`）
 
 アプリでは `@gurezo/web-serial-rxjs` の `SerialSession` が提供する受信 Observable を、用途に応じて次のように使い分ける（[#559](https://github.com/gurezo/chirimen-lite-console/issues/559)）。
