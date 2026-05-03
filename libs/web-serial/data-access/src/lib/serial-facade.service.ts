@@ -5,7 +5,7 @@ import { Injectable, inject } from '@angular/core';
 import { type Observable } from 'rxjs';
 import {
   type CommandResult,
-  SerialCommandService,
+  SerialCommandPipelineService,
 } from './serial-command/serial-command-facade.service';
 import {
   type SerialConnectResult,
@@ -25,14 +25,14 @@ export type SerialFacadeConnectResult = SerialConnectResult;
  * {@link SerialTransportService} が `isBrowserSupported` / `connect$` / `disconnect$` /
  * `isConnected$` / `terminalText$` / `lines$` / `errors$` で橋渡しする。
  * 生の受信チャンク（`receive$`）は {@link SerialTransportService} 内および
- * {@link SerialCommandRunnerService} のみが利用する（Issue #649）。
+ * {@link SerialCommandPipelineService} のみが利用する（Issue #649）。
  */
 @Injectable({
   providedIn: 'root',
 })
 export class SerialFacadeService {
   private transport = inject(SerialTransportService);
-  private command = inject(SerialCommandService);
+  private command = inject(SerialCommandPipelineService);
   private validator = inject(SerialValidatorService);
   private connection = inject(SerialConnectionOrchestrationService);
 
@@ -92,7 +92,7 @@ export class SerialFacadeService {
    * - **アプリ内部**で「コマンド完了まで待ち、stdout を取りたい」フロー向け。代表例はログイン後 bootstrap、i2cdetect、Chirimen setup など。Wi-Fi・ファイルマネージャ・リモート等、プロンプト待ちが必要な機能も同じ層に含める。
    * - とくに接続後初期化（ログイン後の環境設定）は、成功/失敗を判定して呼び出し元へ返す必要があるため `exec$` を使う（Issue #625）。
    *
-   * {@link SerialCommandService#exec$} に委譲する。
+   * {@link SerialCommandPipelineService#exec$} に委譲する。
    */
   exec$(
     cmd: string,

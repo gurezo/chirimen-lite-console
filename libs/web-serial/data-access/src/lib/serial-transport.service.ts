@@ -37,7 +37,7 @@ import {
  * - {@link SerialSession.isConnected$} … {@link #isConnected$}
  * - {@link SerialSession.terminalText$} … {@link #terminalText$}
  * - {@link SerialSession.lines$} … {@link #lines$}
- * - {@link SerialSession.receive$} … {@link #receive$}（`SerialCommandRunnerService` がプロンプト照合に利用）
+ * - {@link SerialSession.receive$} … {@link #receive$}（`SerialCommandPipelineService` がプロンプト照合に利用）
  * - {@link SerialSession.errors$} … {@link #errors$}
  *
  * `state$` / `portInfo$` / `send$` は接続オーケストレーション・機種判定のため引き続き公開する。
@@ -87,7 +87,7 @@ export class SerialTransportService {
   /**
    * {@link SerialSession.receive$}（UTF-8 デコード済みの生チャンク）。
    * getty が行末を lone `\r` のみにすると {@link #lines$} では行が emit されないことがあるため、
-   * プロンプト待ちは {@link import('./serial-command/serial-command-runner.service').SerialCommandRunnerService} がこちらを購読する。
+   * プロンプト待ちは {@link import('./serial-command/serial-command-pipeline.service').SerialCommandPipelineService} がこちらを購読する。
    */
   readonly receive$ = this.fromSession((s) => s.receive$, NEVER);
 
