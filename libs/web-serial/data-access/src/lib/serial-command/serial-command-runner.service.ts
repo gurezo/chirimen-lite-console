@@ -1,6 +1,6 @@
 /// <reference types="@types/w3c-web-serial" />
 
-/** Full rewrite (#606). Prompt/exec buffer from {@link SerialTransportService#lines$} (`SerialSession`). */
+/** Full rewrite (#606). Prompt/exec buffer from {@link SerialTransportService#receive$} (`SerialSession`). */
 import { Injectable } from '@angular/core';
 import {
   Observable,
@@ -42,7 +42,7 @@ import { SerialTransportService } from '../serial-transport.service';
  * プロンプト照合および exec の `stdout` は {@link SerialTransportService#receive$} の生チャンクを連結し、
  * {@link collapseCarriageRedrawsPerLine} で論理表示に収束させたバッファで行う（getty の lone `\r` 行末で
  * {@link SerialTransportService#lines$} が空振りする問題の回避）。
- * ターミナル上のライブ表示は UI が {@link SerialTransportService#receive$} を xterm に流す。
+ * ターミナル上のライブ表示は UI が {@link SerialTransportService#terminalText$} を購読する（[#617](https://github.com/gurezo/chirimen-lite-console/issues/617)）。
  *
  * 各チャンクに {@link stripSerialAnsiForPrompt} を適用する。
  */
