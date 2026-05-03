@@ -31,7 +31,7 @@ chirimen-lite-console（本リポジトリ）
 
 本リポジトリでは `SerialSession`（`state$` / `isConnected$` / `errors$` 等）を **接続状態などの唯一のソース** とし、[`SerialTransportService`](../libs/web-serial/data-access/src/lib/serial-transport.service.ts) は `activeSession$` 経由内の **橋渡し（thin adapter）** に留める。Pi Zero 向けの接続・ログイン・初期化は `PiZeroSessionService` やオーケストレーション層に集約し、機能コンポーネントから `SerialTransportService` を直接注入しない方針とする（[`SerialFacadeService`](../libs/web-serial/data-access/src/lib/serial-facade.service.ts) 経由）。
 
-Issue #590 / [#601](https://github.com/gurezo/chirimen-lite-console/issues/601) / [#649](https://github.com/gurezo/chirimen-lite-console/issues/649) 以降は、外部公開 API を `SerialFacadeService` に集約し、利用側は `terminalText$` / `lines$` / `state$` / `isConnected$` / `errors$` / `portInfo$` / `connectionEstablished$` と `connect$()` / `disconnect$()` / `send$()` / `exec$()` / `execRaw$()` / `readUntilPrompt$()` / `isBrowserSupported()` / `isRaspberryPiZero()` を基本導線とする。`receive$` は **Facade では橋渡しせず**、`SerialTransportService` 経由で data-access 内部（`SerialCommandRunnerService`）のみがプロンプト照合・`exec$` の stdout 集約に用いる（[#646](https://github.com/gurezo/chirimen-lite-console/issues/646)）。Pi Zero のログイン〜タイムゾーン初期化の期待シーケンスは [Issue #606](https://github.com/gurezo/chirimen-lite-console/issues/606) を参照。
+Issue #590 / [#601](https://github.com/gurezo/chirimen-lite-console/issues/601) / [#649](https://github.com/gurezo/chirimen-lite-console/issues/649) 以降は、外部公開 API を `SerialFacadeService` に集約し、利用側は `terminalText$` / `lines$` / `state$` / `isConnected$` / `errors$` / `portInfo$` / `connectionEstablished$` と `connect$()` / `disconnect$()` / `send$()` / `exec$()` / `execRaw$()` / `readUntilPrompt$()` / `isBrowserSupported()` / `isRaspberryPiZero()` を基本導線とする。`receive$` は **Facade では橋渡しせず**、`SerialTransportService` 経由で data-access 内部（`SerialCommandPipelineService`）のみがプロンプト照合・`exec$` の stdout 集約に用いる（[#646](https://github.com/gurezo/chirimen-lite-console/issues/646)）。Pi Zero のログイン〜タイムゾーン初期化の期待シーケンスは [Issue #606](https://github.com/gurezo/chirimen-lite-console/issues/606) を参照。
 
 ### `exec$` 系 API の責務（[#616](https://github.com/gurezo/chirimen-lite-console/issues/616)）
 
@@ -55,7 +55,7 @@ Issue #590 / [#601](https://github.com/gurezo/chirimen-lite-console/issues/601) 
 
 ## 受信ストリーム（ライブラリ vs 本アプリの公開面）
 
-ライブラリの `SerialSession` は `receive$` / `receiveReplay$` / `lines$` / `terminalText$` 等を提供する。本アプリの **`SerialFacadeService`** は `terminalText$` / `lines$` を `readonly` で橋渡しする。**`receive$` は Facade では露出せず**、`SerialTransportService` が `activeSession$` 経由で橋渡しし、`SerialCommandRunnerService` がプロンプト照合・`exec$` stdout 用に購読する（[#601](https://github.com/gurezo/chirimen-lite-console/issues/601)、[#646](https://github.com/gurezo/chirimen-lite-console/issues/646)、[#649](https://github.com/gurezo/chirimen-lite-console/issues/649)）。ライブ表示の `\r` 再描画や表示用バッファ正規化は **ライブラリの `terminalText$`** に委譲する。
+ライブラリの `SerialSession` は `receive$` / `receiveReplay$` / `lines$` / `terminalText$` 等を提供する。本アプリの **`SerialFacadeService`** は `terminalText$` / `lines$` を `readonly` で橋渡しする。**`receive$` は Facade では露出せず**、`SerialTransportService` が `activeSession$` 経由で橋渡しし、`SerialCommandPipelineService` がプロンプト照合・`exec$` stdout 用に購読する（[#601](https://github.com/gurezo/chirimen-lite-console/issues/601)、[#646](https://github.com/gurezo/chirimen-lite-console/issues/646)、[#649](https://github.com/gurezo/chirimen-lite-console/issues/649)）。ライブ表示の `\r` 再描画や表示用バッファ正規化は **ライブラリの `terminalText$`** に委譲する。
 
 | ストリーム | ライブラリ `SerialSession` | 本アプリ `SerialFacadeService` |
 |------------|---------------------------|--------------------------------|
@@ -71,7 +71,7 @@ Issue #590 / [#601](https://github.com/gurezo/chirimen-lite-console/issues/601) 
 - **ターミナル表示（xterm 等・TTY 再描画を含むライブ表示）**  
   - `terminalText$` のみを購読する。受信テキストをそのまま xterm に書き込み、`sanitizeSerialStdout` は **ターミナル UI 経路では使用しない**（[#613](https://github.com/gurezo/chirimen-lite-console/issues/613)）。
 - **コマンド実行・プロンプト待ち・ログイン判定（本リポジトリの Feature）**  
-  - **`exec$` / `execRaw$` / `readUntilPrompt$`** を使う。プロンプト照合バッファは **`SerialCommandRunnerService` が `receive$` から構築**する（getty の lone `\r` 等で `lines$` が空振りしうるため、照合の一次入力を `lines$` のみに寄せない。[#593](https://github.com/gurezo/chirimen-lite-console/issues/593)、[#646](https://github.com/gurezo/chirimen-lite-console/issues/646)）。ライブラリ層では `lines$` と同根の **`commandResultLines$` / `getReadStream()`** 等の設計もあるが、本アプリの利用境界は [README](../libs/web-serial/data-access/README.md) を正とする。
+  - **`exec$` / `execRaw$` / `readUntilPrompt$`** を使う。プロンプト照合バッファは **`SerialCommandPipelineService` が `receive$` から構築**する（getty の lone `\r` 等で `lines$` が空振りしうるため、照合の一次入力を `lines$` のみに寄せない。[#593](https://github.com/gurezo/chirimen-lite-console/issues/593)、[#646](https://github.com/gurezo/chirimen-lite-console/issues/646)）。ライブラリ層では `lines$` と同根の **`commandResultLines$` / `getReadStream()`** 等の設計もあるが、本アプリの利用境界は [README](../libs/web-serial/data-access/README.md) を正とする。
 - **単一購読で `SerialSession.lines$` をそのまま見たい場合**  
   - `lines$` の素の橋渡し。
 - **生チャンクを直接扱う必要がある場合（本アプリの Feature）**  
