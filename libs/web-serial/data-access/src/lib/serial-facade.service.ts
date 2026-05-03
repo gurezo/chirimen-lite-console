@@ -54,7 +54,7 @@ export class SerialFacadeService {
    *
    * - **ターミナル UI は本 Observable を購読**し、シェルからの出力を画面に反映する。TTY の `\r` 再描画の畳み込み等はライブラリの `SerialSession.terminalText$` に委譲する。
    * - **送信**は {@link #send$} のみとし、表示の更新に {@link #exec$} / {@link #execRaw$} / {@link #readUntilPrompt$} の戻り値を用いない（二重表示・責務の混乱を避ける。キャプチャ用途は {@link #exec$} 側のドキュメント参照）。
-   * - **プロンプト検出・ログイン判定**には {@link #lines$} 由来のバッファを用い、本ストリームは照合用に寄せない。
+   * - **プロンプト検出・ログイン判定**には本ストリームは使わない。同期は {@link #readUntilPrompt$} / {@link #exec$} 等に任せ、バッファは data-access 内で {@link #receive$} から構築される。
    *
    * @see {@link #exec$} ターミナル UI では exec 系を呼ばない理由と内部向け利用境界
    */
