@@ -408,6 +408,42 @@ describe('SerialCommandPipelineService', () => {
     expect(r3.stdout).toContain(PI_ZERO_PROMPT);
   });
 
+  it('exec rejects immediately when cancelAllCommands is called while waiting for prompt', async () => {
+    const { service, transport } = createService();
+    transport.send$ = vi.fn(
+      () =>
+        new Observable<void>((subscriber) => {
+          subscriber.next();
+          subscriber.complete();
+        }),
+    );
+
+    const execPromise = firstValueFrom(
+      service.exec$('ls', {
+        prompt: PI_ZERO_PROMPT,
+        timeout: 5000,
+        retry: 0,
+      }),
+    );
+    queueMicrotask(() => service.cancelAllCommands());
+
+    await expect(execPromise).rejects.toThrow('All commands cancelled');
+  });
+
+  it('readUntilPrompt rejects immediately when cancelAllCommands is called while waiting', async () => {
+    const { service } = createService();
+    const readPromise = firstValueFrom(
+      service.readUntilPrompt$({
+        prompt: PI_ZERO_PROMPT,
+        timeout: 5000,
+        retry: 0,
+      }),
+    );
+    queueMicrotask(() => service.cancelAllCommands());
+
+    await expect(readPromise).rejects.toThrow('All commands cancelled');
+  });
+
   it('exec stdout aggregates successive receive$ chunks through prompt', async () => {
     const { service, linesSubject, transport } = createService();
     let releaseWrite: (() => void) | undefined;
