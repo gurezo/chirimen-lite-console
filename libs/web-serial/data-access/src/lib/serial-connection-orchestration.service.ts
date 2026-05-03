@@ -34,6 +34,10 @@ export class SerialConnectionOrchestrationService {
   private readonly command = inject(SerialCommandService);
   private readonly shellReadiness = inject(PiZeroShellReadinessService);
 
+  /**
+   * 成功したシリアル接続ごとに単調増加するセッション識別子。
+   * 接続ライフサイクルのみ本サービスがインクリメントし、bootstrap 済み判定は `PiZeroSessionService` 側の責務。
+   */
   private connectionEpoch = 0;
 
   private readonly connectionEstablished = new Subject<void>();
@@ -84,6 +88,10 @@ export class SerialConnectionOrchestrationService {
     );
   }
 
+  /**
+   * data-access 内部で接続セッションと bootstrap 状態を突き合わせるための API。
+   * Feature / Facade には露出しない（[#647](https://github.com/gurezo/chirimen-lite-console/issues/647)）。
+   */
   getConnectionEpoch(): number {
     return this.connectionEpoch;
   }
