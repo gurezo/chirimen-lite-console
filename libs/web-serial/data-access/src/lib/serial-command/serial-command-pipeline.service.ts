@@ -166,6 +166,7 @@ export class SerialCommandPipelineService {
   cancelAllCommands(): void {
     this.state.generation++;
     this.state.rejectPendingSlotsBelow = null;
+    this.bufferNotify$.next();
   }
 
   getPendingCommandCount(): number {
