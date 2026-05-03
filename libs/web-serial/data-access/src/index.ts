@@ -8,7 +8,11 @@ export * from './lib/pi-zero-session.service';
 export * from './lib/pi-zero-serial-bootstrap.service';
 export * from './lib/pi-zero-shell-readiness.service';
 export * from './lib/serial-setup-status';
-export * from './lib/serial-command/serial-command-facade.service';
+export type {
+  CommandExecutionConfig,
+  CommandResult,
+} from './lib/serial-command/serial-command-types';
+export type { SerialCommandEnqueueOptions } from './lib/serial-command/serial-command-pipeline.service';
 export * from './lib/serial-facade.service';
 export * from './lib/serial-notification.service';
 export * from './lib/serial-connection-view-model.facade';
