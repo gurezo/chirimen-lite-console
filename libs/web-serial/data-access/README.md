@@ -30,9 +30,16 @@ PiZeroSerialBootstrapService
   -> login / environment setup の具体処理
 ```
 
+### Orchestration と Pipeline（data-access 内部）（[#664](https://github.com/gurezo/chirimen-lite-console/issues/664)）
+
+`SerialConnectionOrchestrationService` は、接続成功直後にコマンド用 **read loop** を開始し、切断時に実行中コマンドをキャンセルして read loop を停止する。これらは **`SerialCommandPipelineService` を直接 inject** して呼ぶ（`startReadLoop` / `stopReadLoop` / `cancelAllCommands`）。
+
+`SerialFacadeService` が既に `SerialConnectionOrchestrationService` を inject しているため、オーケストレーション側まで Facade 経由にすると **Angular DI の循環依存**になりやすい。よって read loop ライフサイクルだけ Pipeline を直接触るのは **data-access 内部の例外** とし、Feature 層の「入口は `SerialFacadeService` のみ」とは両立させる。
+
 ### 実装時のルール（要約）
 
 - Feature 側から `SerialTransportService` を直接参照しない（入口は `SerialFacadeService` のみ）。
+- `@libs-web-serial-data-access` の公開境界では **`SerialCommandPipelineService`（および旧名エイリアス `SerialCommandService`）クラスを export しない**。`exec$` 系の戻り値型など必要な **型**（`CommandResult` 等）のみ barrel から再エクスポートする（[#664](https://github.com/gurezo/chirimen-lite-console/issues/664)）。
 - ターミナル表示には `terminalText$` を使う。
 - 生の `receive$` は原則 **data-access internal**（Feature から購読しない。プロンプト照合は `SerialCommandPipelineService` が `receive$` からバッファを構築）。
 - コマンド実行（stdout キャプチャ付き）には `exec$` / `execRaw$` を使う。
