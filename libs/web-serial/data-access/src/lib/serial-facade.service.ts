@@ -2,7 +2,7 @@
 
 /** Full rewrite (#606). Facade over `SerialSession` v2.3.1 via {@link SerialTransportService}. */
 import { Injectable, inject } from '@angular/core';
-import { type Observable, take } from 'rxjs';
+import { type Observable } from 'rxjs';
 import {
   type CommandResult,
   SerialCommandService,
@@ -80,10 +80,6 @@ export class SerialFacadeService {
     return this.transport.send$(data);
   }
 
-  read$(): Observable<string> {
-    return this.lines$.pipe(take(1));
-  }
-
   /**
    * プロンプト同期でコマンドを送り、シェルが戻るまでの **stdout 等のキャプチャ結果** を返す。
    *
@@ -122,23 +118,7 @@ export class SerialFacadeService {
     return this.command.readUntilPrompt$(options);
   }
 
-  getConnectionEpoch(): number {
-    return this.connection.getConnectionEpoch();
-  }
-
-  isReading(): boolean {
-    return this.command.isReading();
-  }
-
-  getPendingCommandCount(): number {
-    return this.command.getPendingCommandCount();
-  }
-
   isRaspberryPiZero(): Promise<boolean> {
     return this.validator.isRaspberryPiZeroSerialAccess(this.transport);
-  }
-
-  getPort(): SerialPort | null {
-    return this.transport.getPort() ?? null;
   }
 }

@@ -52,7 +52,6 @@ describe('TerminalViewComponent', () => {
             sendMock(...(args as [string])),
           connectionEstablished$: NEVER,
           terminalText$: terminalTextSubject.asObservable(),
-          getConnectionEpoch: () => 1,
         },
       })
       .overrideProvider(PiZeroSessionService, {
