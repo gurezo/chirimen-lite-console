@@ -3,7 +3,7 @@ import { Injector } from '@angular/core';
 import { BehaviorSubject, firstValueFrom, of, take } from 'rxjs';
 import { type Mock, beforeEach, describe, expect, it, vi } from 'vitest';
 import { PiZeroShellReadinessService } from './pi-zero-shell-readiness.service';
-import { SerialCommandService } from './serial-command/serial-command-facade.service';
+import { SerialCommandPipelineService } from './serial-command/serial-command-facade.service';
 import { SerialConnectionOrchestrationService } from './serial-connection-orchestration.service';
 import { SerialTransportService } from './serial-transport.service';
 
@@ -13,7 +13,7 @@ describe('SerialConnectionOrchestrationService', () => {
   let transport: Partial<SerialTransportService>;
   let connectMock: Mock;
   let disconnectMock: Mock;
-  let command: Partial<SerialCommandService>;
+  let command: Partial<SerialCommandPipelineService>;
   let shellReadiness: PiZeroShellReadinessService;
 
   beforeEach(() => {
@@ -36,7 +36,7 @@ describe('SerialConnectionOrchestrationService', () => {
       providers: [
         SerialConnectionOrchestrationService,
         { provide: SerialTransportService, useValue: transport },
-        { provide: SerialCommandService, useValue: command },
+        { provide: SerialCommandPipelineService, useValue: command },
         { provide: PiZeroShellReadinessService, useValue: shellReadiness },
       ],
     });

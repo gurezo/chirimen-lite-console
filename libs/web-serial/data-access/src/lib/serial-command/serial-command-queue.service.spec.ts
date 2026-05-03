@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  NEVER,
   Observable,
   Subject,
   delay,
@@ -10,11 +11,20 @@ import {
   take,
   timer,
 } from 'rxjs';
-import { SerialCommandQueueService } from './serial-command-queue.service';
+import type { SerialTransportService } from '../serial-transport.service';
+import { SerialPromptDetectorService } from './serial-prompt-detector.service';
+import { SerialCommandPipelineService } from './serial-command-pipeline.service';
 
-describe('SerialCommandQueueService', () => {
+describe('SerialCommandPipelineService (queue)', () => {
+  function createQueueOnlyPipeline(): SerialCommandPipelineService {
+    return new SerialCommandPipelineService(
+      { receive$: NEVER } as unknown as SerialTransportService,
+      new SerialPromptDetectorService(),
+    );
+  }
+
   it('runs enqueued work serially', async () => {
-    const queue = new SerialCommandQueueService();
+    const queue = createQueueOnlyPipeline();
     const order: number[] = [];
     const p1 = firstValueFrom(
       queue.enqueueCommand$(() => {
@@ -41,7 +51,7 @@ describe('SerialCommandQueueService', () => {
   });
 
   it('runs first delayed job to completion before starting the second', async () => {
-    const queue = new SerialCommandQueueService();
+    const queue = createQueueOnlyPipeline();
     const order: number[] = [];
     const p1 = firstValueFrom(
       queue.enqueueCommand$(() =>
@@ -66,7 +76,7 @@ describe('SerialCommandQueueService', () => {
   });
 
   it('increments pending count while work runs', async () => {
-    const queue = new SerialCommandQueueService();
+    const queue = createQueueOnlyPipeline();
     expect(queue.getPendingCommandCount()).toBe(0);
     const done = firstValueFrom(
       queue.enqueueCommand$(() => {
@@ -82,7 +92,7 @@ describe('SerialCommandQueueService', () => {
   });
 
   it('rejects work when generation was cancelled before run', async () => {
-    const queue = new SerialCommandQueueService();
+    const queue = createQueueOnlyPipeline();
     const blocker = new Subject<void>();
     const p1 = firstValueFrom(
       queue.enqueueCommand$(() =>
@@ -103,7 +113,7 @@ describe('SerialCommandQueueService', () => {
   });
 
   it('isGenerationActive is false after cancelAllCommands', () => {
-    const queue = new SerialCommandQueueService();
+    const queue = createQueueOnlyPipeline();
     const genAtEnqueue = 0;
     expect(queue.isGenerationActive(genAtEnqueue)).toBe(true);
     queue.cancelAllCommands();
@@ -111,7 +121,7 @@ describe('SerialCommandQueueService', () => {
   });
 
   it('cancelPrevious rejects pending work but not the one currently running', async () => {
-    const queue = new SerialCommandQueueService();
+    const queue = createQueueOnlyPipeline();
     const finishFirst = new Subject<void>();
     const p1 = firstValueFrom(
       queue.enqueueCommand$(() =>
@@ -133,7 +143,7 @@ describe('SerialCommandQueueService', () => {
   });
 
   it('cancelPrevious does not abort work already in defer (same slot bump)', async () => {
-    const queue = new SerialCommandQueueService();
+    const queue = createQueueOnlyPipeline();
     const blocker = new Subject<void>();
     const p1 = firstValueFrom(
       queue.enqueueCommand$(() =>
