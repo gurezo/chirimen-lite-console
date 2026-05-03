@@ -4,6 +4,32 @@ Angular 向けのシリアル（Web Serial + `@gurezo/web-serial-rxjs` v2.3.1）
 
 **リポジトリ間の責務分界**（ライブラリ一般と本アプリの対応、`SerialSession` を正とする方針など）: [docs/serial-architecture.md](../../../docs/serial-architecture.md)（[#568](https://github.com/gurezo/chirimen-lite-console/issues/568)）。
 
+## 設計メモ（責務と実装ルール）（[#652](https://github.com/gurezo/chirimen-lite-console/issues/652)）
+
+今後の実装判断用のレイヤ概要。ストリームの詳細・公開 API の契約・Pi Zero の集約方針は、本 README 下記の「受信ストリームの使い分け」「公開 API ポリシー」「接続 epoch と bootstrap 済み epoch」「CHIRIMEN / Pi Zero 固有ロジックの集約」などの各節を参照する。
+
+### 責務レイヤ（俯瞰）
+
+```text
+Feature / UI
+  -> SerialFacadeService のみ参照する
+
+SerialFacadeService
+  -> 外部 API の入口
+
+SerialTransportService
+  -> SerialSession の thin adapter
+
+SerialCommandService / SerialCommandRunnerService
+  -> exec / readUntilPrompt / prompt 判定
+
+PiZeroSessionService
+  -> Pi Zero 接続後 bootstrap の制御
+
+PiZeroSerialBootstrapService
+  -> login / environment setup の具体処理
+```
+
 ## 受信ストリームの使い分け（`SerialSession` / `SerialTransportService`）
 
 アプリでは `@gurezo/web-serial-rxjs` の `SerialSession` が提供する受信 Observable を、用途に応じて次のように使い分ける（[#559](https://github.com/gurezo/chirimen-lite-console/issues/559)）。
