@@ -8,6 +8,5 @@ export type {
 
 export {
   SerialCommandPipelineService,
-  SerialCommandPipelineService as SerialCommandService,
   type SerialCommandEnqueueOptions,
 } from './serial-command-pipeline.service';
