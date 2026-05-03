@@ -36,6 +36,10 @@ export class SerialFacadeService {
   private validator = inject(SerialValidatorService);
   private connection = inject(SerialConnectionOrchestrationService);
 
+  /**
+   * 接続が成功し、コマンド read loop 開始と接続エポック更新の直後に 1 回 emit する。
+   * ターミナル等の **接続直後 bootstrap** の開始点として利用する（{@link SerialConnectionOrchestrationService#connect$} 内で発火。[#649](https://github.com/gurezo/chirimen-lite-console/issues/649)）。
+   */
   readonly connectionEstablished$ = this.connection.connectionEstablished$;
 
   readonly state$ = this.transport.state$;

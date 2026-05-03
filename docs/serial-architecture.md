@@ -31,7 +31,7 @@ chirimen-lite-console（本リポジトリ）
 
 本リポジトリでは `SerialSession`（`state$` / `isConnected$` / `errors$` 等）を **接続状態などの唯一のソース** とし、[`SerialTransportService`](../libs/web-serial/data-access/src/lib/serial-transport.service.ts) は `activeSession$` 経由内の **橋渡し（thin adapter）** に留める。Pi Zero 向けの接続・ログイン・初期化は `PiZeroSessionService` やオーケストレーション層に集約し、機能コンポーネントから `SerialTransportService` を直接注入しない方針とする（[`SerialFacadeService`](../libs/web-serial/data-access/src/lib/serial-facade.service.ts) 経由）。
 
-Issue #590 / [#601](https://github.com/gurezo/chirimen-lite-console/issues/601) 以降は、外部公開 API を `SerialFacadeService` に集約し、利用側は `terminalText$` / `lines$` / `state$` / `isConnected$` / `errors$` / `portInfo$` と `connect$()` / `disconnect$()` / `send$()` / `exec$()` / `execRaw$()` / `readUntilPrompt$()` を基本導線とする。`receive$` は Facade に **フィールドとして露出する**が、**Feature からの購読は行わない**（プロンプト照合・`exec$` の stdout 集約は data-access 内部で `receive$` を用いる。[#646](https://github.com/gurezo/chirimen-lite-console/issues/646)）。Pi Zero のログイン〜タイムゾーン初期化の期待シーケンスは [Issue #606](https://github.com/gurezo/chirimen-lite-console/issues/606) を参照。
+Issue #590 / [#601](https://github.com/gurezo/chirimen-lite-console/issues/601) / [#649](https://github.com/gurezo/chirimen-lite-console/issues/649) 以降は、外部公開 API を `SerialFacadeService` に集約し、利用側は `terminalText$` / `lines$` / `state$` / `isConnected$` / `errors$` / `portInfo$` / `connectionEstablished$` と `connect$()` / `disconnect$()` / `send$()` / `exec$()` / `execRaw$()` / `readUntilPrompt$()` / `isBrowserSupported()` / `isRaspberryPiZero()` を基本導線とする。`receive$` は **Facade では橋渡しせず**、`SerialTransportService` 経由で data-access 内部（`SerialCommandRunnerService`）のみがプロンプト照合・`exec$` の stdout 集約に用いる（[#646](https://github.com/gurezo/chirimen-lite-console/issues/646)）。Pi Zero のログイン〜タイムゾーン初期化の期待シーケンスは [Issue #606](https://github.com/gurezo/chirimen-lite-console/issues/606) を参照。
 
 ### `exec$` 系 API の責務（[#616](https://github.com/gurezo/chirimen-lite-console/issues/616)）
 
@@ -55,13 +55,13 @@ Issue #590 / [#601](https://github.com/gurezo/chirimen-lite-console/issues/601) 
 
 ## 受信ストリーム（ライブラリ vs 本アプリの公開面）
 
-ライブラリの `SerialSession` は `receive$` / `receiveReplay$` / `lines$` / `terminalText$` 等を提供する。本アプリの **`SerialFacadeService`** は `terminalText$` / `lines$` / **`receive$`** を `readonly` で橋渡しする。うち **Feature が購読するのは `terminalText$` と `lines$`** とし、`receive$` は **internal 契約**（`SerialCommandRunnerService` がプロンプト照合・`exec$` stdout 用に購読）とする（[#601](https://github.com/gurezo/chirimen-lite-console/issues/601)、[#646](https://github.com/gurezo/chirimen-lite-console/issues/646)）。ライブ表示の `\r` 再描画や表示用バッファ正規化は **ライブラリの `terminalText$`** に委譲する。
+ライブラリの `SerialSession` は `receive$` / `receiveReplay$` / `lines$` / `terminalText$` 等を提供する。本アプリの **`SerialFacadeService`** は `terminalText$` / `lines$` を `readonly` で橋渡しする。**`receive$` は Facade では露出せず**、`SerialTransportService` が `activeSession$` 経由で橋渡しし、`SerialCommandRunnerService` がプロンプト照合・`exec$` stdout 用に購読する（[#601](https://github.com/gurezo/chirimen-lite-console/issues/601)、[#646](https://github.com/gurezo/chirimen-lite-console/issues/646)、[#649](https://github.com/gurezo/chirimen-lite-console/issues/649)）。ライブ表示の `\r` 再描画や表示用バッファ正規化は **ライブラリの `terminalText$`** に委譲する。
 
 | ストリーム | ライブラリ `SerialSession` | 本アプリ `SerialFacadeService` |
 |------------|---------------------------|--------------------------------|
 | `terminalText$` | terminal helper 相当の表示用テキスト | Feature から購読可（xterm ライブ表示） |
 | `lines$` | 行境界で分割された行 | Feature から購読可（行単位の読み取り） |
-| `receive$` | UTF-8 デコード済みの生チャンク | フィールドはあるが **Feature からは購読しない**（data-access 内部のコマンド実行層が利用） |
+| `receive$` | UTF-8 デコード済みの生チャンク | **橋渡ししない**（`SerialTransportService` のみが data-access 内部向けに公開） |
 | `receiveReplay$` | 生チャンク（リプレイ付き） | Facade では橋渡ししない |
 
 ### 本アプリでの推奨利用
@@ -97,3 +97,4 @@ Issue #590 / [#601](https://github.com/gurezo/chirimen-lite-console/issues/601) 
 - [#616](https://github.com/gurezo/chirimen-lite-console/issues/616) — `exec$` の責務整理（ターミナル外の内部同期コマンド用と文書化）
 - [#617](https://github.com/gurezo/chirimen-lite-console/issues/617) — `terminalText$` の責務明確化（ドキュメント・JSDoc）
 - [#646](https://github.com/gurezo/chirimen-lite-console/issues/646) — README / ドキュメント上の `receive$` / `lines$` / `terminalText$` と Feature 境界の明文化
+- [#649](https://github.com/gurezo/chirimen-lite-console/issues/649) — `SerialFacadeService` の公開 API 縮小（`receive$` 等を Facade から除去）
