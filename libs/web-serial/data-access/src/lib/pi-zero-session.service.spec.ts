@@ -87,6 +87,39 @@ describe('PiZeroSessionService', () => {
     expect(vi.mocked(shellReadiness.setReady)).toHaveBeenCalledTimes(2);
   });
 
+  it('does not set shell ready when connection epoch advances mid-pipeline; next run succeeds', async () => {
+    let connEpoch = 1;
+    let readCalls = 0;
+    const readUntilPrompt = vi.fn().mockImplementation(async () => {
+      readCalls += 1;
+      if (readCalls === 1) {
+        connEpoch = 2;
+      }
+      return { stdout: `${PI_ZERO_PROMPT} ` };
+    });
+    const exec = vi.fn().mockResolvedValue({ stdout: '' });
+    const serial = {
+      isConnected$: of(true),
+      readUntilPrompt$: (o: unknown) => from(readUntilPrompt(o)),
+      exec$: (c: string, o: unknown) => from(exec(c, o)),
+    } as unknown as SerialFacadeService;
+
+    const shellReadiness = createShellReadinessMock();
+    const service = createSession(
+      serial,
+      shellReadiness,
+      stubConnection(() => connEpoch),
+    );
+
+    await firstValueFrom(service.runAfterConnect$());
+    expect(vi.mocked(shellReadiness.setReady)).not.toHaveBeenCalledWith(true);
+
+    await firstValueFrom(service.runAfterConnect$());
+    expect(readUntilPrompt).toHaveBeenCalledTimes(2);
+    expect(vi.mocked(shellReadiness.setReady)).toHaveBeenCalledTimes(1);
+    expect(vi.mocked(shellReadiness.setReady)).toHaveBeenCalledWith(true);
+  });
+
   it('emits initializing$ true during post-connect bootstrap then false', async () => {
     const readUntilPrompt = vi.fn().mockResolvedValue({
       stdout: `${PI_ZERO_PROMPT} `,
