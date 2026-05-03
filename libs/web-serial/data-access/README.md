@@ -79,7 +79,7 @@ Angular 向けのシリアル（Web Serial + `@gurezo/web-serial-rxjs` v2.3.1）
 - **`SerialFacadeService` の公開 API（Feature が参照してよい契約）**は次のとおり:
   - **Observable**: `terminalText$`, `lines$`, `state$`, `isConnected$`, `errors$`, `portInfo$`, `connectionEstablished$`（接続成功直後 1 回・接続後 bootstrap のトリガ用）
   - **メソッド**: `connect$()`, `disconnect$()`, `send$()`, `exec$()`, `execRaw$()`, `readUntilPrompt$()`, `isBrowserSupported()`, `isRaspberryPiZero()`
-- **Facade では露出しない**（data-access 内部のみ）: 生チャンクの `receive$`（`SerialTransportService` 経由で `SerialCommandRunnerService` がプロンプト照合・`exec$` stdout 用に購読。[#601](https://github.com/gurezo/chirimen-lite-console/issues/601)、[#646](https://github.com/gurezo/chirimen-lite-console/issues/646)）、接続エポック整数（`SerialConnectionOrchestrationService#getConnectionEpoch` — `PiZeroSessionService` 等が利用）、`read$` / `getPort` / キュー診断 API。
+- **Facade では露出しない**（data-access 内部のみ）: 生チャンクの `receive$`（`SerialTransportService` 経由で `SerialCommandRunnerService` がプロンプト照合・`exec$` stdout 用に購読。[#601](https://github.com/gurezo/chirimen-lite-console/issues/601)、[#646](https://github.com/gurezo/chirimen-lite-console/issues/646)）、接続エポック整数（`SerialConnectionOrchestrationService#getConnectionEpoch` — `PiZeroSessionService` が bootstrap 突き合わせに利用）、`read$` / `getPort` / キュー診断 API。
 - ライブラリの `receiveReplay$` は本 data-access の Facade では橋渡ししない。ライブ表示の `\r` 再描画は `terminalText$` に委譲する。
 
 ### `terminalText$` の責務（[#617](https://github.com/gurezo/chirimen-lite-console/issues/617)）
