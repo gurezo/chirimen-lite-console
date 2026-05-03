@@ -4,7 +4,7 @@ import { SerialSessionState } from '@gurezo/web-serial-rxjs';
 import { type SerialExecOptions } from '@libs-web-serial-util';
 import { EMPTY, firstValueFrom, of } from 'rxjs';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { SerialCommandService } from './serial-command/serial-command-facade.service';
+import { SerialCommandPipelineService } from './serial-command/serial-command-facade.service';
 import { SerialConnectionOrchestrationService } from './serial-connection-orchestration.service';
 import { SerialFacadeService } from './serial-facade.service';
 import { SerialTransportService } from './serial-transport.service';
@@ -13,7 +13,7 @@ import { SerialValidatorService } from './serial-validator.service';
 describe('SerialFacadeService', () => {
   let facade: SerialFacadeService;
   let transport: Partial<SerialTransportService>;
-  let command: Partial<SerialCommandService>;
+  let command: Partial<SerialCommandPipelineService>;
   let validator: Partial<SerialValidatorService>;
   let connection: Partial<SerialConnectionOrchestrationService>;
 
@@ -47,7 +47,7 @@ describe('SerialFacadeService', () => {
       providers: [
         SerialFacadeService,
         { provide: SerialTransportService, useValue: transport },
-        { provide: SerialCommandService, useValue: command },
+        { provide: SerialCommandPipelineService, useValue: command },
         { provide: SerialValidatorService, useValue: validator },
         {
           provide: SerialConnectionOrchestrationService,

@@ -5,10 +5,8 @@ import {
 } from '@libs-web-serial-util';
 import { PiZeroPromptDetectorService } from '../pi-zero-prompt-detector.service';
 import type { SerialTransportService } from '../serial-transport.service';
-import { SerialCommandQueueService } from './serial-command-queue.service';
-import { SerialCommandRunnerService } from './serial-command-runner.service';
 import { SerialPromptDetectorService } from './serial-prompt-detector.service';
-import { SerialCommandService } from './serial-command-facade.service';
+import { SerialCommandPipelineService } from './serial-command-pipeline.service';
 
 /** モックの入力待ち行（実機 PS1 で `matchesPrompt` が厳格になる）。単独の `pi@…:` だけでは終了しない。 */
 const MOCK_PS1_TAIL = `${PI_ZERO_PROMPT}~$`;
@@ -33,15 +31,12 @@ function createService() {
         }),
     ),
   };
-  const queue = new SerialCommandQueueService();
   const promptDetector = new SerialPromptDetectorService();
   const piPromptDetector = new PiZeroPromptDetectorService();
-  const runner = new SerialCommandRunnerService(
+  const service = new SerialCommandPipelineService(
     transport as unknown as SerialTransportService,
     promptDetector,
-    queue,
   );
-  const service = new SerialCommandService(runner, queue);
   service.startReadLoop();
   return {
     service,
