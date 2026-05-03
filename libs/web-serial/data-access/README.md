@@ -114,3 +114,45 @@ Angular 向けのシリアル（Web Serial + `@gurezo/web-serial-rxjs` v2.3.1）
 - Pi Zero 固有のプロンプト判定（`pi@…` シェル / `login:` / `Password:` 等）は **`PiZeroPromptDetectorService`** に分離（[`pi-zero-prompt-detector.service.ts`](src/lib/pi-zero-prompt-detector.service.ts)）。
 - `SerialPromptDetectorService` は **汎用 `matchesPrompt` のみ**を提供し、`SerialCommandRunnerService` から共有利用する。
 - 他サービス（`wifi`, `file-manager`, `remote`, `chirimen-setup`, `i2cdetect` など）は Pi Zero 固有ロジックを保持しない。期待プロンプト文字列としての `PI_ZERO_PROMPT` 利用は許容する。
+
+## 回帰テスト（自動 / 手動）（[#651](https://github.com/gurezo/chirimen-lite-console/issues/651) / 親 [#643](https://github.com/gurezo/chirimen-lite-console/issues/643)）
+
+Web Serial 周辺の変更後は、接続・ログイン・timezone・ターミナル・コマンド経路の回帰を必ず確認する。
+
+### 自動テスト（Vitest）のおおよその対応
+
+| 確認観点 | 主な spec |
+| --- | --- |
+| Facade 経由の `connect$` / `disconnect$` / `exec$` / `readUntilPrompt$` / `terminalText$` | `serial-facade.service.spec.ts` |
+| 接続ライフサイクル・再接続時の `disconnect$` → `connect$`・`connectionEpoch`・`connectionEstablished$` | `serial-connection-orchestration.service.spec.ts` |
+| `terminalText$` / `errors$` の橋渡し | `serial-transport.service.spec.ts` |
+| `exec$` / `readUntilPrompt$`・キュー | `serial-command.service.spec.ts`、`serial-command-queue.service.spec.ts` |
+| Pi Zero bootstrap・ログイン・環境初期化 | `pi-zero-serial-bootstrap.service.spec.ts`、`pi-zero-session.service.spec.ts` |
+| 接続 UI の VM（timezone 初期化中など）・接続失敗時の通知 | `serial-connection-view-model.facade.spec.ts` |
+| ターミナルが `terminalText$` の差分のみ反映する挙動 | `libs/terminal/ui` の `terminal-view.component.spec.ts` |
+| Feature が `SerialTransportService` を直接 import しないこと | リポジトリ直下 `tools/verify-serial-feature-boundary.mjs`（CI） |
+
+### 手動確認チェックリスト（実機 / ブラウザ）
+
+実機または対象ブラウザで、必要に応じて記録を残す。
+
+- [ ] ブラウザが Web Serial に対応している（非対応時は `/unsupported-browser` 等の導線）
+- [ ] Web Serial でポート選択・接続ができる
+- [ ] 切断ができる
+- [ ] 再接続（2 回目以降の接続）が問題なく完了する
+- [ ] Pi Zero として認識される（想定デバイスのみ接続する運用の場合はその前提で確認）
+- [ ] ログイン（login / password）〜シェルプロンプトまで到達する
+- [ ] timezone / language（locale）設定が完了し、想定プロンプトに戻る
+- [ ] ターミナルに `terminalText$` 由来のライブ表示が出る（`\r` 再描画含む想定動作）
+- [ ] ユーザー入力（`send$`）がシェルに届く
+- [ ] アプリからのコマンド実行（`exec$`）が期待どおり完了する
+- [ ] `readUntilPrompt$` 相当の「プロンプト待ち」フローが期待どおり完了する
+- [ ] `i2cdetect` 等、シリアル経由の機能コマンドが動作する
+- [ ] 接続失敗・シリアルエラー時にユーザーへ分かる形でエラーが出る
+
+### 変更後に壊れやすい箇所（リグレッション注意）
+
+- **接続 epoch と bootstrap epoch の整合**（`SerialConnectionOrchestrationService` と `PiZeroSessionService` の突き合わせ。再接続直後に旧パイプラインが状態を汚染しないこと）
+- **`receive$` と `terminalText$` の責務分界**（表示は `terminalText$`、プロンプト照合は data-access 内の `receive$` バッファ）
+- **コマンドキューとプロンプト検出**（`SerialCommandQueueService` / `SerialCommandRunnerService`）
+- **Feature 境界**（`SerialFacadeService` 以外への低レイヤー依存を増やさない。CI の feature-boundary 検証に抵触しないこと）
