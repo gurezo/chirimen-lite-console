@@ -23,7 +23,9 @@ export type SerialFacadeConnectResult = SerialConnectResult;
 /**
  * アプリ唯一の入口。`@gurezo/web-serial-rxjs` v2.3.1 の {@link SerialSession} 由来は
  * {@link SerialTransportService} が `isBrowserSupported` / `connect$` / `disconnect$` /
- * `isConnected$` / `receive$` / `terminalText$` / `lines$` / `errors$` で橋渡しする。
+ * `isConnected$` / `terminalText$` / `lines$` / `errors$` で橋渡しする。
+ * 生の受信チャンク（`receive$`）は {@link SerialTransportService} 内および
+ * {@link SerialCommandRunnerService} のみが利用する（Issue #649）。
  */
 @Injectable({
   providedIn: 'root',
@@ -47,14 +49,13 @@ export class SerialFacadeService {
   readonly errors$ = this.transport.errors$;
   readonly portInfo$ = this.transport.portInfo$;
   readonly lines$ = this.transport.lines$;
-  readonly receive$ = this.transport.receive$;
 
   /**
    * ターミナル（xterm 等）の **ライブ表示専用** テキストストリーム（[#617](https://github.com/gurezo/chirimen-lite-console/issues/617)）。
    *
    * - **ターミナル UI は本 Observable を購読**し、シェルからの出力を画面に反映する。TTY の `\r` 再描画の畳み込み等はライブラリの `SerialSession.terminalText$` に委譲する。
    * - **送信**は {@link #send$} のみとし、表示の更新に {@link #exec$} / {@link #execRaw$} / {@link #readUntilPrompt$} の戻り値を用いない（二重表示・責務の混乱を避ける。キャプチャ用途は {@link #exec$} 側のドキュメント参照）。
-   * - **プロンプト検出・ログイン判定**には本ストリームは使わない。同期は {@link #readUntilPrompt$} / {@link #exec$} 等に任せ、バッファは data-access 内で {@link #receive$} から構築される。
+   * - **プロンプト検出・ログイン判定**には本ストリームは使わない。同期は {@link #readUntilPrompt$} / {@link #exec$} 等に任せ、バッファは data-access 内で {@link SerialTransportService#receive$} から構築される。
    *
    * @see {@link #exec$} ターミナル UI では exec 系を呼ばない理由と内部向け利用境界
    */

@@ -33,13 +33,11 @@ describe('TerminalViewComponent', () => {
   let sendMock: ReturnType<typeof vi.fn>;
   let shouldRunAfterConnectMock: ReturnType<typeof vi.fn>;
   let runAfterConnectMock: ReturnType<typeof vi.fn>;
-  let receiveSubject: Subject<string>;
   let terminalTextSubject: Subject<string>;
   let isConnectedSubject: BehaviorSubject<boolean>;
 
   beforeEach(async () => {
     sendMock = vi.fn().mockReturnValue(of(undefined));
-    receiveSubject = new Subject<string>();
     terminalTextSubject = new Subject<string>();
     isConnectedSubject = new BehaviorSubject<boolean>(true);
     shouldRunAfterConnectMock = vi.fn(() => of(true));
@@ -53,7 +51,6 @@ describe('TerminalViewComponent', () => {
           send$: (...args: unknown[]) =>
             sendMock(...(args as [string])),
           connectionEstablished$: NEVER,
-          receive$: receiveSubject.asObservable(),
           terminalText$: terminalTextSubject.asObservable(),
           getConnectionEpoch: () => 1,
         },
@@ -214,13 +211,4 @@ describe('TerminalViewComponent', () => {
     await vi.waitFor(() => expect(writeSpy).toHaveBeenCalledWith('hello'));
   });
 
-  it('does not subscribe to receive$ for live mirroring', async () => {
-    const writeSpy = vi.spyOn(fixture.componentInstance.xterminal, 'write');
-    writeSpy.mockClear();
-
-    receiveSubject.next('raw-chunk');
-
-    await Promise.resolve();
-    expect(writeSpy).not.toHaveBeenCalledWith('raw-chunk');
-  });
 });
