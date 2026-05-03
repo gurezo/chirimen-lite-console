@@ -3,7 +3,6 @@ import {
   defaultIfEmpty,
   EMPTY,
   firstValueFrom,
-  forkJoin,
   of,
   throwError,
 } from 'rxjs';
@@ -33,7 +32,6 @@ describe('TerminalConsoleOrchestrationService', () => {
             isConnected$: of(true),
             connectionEstablished$: of(undefined),
             terminalText$: EMPTY,
-            getConnectionEpoch: () => 1,
           },
         },
         {
@@ -79,7 +77,6 @@ describe('TerminalConsoleOrchestrationService', () => {
         isConnected$: of(false),
         connectionEstablished$: of(undefined),
         terminalText$: EMPTY,
-        getConnectionEpoch: () => 1,
       },
     });
     const svc = TestBed.inject(TerminalConsoleOrchestrationService);
@@ -130,7 +127,7 @@ describe('TerminalConsoleOrchestrationService', () => {
     );
   });
 
-  it('bootstrapAfterConnect$ deduplicates concurrent bootstrap calls in same epoch', async () => {
+  it('bootstrapAfterConnect$ delegates post-connect work to PiZeroSessionService', async () => {
     const writeln = vi.fn();
     const write = vi.fn();
     const runAfterConnect$ = vi.fn(() => of(undefined));
@@ -143,14 +140,9 @@ describe('TerminalConsoleOrchestrationService', () => {
     });
     const svc = TestBed.inject(TerminalConsoleOrchestrationService);
     await firstValueFrom(
-      forkJoin([
-        svc.bootstrapAfterConnect$('prefix', { writeln, write }).pipe(
-          defaultIfEmpty(undefined),
-        ),
-        svc.bootstrapAfterConnect$('prefix', { writeln, write }).pipe(
-          defaultIfEmpty(undefined),
-        ),
-      ]),
+      svc
+        .bootstrapAfterConnect$('prefix', { writeln, write })
+        .pipe(defaultIfEmpty(undefined)),
     );
 
     expect(shouldRunAfterConnect$).toHaveBeenCalledTimes(1);

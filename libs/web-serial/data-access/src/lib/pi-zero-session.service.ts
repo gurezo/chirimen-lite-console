@@ -19,6 +19,7 @@ import type { PiZeroBootstrapStatusHandler } from './pi-zero-serial-bootstrap.se
 import { PiZeroSerialBootstrapService } from './pi-zero-serial-bootstrap.service';
 import { PiZeroShellReadinessService } from './pi-zero-shell-readiness.service';
 import type { SerialSetupStatus } from './serial-setup-status';
+import { SerialConnectionOrchestrationService } from './serial-connection-orchestration.service';
 import type { SerialFacadeConnectResult } from './serial-facade.service';
 import { SerialFacadeService } from './serial-facade.service';
 
@@ -49,6 +50,7 @@ export class PiZeroSessionService {
     private readonly serial: SerialFacadeService,
     private readonly bootstrap: PiZeroSerialBootstrapService,
     readonly shellReadiness: PiZeroShellReadinessService,
+    private readonly connection: SerialConnectionOrchestrationService,
   ) {
     this.setupStatus$.subscribe((status) => {
       const isInitializing =
@@ -87,7 +89,7 @@ export class PiZeroSessionService {
         if (!connected) {
           return false;
         }
-        const epoch = this.serial.getConnectionEpoch();
+        const epoch = this.connection.getConnectionEpoch();
         if (epoch === this.lastBootstrappedEpoch) {
           return false;
         }
@@ -117,7 +119,7 @@ export class PiZeroSessionService {
         if (!shouldRun) {
           return of(undefined);
         }
-        const epoch = this.serial.getConnectionEpoch();
+        const epoch = this.connection.getConnectionEpoch();
 
         if (
           this.activeBootstrap$ !== null &&

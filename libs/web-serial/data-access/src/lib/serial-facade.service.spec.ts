@@ -28,14 +28,11 @@ describe('SerialFacadeService', () => {
       receive$: EMPTY,
       terminalText$: EMPTY,
       send$: vi.fn(() => of(undefined)),
-      getPort: vi.fn(() => undefined),
     };
     command = {
       exec$: vi.fn(() => of({ stdout: '' })),
       execRaw$: vi.fn(() => of({ stdout: '' })),
       readUntilPrompt$: vi.fn(() => of({ stdout: '' })),
-      isReading: vi.fn(() => false),
-      getPendingCommandCount: vi.fn(() => 0),
     };
     validator = {
       isRaspberryPiZeroSerialAccess: vi.fn(() => Promise.resolve(false)),
@@ -44,7 +41,6 @@ describe('SerialFacadeService', () => {
       connectionEstablished$: EMPTY,
       connect$: vi.fn(() => of({ ok: true } as const)),
       disconnect$: vi.fn(() => of(undefined)),
-      getConnectionEpoch: vi.fn(() => 42),
     };
 
     const injector = Injector.create({
@@ -100,18 +96,8 @@ describe('SerialFacadeService', () => {
     expect(transport.send$).toHaveBeenCalledWith('hello');
   });
 
-  it('read$ takes one line from transport.lines$', async () => {
-    const line = await firstValueFrom(facade.read$());
-    expect(line).toBe('line');
-  });
-
   it('terminalText$ is the same stream as transport.terminalText$', () => {
     expect(facade.terminalText$).toBe(transport.terminalText$);
-  });
-
-  it('getConnectionEpoch delegates to connection', () => {
-    expect(facade.getConnectionEpoch()).toBe(42);
-    expect(connection.getConnectionEpoch).toHaveBeenCalled();
   });
 
   it('isRaspberryPiZero delegates to validator with transport', async () => {
@@ -121,10 +107,4 @@ describe('SerialFacadeService', () => {
     );
   });
 
-  it('isReading and getPendingCommandCount delegate to command', () => {
-    expect(facade.isReading()).toBe(false);
-    expect(facade.getPendingCommandCount()).toBe(0);
-    expect(command.isReading).toHaveBeenCalled();
-    expect(command.getPendingCommandCount).toHaveBeenCalled();
-  });
 });

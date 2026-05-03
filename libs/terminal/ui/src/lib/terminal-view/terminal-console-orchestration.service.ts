@@ -8,7 +8,6 @@ import {
   EMPTY,
   Observable,
   catchError,
-  finalize,
   firstValueFrom,
   shareReplay,
   switchMap,
@@ -50,8 +49,6 @@ export interface TerminalConsoleSink {
 export class TerminalConsoleOrchestrationService {
   private readonly serial = inject(SerialFacadeService);
   private readonly piZeroSession = inject(PiZeroSessionService);
-  private activeBootstrap$: Observable<void> | null = null;
-  private activeBootstrapEpoch: number | null = null;
 
   readonly connectionEstablished$ = this.serial.connectionEstablished$;
   readonly isConnected$ = this.serial.isConnected$;
@@ -103,12 +100,7 @@ export class TerminalConsoleOrchestrationService {
     prefixMessage: string,
     sink: TerminalConsoleSink,
   ): Observable<void> {
-    const epoch = this.serial.getConnectionEpoch();
-    if (this.activeBootstrap$ !== null && this.activeBootstrapEpoch === epoch) {
-      return this.activeBootstrap$;
-    }
-    this.activeBootstrapEpoch = epoch;
-    this.activeBootstrap$ = this.piZeroSession.shouldRunAfterConnect$().pipe(
+    return this.piZeroSession.shouldRunAfterConnect$().pipe(
       switchMap((should) => {
         if (!should) {
           this.writeConsoleLine(sink, `${prefixMessage} 初期化済みのためスキップします。`);
@@ -128,15 +120,8 @@ export class TerminalConsoleOrchestrationService {
         );
         return throwError(() => error);
       }),
-      finalize(() => {
-        if (this.activeBootstrapEpoch === epoch) {
-          this.activeBootstrap$ = null;
-          this.activeBootstrapEpoch = null;
-        }
-      }),
       shareReplay({ bufferSize: 1, refCount: true }),
     );
-    return this.activeBootstrap$;
   }
 
   private writeConsoleLine(sink: TerminalConsoleSink, line: string): void {
