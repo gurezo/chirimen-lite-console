@@ -24,7 +24,7 @@ export interface SerialExecOptions {
   /**
    * 既定 `false`。`true` のとき、このコマンドをキューに載せる直前に、
    * **未実行**の先行ジョブだけを破棄する（実行中のジョブは止めない）。
-   * {@link SerialCommandQueueService#cancelAllCommands} とは別。
+   * 実行中のジョブは止めない。`SerialCommandPipelineService#cancelAllCommands`（一括キャンセル）とは別。
    */
   cancelPrevious?: boolean;
 }

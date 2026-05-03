@@ -6,7 +6,7 @@ import { Injectable } from '@angular/core';
  *
  * Pi Zero / Raspberry Pi OS 固有の判定（login / password / `pi@…` シェル等）は
  * `PiZeroPromptDetectorService` に分離しているため、本サービスは
- * `SerialCommandRunnerService` などコマンド実行系で使う汎用 `matchesPrompt` のみを提供する。
+ * `SerialCommandPipelineService` などコマンド実行系で使う汎用 `matchesPrompt` のみを提供する。
  */
 @Injectable({
   providedIn: 'root',

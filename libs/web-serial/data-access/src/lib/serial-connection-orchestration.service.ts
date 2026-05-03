@@ -14,7 +14,7 @@ import {
 } from 'rxjs';
 import { getConnectionErrorMessage } from '@libs-web-serial-util';
 import { PiZeroShellReadinessService } from './pi-zero-shell-readiness.service';
-import { SerialCommandService } from './serial-command/serial-command-facade.service';
+import { SerialCommandPipelineService } from './serial-command/serial-command-facade.service';
 import { SerialTransportService } from './serial-transport.service';
 
 /** {@link SerialConnectionOrchestrationService#connect$} の結果 */
@@ -31,7 +31,7 @@ export type SerialConnectResult =
 })
 export class SerialConnectionOrchestrationService {
   private readonly transport = inject(SerialTransportService);
-  private readonly command = inject(SerialCommandService);
+  private readonly command = inject(SerialCommandPipelineService);
   private readonly shellReadiness = inject(PiZeroShellReadinessService);
 
   /**
