@@ -33,6 +33,8 @@ chirimen-lite-console（本リポジトリ）
 
 Issue #590 / [#601](https://github.com/gurezo/chirimen-lite-console/issues/601) / [#649](https://github.com/gurezo/chirimen-lite-console/issues/649) 以降は、外部公開 API を `SerialFacadeService` に集約し、利用側は `terminalText$` / `lines$` / `state$` / `isConnected$` / `errors$` / `portInfo$` / `connectionEstablished$` と `connect$()` / `disconnect$()` / `send$()` / `exec$()` / `execRaw$()` / `readUntilPrompt$()` / `isBrowserSupported()` / `isRaspberryPiZero()` を基本導線とする。`receive$` は **Facade では橋渡しせず**、`SerialTransportService` 経由で data-access 内部（`SerialCommandPipelineService`）のみがプロンプト照合・`exec$` の stdout 集約に用いる（[#646](https://github.com/gurezo/chirimen-lite-console/issues/646)）。Pi Zero のログイン〜タイムゾーン初期化の期待シーケンスは [Issue #606](https://github.com/gurezo/chirimen-lite-console/issues/606) を参照。
 
+[#664](https://github.com/gurezo/chirimen-lite-console/issues/664) に沿い、`@libs-web-serial-data-access` のパッケージ公開面からは **`SerialCommandPipelineService` クラスを export せず**、コマンド実行の利用入口は Facade の `exec$` / `execRaw$` / `readUntilPrompt$` とする。一方、接続ライフサイクルの read loop 開始・停止・切断時キャンセルは、`SerialFacadeService` と `SerialConnectionOrchestrationService` の **循環 DI を避けるため**、オーケストレーションが Pipeline を **data-access 内部だけ**直接 inject して制御する（詳細は [libs/web-serial/data-access/README.md](../libs/web-serial/data-access/README.md) の「Orchestration と Pipeline」節）。
+
 ### `exec$` 系 API の責務（[#616](https://github.com/gurezo/chirimen-lite-console/issues/616)）
 
 - **ターミナル（xterm）経路**では `send$()` と `terminalText$` のみを使い、`exec$()` / `execRaw$()` / `readUntilPrompt$()` は **呼ばない**（親 [#609](https://github.com/gurezo/chirimen-lite-console/issues/609)）。
@@ -98,3 +100,4 @@ Issue #590 / [#601](https://github.com/gurezo/chirimen-lite-console/issues/601) 
 - [#617](https://github.com/gurezo/chirimen-lite-console/issues/617) — `terminalText$` の責務明確化（ドキュメント・JSDoc）
 - [#646](https://github.com/gurezo/chirimen-lite-console/issues/646) — README / ドキュメント上の `receive$` / `lines$` / `terminalText$` と Feature 境界の明文化
 - [#649](https://github.com/gurezo/chirimen-lite-console/issues/649) — `SerialFacadeService` の公開 API 縮小（`receive$` 等を Facade から除去）
+- [#664](https://github.com/gurezo/chirimen-lite-console/issues/664) — Facade を実質入口に統一し、パッケージ公開面からコマンド Pipeline クラスを除く（Orchestration の内部例外を文書化）
