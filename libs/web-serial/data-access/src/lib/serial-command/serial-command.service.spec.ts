@@ -49,7 +49,7 @@ function createService() {
   };
 }
 
-describe('SerialCommandService', () => {
+describe('SerialCommandPipelineService', () => {
   it('exec resolves when prompt matches', async () => {
     const { service, linesSubject, transport } = createService();
 
