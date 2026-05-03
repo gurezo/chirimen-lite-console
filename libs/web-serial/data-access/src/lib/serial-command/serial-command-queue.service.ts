@@ -23,12 +23,35 @@ export interface SerialCommandEnqueueOptions {
 }
 
 /**
+ * {@link SerialCommandQueueService} の内部キュー状態（issue #648）。
+ *
+ * - **generation**: `cancelAllCommands` ごとに増える。各 enqueue はその時点の世代を覚え、
+ *   `defer` 実行直前に世代が変わっていればジョブ全体を棄却する（`cancelAllCommands` 経路）。
+ * - **pendingCount**: キューに載せたが `finalize` まで完了していないジョブ数（`getPendingCommandCount`）。
+ * - **nextSlotId**: enqueue のたびに単調増加する ID。実行順とは一致しない。
+ * - **rejectPendingSlotsBelow**: `cancelPrevious`（`invalidatePendingEnqueues`）で設定されるしきい値。
+ *   `defer` 内で `assignedSlotId` がこの値未満なら未実行扱いとして棄却する。`cancelAllCommands` で `null` に戻す。
+ */
+export interface CommandQueueState {
+  /** `cancelAllCommands` のたびに増加。enqueue 時点の世代と比較して実行可否を決める */
+  generation: number;
+  pendingCount: number;
+  /** enqueue ごとに増える単調 ID（実行順と一致しない）。`cancelPrevious` 時の棄却判定に使う */
+  nextSlotId: number;
+  /**
+   * 実行開始時、`assignedSlotId` がこの値未満なら棄却（`cancelPrevious` で設定）。
+   * `cancelAllCommands` ではリセットする。
+   */
+  rejectPendingSlotsBelow: number | null;
+}
+
+/**
  * シリアルコマンド実行を直列化し、世代ベースで一括キャンセルする。
  *
  * **契約**
  * - `enqueueCommand$` 1 回につき、呼び出し元の Observable は **単一の next の後 complete**（または error）する。
  * - 内部の `concatMap` により、前のジョブが完了するまで次の `factory` は走らない（直列実行）。
- * - `factory` は `defer` 内で実行される。実行直前に `generation` を再チェックし、
+ * - `factory` は `defer` 内で実行される。実行直前に `state.generation` を再チェックし、
  *   `cancelAllCommands` 済みなら `All commands cancelled` で打ち切る。
  * - `enqueuedGen` は enqueue 時点の世代。キャンセル後もキューに積まれた古いジョブは
  *   実行開始時に世代不一致で棄却される。
@@ -39,16 +62,12 @@ export interface SerialCommandEnqueueOptions {
 })
 export class SerialCommandQueueService {
   private readonly executionQueue$ = new Subject<Observable<unknown>>();
-  /** `cancelAllCommands` のたびに増加。enqueue 時点の世代と比較して実行可否を決める */
-  private generation = 0;
-  private pendingCount = 0;
-  /** enqueue ごとに増える単調 ID（実行順と一致しない） */
-  private nextSlotId = 0;
-  /**
-   * 実行開始時、`assignedSlotId` がこの値未満なら棄却（`cancelPrevious` で設定）。
-   * `cancelAllCommands` ではリセットする。
-   */
-  private rejectPendingSlotsBelow: number | null = null;
+  private readonly state: CommandQueueState = {
+    generation: 0,
+    pendingCount: 0,
+    nextSlotId: 0,
+    rejectPendingSlotsBelow: null,
+  };
 
   constructor() {
     this.executionQueue$
@@ -70,14 +89,14 @@ export class SerialCommandQueueService {
    * 直後に enqueue されるコマンドは新しいスロット ID を得る。
    */
   invalidatePendingEnqueues(): void {
-    this.rejectPendingSlotsBelow = this.nextSlotId + 1;
+    this.state.rejectPendingSlotsBelow = this.state.nextSlotId + 1;
   }
 
   /**
    * enqueue 時点の世代がまだ有効か（cancel されていなければ true）
    */
   isGenerationActive(enqueuedGen: number): boolean {
-    return this.generation === enqueuedGen;
+    return this.state.generation === enqueuedGen;
   }
 
   enqueueCommand$<T>(
@@ -88,9 +107,9 @@ export class SerialCommandQueueService {
       if (opts?.cancelPrevious) {
         this.invalidatePendingEnqueues();
       }
-      const assignedSlotId = ++this.nextSlotId;
-      const enqueuedGen = this.generation;
-      this.pendingCount++;
+      const assignedSlotId = ++this.state.nextSlotId;
+      const enqueuedGen = this.state.generation;
+      this.state.pendingCount++;
       this.executionQueue$.next(
         this.createQueuedWork$(
           enqueuedGen,
@@ -112,19 +131,19 @@ export class SerialCommandQueueService {
     subscriber: Subscriber<T>,
   ): Observable<unknown> {
     return defer(() => {
-      if (this.generation !== enqueuedGen) {
+      if (this.state.generation !== enqueuedGen) {
         return throwError(() => new Error('All commands cancelled'));
       }
       if (
-        this.rejectPendingSlotsBelow !== null &&
-        assignedSlotId < this.rejectPendingSlotsBelow
+        this.state.rejectPendingSlotsBelow !== null &&
+        assignedSlotId < this.state.rejectPendingSlotsBelow
       ) {
         return throwError(() => new Error('All commands cancelled'));
       }
       return factory(enqueuedGen);
     }).pipe(
       finalize(() => {
-        this.pendingCount--;
+        this.state.pendingCount--;
       }),
       mergeMap((value) => {
         subscriber.next(value as T);
@@ -139,11 +158,11 @@ export class SerialCommandQueueService {
   }
 
   cancelAllCommands(): void {
-    this.generation++;
-    this.rejectPendingSlotsBelow = null;
+    this.state.generation++;
+    this.state.rejectPendingSlotsBelow = null;
   }
 
   getPendingCommandCount(): number {
-    return this.pendingCount;
+    return this.state.pendingCount;
   }
 }
