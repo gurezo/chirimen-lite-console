@@ -62,6 +62,16 @@ Angular 向けのシリアル（Web Serial + `@gurezo/web-serial-rxjs` v2.3.1）
 
 コンポーネント向けには **`SerialConnectionViewModelFacade`** が `vm$: Observable<SerialConnectionViewModel>` を提供する。接続・切断・送信（ツールバーと同様に `TerminalCommandRequestService.requestCommand` 経由）および `clearError()` を前置し、ブラウザ対応フラグ、`SerialFacadeService.state$` に基づく接続試行状態、`PiZeroShellReadinessService.ready$`（問題文での「ログイン済み」と同義：`isLoggedIn`）、`PiZeroSessionService.initializing$` での初期化フラグ、`errorMessage` をまとめる。
 
+## 接続 epoch と bootstrap 済み epoch（[#647](https://github.com/gurezo/chirimen-lite-console/issues/647)）
+
+| 状態 | 所有者 | 役割 |
+| --- | --- | --- |
+| **接続 epoch**（単調増加の整数） | `SerialConnectionOrchestrationService` | 成功した `connect$` のたびに 1 つ進める。切断だけでは進めない。 |
+| **bootstrap 済み epoch**（最後に完了した接続 epoch） | `PiZeroSessionService` | 現在の接続 epoch と比較し、接続後パイプライン（ログイン・環境初期化）を **同一接続で 1 回**に抑える。 |
+| **進行中パイプライン**（`activeBootstrap$` とその epoch） | `PiZeroSessionService` | 同一接続 epoch での重複 `runAfterConnect$` を抑止。完了時は現在の接続 epoch と突き合わせ、再接続後に遅延した旧パイプラインが `bootstrappedEpoch` を汚染しない。 |
+
+`SerialConnectionOrchestrationService#getConnectionEpoch` は上記突き合わせ用に **data-access 内部**からのみ呼ぶ（Facade には載せない）。
+
 ## 公開 API ポリシー（Issue #590 / [#649](https://github.com/gurezo/chirimen-lite-console/issues/649)）
 
 - UI / Feature / 他ライブラリからの Serial 利用は **`SerialFacadeService` のみ**を参照する。
