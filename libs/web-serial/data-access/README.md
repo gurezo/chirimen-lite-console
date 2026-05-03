@@ -8,30 +8,41 @@ Angular 向けのシリアル（Web Serial + `@gurezo/web-serial-rxjs` v2.3.1）
 
 アプリでは `@gurezo/web-serial-rxjs` の `SerialSession` が提供する受信 Observable を、用途に応じて次のように使い分ける（[#559](https://github.com/gurezo/chirimen-lite-console/issues/559)）。
 
-| 用途 | 使用する stream |
+### Feature 向け推奨導線（[#646](https://github.com/gurezo/chirimen-lite-console/issues/646)）
+
+- **入口**: `SerialFacadeService` のみ（他サービスに `SerialTransportService` を直接注入しない）。
+- **ターミナル表示**: `terminalText$` を購読する。
+- **ユーザー入力の送信**: `send$()`。
+- **コマンド実行（stdout キャプチャ付き）**: `exec$()` / `execRaw$()`。
+- **送信なしでプロンプト出現まで待つ**: `readUntilPrompt$()`。
+- **生の `receive$` を Feature から購読しない**（プロンプト同期は上記 `exec$` 系に任せる。内部では `receive$` チャンクをバッファして照合する）。
+
+| 用途 | 使用する stream / API |
 | --- | --- |
-| ターミナル表示（terminal helper で整形済みテキスト） | `terminalText$`（= `session.terminalText$`） |
-| コマンド実行・結果取得に使う **行** | `lines$` |
-| 通常の行単位ログ（単一購読の素の橋渡し） | `lines$` |
-| prompt / login / password 判定 | **`lines$`** を購読し、行を `\n` で連結したバッファで判定（[#593](https://github.com/gurezo/chirimen-lite-console/issues/593)） |
+| ターミナル表示（TTY の `\r` 再描画を含むライブ表示） | `terminalText$`（= `session.terminalText$`） |
+| 行境界が確定した **行** の購読（例: `read$()` の単発行） | `lines$` |
+| プロンプト同期・ログイン〜シェル到達・`exec$` の stdout 照合（**Feature から**） | **`readUntilPrompt$` / `exec$` / `execRaw$`**（内部実装がバッファリングと照合を担当） |
+| 上記と同種の照合（**data-access 内部**） | **`SerialCommandRunnerService` が `receive$` を購読**しチャンクを連結。`collapseCarriageRedrawsPerLine` 等で論理表示に収束させてから照合する（getty が行末を lone `\r` のみにすると `lines$` が遅れる／空振りすることがあるため）（[#593](https://github.com/gurezo/chirimen-lite-console/issues/593)） |
 
 ### issue #566（表示用 vs コマンド用）
 
-- **`terminalText$`（facade / transport）** = `session.terminalText$`。xterm など **UI 表示専用**。プロンプト検出に使わない。
-- **`lines$`（facade / transport）** = `SerialSession.lines$`。行単位読み取りはこの stream に統一する。
+- **`terminalText$`（facade / transport）** = `session.terminalText$`。xterm など **UI 表示専用**。プロンプト照合には使わない。
+- **`lines$`（facade / transport）** = `SerialSession.lines$`。行単位の購読・`read$()` 向け。コマンドランナーのプロンプト用バッファの **唯一の入力**ではない（上表のとおり `receive$` を併用する）。
+- **`receive$`（facade / transport）** = `session.receive$` の UTF-8 デコード済み生チャンク。**Feature から直接購読しない**（原則 internal）。プロンプト照合バッファは `SerialCommandRunnerService` が本 stream から構築する。
 
 ### 本プロジェクト内の対応
 
 - **`SerialTransportService`** が上記各ストリームを `activeSession$` 経由で橋渡しする。
-- **`SerialCommandRunnerService`（`serial-command-runner.service.ts`）／`SerialCommandService` facade** が `lines$` を購読し、プロンプト待ち用に行連結バッファを保持する（表示の `\r` 処理は `terminalText$` と `@libs-web-serial-util` の `collapseCarriageRedrawsPerLine` に委譲）。
-- **ターミナル UI** は **`SerialFacadeService#terminalText$` を購読**し、ライブ表示を xterm 等に反映する（例: `TerminalViewComponent`）。`exec$` の戻り値で同じ画面を二重更新しない。
+- **`SerialCommandRunnerService`**（`serial-command-runner.service.ts`）が **`receive$` を購読**し、プロンプト待ち・`exec$` の stdout 集約用の `readBuffer` に追記する（`stripSerialAnsiForPrompt`・チャンク連結・必要に応じた `collapseCarriageRedrawsPerLine` による論理行への収束は実装および [#593](https://github.com/gurezo/chirimen-lite-console/issues/593) を参照）。
+- **`SerialCommandService` facade** はキュー・再試行・上記ランナーへの委譲を担い、**Feature は `exec$` / `readUntilPrompt$` 経由で**プロンプト同期を行う。
+- **ターミナル UI** は **`SerialFacadeService#terminalText$` を購読**し、ライブ表示を xterm 等に反映する（例: `TerminalViewComponent`）。`receive$` を xterm に直結しない（[#613](https://github.com/gurezo/chirimen-lite-console/issues/613)）。`exec$` の戻り値で同じ画面を二重更新しない。
 
 ## 主要 3 API の責務と判断基準（Issue #625）
 
 - **`terminalText$`**
   - ターミナル UI（xterm 等）のライブ表示専用。
   - 受信表示の再描画（`\r`）を含む表示責務は `SerialSession.terminalText$` に委譲する。
-  - プロンプト判定やログイン判定には使わない（判定は `lines$` 側）。
+  - プロンプト判定やログイン判定には使わない。**Feature** が同期待ちする場合は **`readUntilPrompt$` / `exec$` / `execRaw$`** を使う（バッファは data-access 内で `receive$` から構築される）。
 - **`send$()`**
   - ユーザー入力送信専用（対話入力・ツールバー送信）。
   - コマンド完了待ちや結果解析は行わない。
@@ -56,15 +67,16 @@ Angular 向けのシリアル（Web Serial + `@gurezo/web-serial-rxjs` v2.3.1）
 - UI / Feature / 他ライブラリからの Serial 利用は **`SerialFacadeService` のみ**を参照する。
 - `SerialTransportService` は data-access 内部の thin adapter 実装として扱い、外部公開 API として依存しない。
 - Facade の主な利用 API は次のとおり:
-  - stream: `terminalText$`, `lines$`, `state$`, `isConnected$`, `errors$`, `portInfo$`
+  - stream（Feature から購読してよいもの）: `terminalText$`, `lines$`, `state$`, `isConnected$`, `errors$`, `portInfo$`
+  - stream（**フィールドは公開されているが Feature からは購読しない**・internal 契約）: `receive$`（`SerialCommandRunnerService` がプロンプト照合・`exec$` stdout 用に利用。[#601](https://github.com/gurezo/chirimen-lite-console/issues/601)、[#646](https://github.com/gurezo/chirimen-lite-console/issues/646)）
   - methods: `connect$()`, `disconnect$()`, `send$()`, `exec$()`, `execRaw$()`, `readUntilPrompt$()`, `read$()`, `getPort()`, `isRaspberryPiZero()`, `getConnectionEpoch()`, `isReading()`, `getPendingCommandCount()`
-- 生 `receive$` / `receiveReplay$` は facade では公開しない（[#601](https://github.com/gurezo/chirimen-lite-console/issues/601)）。ライブ表示の `\r` 再描画は `terminalText$` に委譲する。
+- ライブラリの `receiveReplay$` は本 data-access の Facade では橋渡ししない。ライブ表示の `\r` 再描画は `terminalText$` に委譲する。
 
 ### `terminalText$` の責務（[#617](https://github.com/gurezo/chirimen-lite-console/issues/617)）
 
 - **ターミナル UI（xterm のライブ表示）は `SerialFacadeService#terminalText$` を購読する**唯一のソースとする。受信テキストの TTY 相当の扱い（累積全文の emit 等）は `@gurezo/web-serial-rxjs` の `SerialSession.terminalText$` に委譲する（[#601](https://github.com/gurezo/chirimen-lite-console/issues/601)、[#613](https://github.com/gurezo/chirimen-lite-console/issues/613)）。
 - **送信**は `send$()` のみ。ライブ表示の更新に **`exec$()` / `execRaw$()` / `readUntilPrompt$()` の戻り値を流用しない**（`exec$` 系は stdout キャプチャ用。使い分けは次節および [#616](https://github.com/gurezo/chirimen-lite-console/issues/616)）。
-- **プロンプト検出・ログイン判定**は **`lines$`** 側のバッファを用い、`terminalText$` をプロンプト照合に使わない（上表・[#593](https://github.com/gurezo/chirimen-lite-console/issues/593)）。
+- **プロンプト検出・ログイン判定**は **`terminalText$` を使わず**、`readUntilPrompt$` / `exec$` 経由で data-access 内部の **`receive$` 由来バッファ**により行う（上表・[#593](https://github.com/gurezo/chirimen-lite-console/issues/593)、[#646](https://github.com/gurezo/chirimen-lite-console/issues/646)）。
 - 契約の一次情報は `SerialFacadeService`（`serial-facade.service.ts`）の **`terminalText$` および `exec$` の JSDoc** を参照する。
 
 ### `exec$` / `execRaw$` / `readUntilPrompt$` の利用方針（[#616](https://github.com/gurezo/chirimen-lite-console/issues/616)）
@@ -82,7 +94,7 @@ Angular 向けのシリアル（Web Serial + `@gurezo/web-serial-rxjs` v2.3.1）
 2. **ユーザー名送信後** — `Password:` プロンプト。
 3. **パスワード送信後** — Debian MOTD と `pi@raspberrypi:~$` 形式のシェルプロンプト。
 
-シェル到達後は **環境設定の初期化**（`PI_ZERO_ENVIRONMENT_STEPS`）を `exec$` で実行する。初期化には timezone に加えて language / locale / `TZ` などを含める。ターミナルへのライブ表示は **`terminalText$`**、プロンプト照合・ログイン判定は **`lines$`** 由来のバッファを用いる。
+シェル到達後は **環境設定の初期化**（`PI_ZERO_ENVIRONMENT_STEPS`）を `exec$` で実行する。初期化には timezone に加えて language / locale / `TZ` などを含める。ターミナルへのライブ表示は **`terminalText$`**。プロンプト照合・ログイン判定は **`exec$` / `readUntilPrompt$` 経路**（内部で `receive$` チャンクをバッファ）により行う。
 
 ## CHIRIMEN / Pi Zero 固有ロジックの集約（Issue [#594](https://github.com/gurezo/chirimen-lite-console/issues/594)）
 
