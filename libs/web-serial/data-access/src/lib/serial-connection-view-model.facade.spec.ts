@@ -77,6 +77,52 @@ describe('SerialConnectionViewModelFacade', () => {
     expect(vm.setupStatus).toBe('setting-timezone');
   });
 
+  it('connect on failure notifies and sets vm errorMessage', async () => {
+    const notifyConnectionError = vi.fn();
+    const serial: Partial<SerialFacadeService> = {
+      state$: of(SerialSessionState.Idle),
+      isConnected$: of(false),
+      isBrowserSupported: vi.fn(() => true),
+      connect$: vi.fn(() =>
+        of({ ok: false, errorMessage: 'port busy' } as const),
+      ),
+      disconnect$: vi.fn(() => of(undefined)),
+    };
+
+    const injector = Injector.create({
+      providers: [
+        SerialConnectionViewModelFacade,
+        { provide: SerialFacadeService, useValue: serial },
+        {
+          provide: PiZeroSessionService,
+          useValue: { setupStatus$: of('idle') },
+        },
+        {
+          provide: PiZeroShellReadinessService,
+          useValue: { ready$: of(false) },
+        },
+        {
+          provide: SerialNotificationService,
+          useValue: {
+            notifyConnectionSuccess: vi.fn(),
+            notifyConnectionError,
+          },
+        },
+        {
+          provide: TerminalCommandRequestService,
+          useValue: { requestCommand: vi.fn() },
+        },
+      ],
+    });
+
+    const facade = injector.get(SerialConnectionViewModelFacade);
+    facade.connect();
+
+    const vm = await firstValueFrom(facade.vm$);
+    expect(vm.errorMessage).toBe('port busy');
+    expect(notifyConnectionError).toHaveBeenCalledWith('port busy');
+  });
+
   it('clearError resets errorMessage in vm$', async () => {
     const serial: Partial<SerialFacadeService> = {
       state$: of(SerialSessionState.Idle),
