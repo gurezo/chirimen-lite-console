@@ -7,6 +7,7 @@
     "build": "nx run-many -t build",
     "watch": "nx build --watch --configuration development",
     "test": "nx run-many -t test",
+    "verify:serial-feature-boundary": "node tools/verify-serial-feature-boundary.mjs",
     "prepare": "husky"
   },
   "private": true,
