@@ -15,13 +15,13 @@ Feature / UI
   -> SerialFacadeService のみ参照する
 
 SerialFacadeService
-  -> 外部 API の入口（Transport / Orchestration / Pipeline / Validator へ委譲）
+  -> 外部 API の入口（Transport / Orchestration / Pipeline へ委譲）
 
 SerialConnectionOrchestrationService
   -> 接続ライフサイクル（Transport / Pipeline の read loop / ShellReadiness）
 
 SerialTransportService
-  -> SerialSession の thin adapter
+  -> SerialSession の thin adapter（Pi Zero 判定 `isRaspberryPiZero` も集約）
 
 SerialCommandPipelineService
   -> exec / readUntilPrompt / 直列キュー / prompt 判定
@@ -33,7 +33,7 @@ PiZeroSerialBootstrapService
   -> login / environment setup の具体処理
 ```
 
-依存の要点: **Facade → Orchestration**（接続）、**Facade → Pipeline**（`exec$` 系の委譲）、**Orchestration → Pipeline**（read loop）。Pipeline クラスは barrel に出さず、いずれも data-access 内部の inject のみ（[#664](https://github.com/gurezo/chirimen-lite-console/issues/664)）。
+依存の要点: **Facade → Orchestration**（接続）、**Facade → Pipeline**（`exec$` 系の委譲）、**Facade → Transport**（ストリーム橋渡し / Pi Zero 判定）、**Orchestration → Pipeline**（read loop）。Pipeline クラスは barrel に出さず、いずれも data-access 内部の inject のみ（[#664](https://github.com/gurezo/chirimen-lite-console/issues/664)）。`SerialValidatorService` は [#674](https://github.com/gurezo/chirimen-lite-console/issues/674) で `SerialTransportService` に統合済み。
 
 ### Orchestration と Pipeline（data-access 内部）（[#664](https://github.com/gurezo/chirimen-lite-console/issues/664)）
 
