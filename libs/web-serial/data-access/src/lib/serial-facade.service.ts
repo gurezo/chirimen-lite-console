@@ -13,7 +13,6 @@ import {
   type SerialExecOptions,
 } from '@libs-web-serial-util';
 import { SerialTransportService } from './serial-transport.service';
-import { SerialValidatorService } from './serial-validator.service';
 
 /** {@link SerialFacadeService#connect$} の結果（後方互換の別名） */
 export type SerialFacadeConnectResult = SerialConnectResult;
@@ -24,12 +23,12 @@ export type SerialFacadeConnectResult = SerialConnectResult;
  * `isConnected$` / `terminalText$` / `lines$` / `errors$` で橋渡しする。
  *
  * **依存と委譲（data-access 内部）**
- * - {@link SerialTransportService} — 上記ストリーム・`send$` 等。
+ * - {@link SerialTransportService} — 上記ストリーム・`send$` / `isRaspberryPiZero`（Pi Zero 判定は
+ *   Transport に集約。[#674](https://github.com/gurezo/chirimen-lite-console/issues/674)）。
  * - {@link SerialConnectionOrchestrationService} — `connect$` / `disconnect$` /
  *   `connectionEstablished$`。
  * - {@link SerialCommandPipelineService} — `exec$` / `execRaw$` /
  *   `readUntilPrompt$`（パイプラインは barrel 非公開・内部専用）。
- * - {@link SerialValidatorService} — `isRaspberryPiZero`。
  *
  * `SerialCommandPipelineService` は barrel に export されず、Facade（exec 系の委譲）と
  * {@link SerialConnectionOrchestrationService}（read loop 制御）が data-access 内で直接
@@ -44,7 +43,6 @@ export type SerialFacadeConnectResult = SerialConnectResult;
 export class SerialFacadeService {
   private transport = inject(SerialTransportService);
   private command = inject(SerialCommandPipelineService);
-  private validator = inject(SerialValidatorService);
   private connection = inject(SerialConnectionOrchestrationService);
 
   /**
@@ -134,6 +132,6 @@ export class SerialFacadeService {
   }
 
   isRaspberryPiZero(): Promise<boolean> {
-    return this.validator.isRaspberryPiZeroSerialAccess(this.transport);
+    return this.transport.isRaspberryPiZero();
   }
 }
