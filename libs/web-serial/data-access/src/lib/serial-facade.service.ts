@@ -22,6 +22,19 @@ export type SerialFacadeConnectResult = SerialConnectResult;
  * アプリ唯一の入口。`@gurezo/web-serial-rxjs` v2.3.1 の {@link SerialSession} 由来は
  * {@link SerialTransportService} が `isBrowserSupported` / `connect$` / `disconnect$` /
  * `isConnected$` / `terminalText$` / `lines$` / `errors$` で橋渡しする。
+ *
+ * **依存と委譲（data-access 内部）**
+ * - {@link SerialTransportService} — 上記ストリーム・`send$` 等。
+ * - {@link SerialConnectionOrchestrationService} — `connect$` / `disconnect$` /
+ *   `connectionEstablished$`。
+ * - {@link SerialCommandPipelineService} — `exec$` / `execRaw$` /
+ *   `readUntilPrompt$`（パイプラインは barrel 非公開・内部専用）。
+ * - {@link SerialValidatorService} — `isRaspberryPiZero`。
+ *
+ * `SerialCommandPipelineService` は barrel に export されず、Facade（exec 系の委譲）と
+ * {@link SerialConnectionOrchestrationService}（read loop 制御）が data-access 内で直接
+ * inject する（Issue #664）。Orchestration は Facade に依存しないため循環 DI は生じない。
+ *
  * 生の受信チャンク（`receive$`）は {@link SerialTransportService} 内および
  * {@link SerialCommandPipelineService} のみが利用する（Issue #649）。
  */
