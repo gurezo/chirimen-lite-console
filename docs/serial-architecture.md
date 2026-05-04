@@ -108,8 +108,7 @@ Issue #590 / [#601](https://github.com/gurezo/chirimen-lite-console/issues/601) 
 ### 汎用プロンプト照合（Sub [#675](https://github.com/gurezo/chirimen-lite-console/issues/675)）
 
 - **責務**: `exec$` / `readUntilPrompt$` の `prompt` 文字列／`RegExp` による受信バッファ照合（`user@host:` 行末の厳格化、`[$#%]` で終わる「入力待ち」行の判定など）。Pi Zero 固有の login / password / シェル到達は `PiZeroPromptDetectorService` のまま（本サブ Issue の対象外）。
-- **利用実態（PoC 前）**: `SerialPromptDetectorService`（`providedIn: 'root'` の Injectable）を **`SerialCommandPipelineService` のみ**が注入して利用。barrel からは export されていない。
-- **統合方針（#675）**: 外部 I/O のない純粋関数に寄せ、`SerialCommandPipelineService` から直接 import する形で **DI 専用クラスを廃止**できるか PoC で検証する。キュー・リトライ・`receive$` バッファ構築など Pipeline の他責務には手を入れない（親 #671 の非対象範囲に合わせる）。
+- **統合済み（#675）**: `SerialPromptDetectorService`（Injectable）を廃止し、同等ロジックを [`serial-prompt-match.ts`](../libs/web-serial/data-access/src/lib/serial-command/serial-prompt-match.ts) の **`matchesSerialPrompt` 純関数**に集約。`SerialCommandPipelineService` が直接 import する。利用者が Pipeline のみで外部 I/O がなく、親 [#671](https://github.com/gurezo/chirimen-lite-console/issues/671) の「小さいサービスだけ統合」に合致。PoC では `serial-prompt-match.spec.ts` に境界ケースを移せば可読性を維持でき、Pipeline の DI 引数も減るため **統合を採用**。barrel の公開面に変更はない。
 
 ### ワークスペースでの `@libs-web-serial-data-access` import 実態
 
