@@ -2,7 +2,7 @@
 
 Angular 向けのシリアル（Web Serial + `@gurezo/web-serial-rxjs` v2.3.1）データアクセス層。
 
-**リポジトリ間の責務分界**（ライブラリ一般と本アプリの対応、`SerialSession` を正とする方針など）: [docs/serial-architecture.md](../../../docs/serial-architecture.md)（[#568](https://github.com/gurezo/chirimen-lite-console/issues/568)）。
+**リポジトリ間の責務分界**（ライブラリ一般と本アプリの対応、`SerialSession` を正とする方針など）: [docs/serial-architecture.md](../../../docs/serial-architecture.md)（[#568](https://github.com/gurezo/chirimen-lite-console/issues/568)）。**`index.ts` の export とワークスペース import の棚卸し・三層分類**は同ドキュメントの「公開面の棚卸し（Issue [#672](https://github.com/gurezo/chirimen-lite-console/issues/672)）」節を参照（親 [#671](https://github.com/gurezo/chirimen-lite-console/issues/671)）。
 
 ## 設計メモ（責務と実装ルール）（[#652](https://github.com/gurezo/chirimen-lite-console/issues/652)）
 
