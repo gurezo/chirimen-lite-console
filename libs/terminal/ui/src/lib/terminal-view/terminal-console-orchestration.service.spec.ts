@@ -122,7 +122,7 @@ describe('TerminalConsoleOrchestrationService', () => {
         .pipe(defaultIfEmpty(undefined)),
     );
     expect(write).not.toHaveBeenCalled();
-    expect(writeln).toHaveBeenCalledWith('prefix 初期化済みのためスキップします。');
+    expect(writeln).not.toHaveBeenCalled();
   });
 
   it('bootstrapAfterConnect$ delegates post-connect work to PiZeroSessionService', async () => {
@@ -145,7 +145,8 @@ describe('TerminalConsoleOrchestrationService', () => {
 
     expect(shouldRunAfterConnect$).toHaveBeenCalledTimes(1);
     expect(runAfterConnect$).toHaveBeenCalledTimes(1);
-    expect(writeln).toHaveBeenCalledWith('prefix 初期化しています...');
+    expect(writeln).not.toHaveBeenCalled();
+    expect(write).not.toHaveBeenCalled();
   });
 
   it('bootstrapAfterConnect$ rethrows bootstrap errors for caller handling', async () => {
@@ -166,7 +167,6 @@ describe('TerminalConsoleOrchestrationService', () => {
         ),
       ),
     ).rejects.toThrow('auth failed');
-    expect(writeln).toHaveBeenCalledWith('prefix 初期化しています...');
     expect(writeln).toHaveBeenCalledWith('prefix 初期化に失敗しました: auth failed');
   });
 
@@ -194,6 +194,27 @@ describe('TerminalConsoleOrchestrationService', () => {
     expect(writeln).toHaveBeenCalledWith(
       'prefix 初期化に失敗しました: Shell readiness timeout while waiting for prompt',
     );
+  });
+
+  it('bootstrapAfterConnect$ does not pass status sink into runAfterConnect$', async () => {
+    const writeln = vi.fn();
+    const write = vi.fn();
+    const runAfterConnect$ = vi.fn(() => of(undefined));
+    TestBed.overrideProvider(PiZeroSessionService, {
+      useValue: {
+        shouldRunAfterConnect$: () => of(true),
+        runAfterConnect$,
+      },
+    });
+    const svc = TestBed.inject(TerminalConsoleOrchestrationService);
+
+    await firstValueFrom(
+      svc
+        .bootstrapAfterConnect$('prefix', { writeln, write })
+        .pipe(defaultIfEmpty(undefined)),
+    );
+
+    expect(runAfterConnect$).toHaveBeenCalledWith();
   });
 
 });
