@@ -3,10 +3,8 @@
 /** Full rewrite (#606). Facade over `SerialSession` v2.3.1 via {@link SerialTransportService}. */
 import { Injectable, inject } from '@angular/core';
 import { type Observable } from 'rxjs';
-import {
-  type CommandResult,
-  SerialCommandPipelineService,
-} from './serial-command/serial-command-facade.service';
+import type { CommandResult } from './serial-command/serial-command-types';
+import { SerialCommandPipelineService } from './serial-command/serial-command-pipeline.service';
 import {
   type SerialConnectResult,
   SerialConnectionOrchestrationService,

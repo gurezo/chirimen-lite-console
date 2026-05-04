@@ -14,7 +14,7 @@ import {
 } from 'rxjs';
 import { getConnectionErrorMessage } from '@libs-web-serial-util';
 import { PiZeroShellReadinessService } from './pi-zero-shell-readiness.service';
-import { SerialCommandPipelineService } from './serial-command/serial-command-facade.service';
+import { SerialCommandPipelineService } from './serial-command/serial-command-pipeline.service';
 import { SerialTransportService } from './serial-transport.service';
 
 /** {@link SerialConnectionOrchestrationService#connect$} の結果 */

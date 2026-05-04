@@ -3,7 +3,7 @@ import { Injector } from '@angular/core';
 import { BehaviorSubject, firstValueFrom, of, take } from 'rxjs';
 import { type Mock, beforeEach, describe, expect, it, vi } from 'vitest';
 import { PiZeroShellReadinessService } from './pi-zero-shell-readiness.service';
-import { SerialCommandPipelineService } from './serial-command/serial-command-facade.service';
+import { SerialCommandPipelineService } from './serial-command/serial-command-pipeline.service';
 import { SerialConnectionOrchestrationService } from './serial-connection-orchestration.service';
 import { SerialTransportService } from './serial-transport.service';
 
