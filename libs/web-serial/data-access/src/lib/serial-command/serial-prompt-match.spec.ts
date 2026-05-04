@@ -11,22 +11,24 @@ describe('matchesSerialPrompt', () => {
     );
   });
 
-  it('rejects user@host: on echoed command line (text after $)', () => {
-    expect(
-      matchesSerialPrompt(
-        'pi@raspberrypi:~$ ls -la',
-        'pi@raspberrypi:',
-      ),
-    ).toBe(false);
-  });
+  describe('user@host: style prompts', () => {
+    it('rejects echoed command line (text after $)', () => {
+      expect(
+        matchesSerialPrompt(
+          'pi@raspberrypi:~$ ls -la',
+          'pi@raspberrypi:',
+        ),
+      ).toBe(false);
+    });
 
-  it('accepts idle user@host: line after command output', () => {
-    expect(
-      matchesSerialPrompt(
-        'total 1\ndir\npi@raspberrypi:~$ ',
-        'pi@raspberrypi:',
-      ),
-    ).toBe(true);
+    it('accepts idle line after command output', () => {
+      expect(
+        matchesSerialPrompt(
+          'total 1\ndir\npi@raspberrypi:~$ ',
+          'pi@raspberrypi:',
+        ),
+      ).toBe(true);
+    });
   });
 
   it('matches RegExp prompt', () => {
