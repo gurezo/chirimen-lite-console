@@ -175,6 +175,43 @@ export class SerialTransportService {
     return this.active?.getCurrentPort() ?? undefined;
   }
 
+  /**
+   * 現在接続中のポートが Raspberry Pi Zero 互換か判定する（Pi Zero 判定の集約先。[#674](https://github.com/gurezo/chirimen-lite-console/issues/674)）。
+   *
+   * 同期 `getPortInfo()` → NG なら `getPort()?.getInfo()` の順に評価する。
+   * Feature 層からは {@link SerialFacadeService#isRaspberryPiZero} 経由でのみ参照する。
+   */
+  async isRaspberryPiZero(): Promise<boolean> {
+    if (this.isPiZeroPortInfo(this.getPortInfo())) {
+      return true;
+    }
+    const port = this.getPort();
+    if (!port) {
+      return false;
+    }
+    try {
+      const info = await port.getInfo();
+      return this.isPiZeroPortInfo(info);
+    } catch (error) {
+      console.error('Failed to get port info:', error);
+      return false;
+    }
+  }
+
+  private isPiZeroPortInfo(info: SerialPortInfo | null | undefined): boolean {
+    if (info == null) {
+      return false;
+    }
+    const { usbVendorId, usbProductId } = info;
+    if (usbVendorId == null || usbProductId == null) {
+      return false;
+    }
+    return (
+      usbVendorId === RASPBERRY_PI_ZERO_INFO.usbVendorId &&
+      usbProductId === RASPBERRY_PI_ZERO_INFO.usbProductId
+    );
+  }
+
   /** {@link SerialSession.send$} */
   send$(data: string): Observable<void> {
     return defer(() => {
