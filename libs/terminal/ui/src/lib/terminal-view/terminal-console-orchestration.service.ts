@@ -103,13 +103,9 @@ export class TerminalConsoleOrchestrationService {
     return this.piZeroSession.shouldRunAfterConnect$().pipe(
       switchMap((should) => {
         if (!should) {
-          this.writeConsoleLine(sink, `${prefixMessage} 初期化済みのためスキップします。`);
           return EMPTY;
         }
-        this.writeConsoleLine(sink, `${prefixMessage} 初期化しています...`);
-        return this.piZeroSession.runAfterConnect$((line) =>
-          this.writeConsoleLine(sink, line),
-        );
+        return this.piZeroSession.runAfterConnect$();
       }),
       catchError((error: unknown) => {
         const message =
