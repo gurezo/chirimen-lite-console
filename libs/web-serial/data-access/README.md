@@ -15,7 +15,10 @@ Feature / UI
   -> SerialFacadeService のみ参照する
 
 SerialFacadeService
-  -> 外部 API の入口
+  -> 外部 API の入口（Transport / Orchestration / Pipeline / Validator へ委譲）
+
+SerialConnectionOrchestrationService
+  -> 接続ライフサイクル（Transport / Pipeline の read loop / ShellReadiness）
 
 SerialTransportService
   -> SerialSession の thin adapter
@@ -30,11 +33,16 @@ PiZeroSerialBootstrapService
   -> login / environment setup の具体処理
 ```
 
+依存の要点: **Facade → Orchestration**（接続）、**Facade → Pipeline**（`exec$` 系の委譲）、**Orchestration → Pipeline**（read loop）。Pipeline クラスは barrel に出さず、いずれも data-access 内部の inject のみ（[#664](https://github.com/gurezo/chirimen-lite-console/issues/664)）。
+
 ### Orchestration と Pipeline（data-access 内部）（[#664](https://github.com/gurezo/chirimen-lite-console/issues/664)）
 
-`SerialConnectionOrchestrationService` は、接続成功直後にコマンド用 **read loop** を開始し、切断時に実行中コマンドをキャンセルして read loop を停止する。これらは **`SerialCommandPipelineService` を直接 inject** して呼ぶ（`startReadLoop` / `stopReadLoop` / `cancelAllCommands`）。
+`SerialCommandPipelineService` クラスは barrel に載せず、**data-access 内では**次の 2 経路から直接 inject する（Feature からの参照は `SerialFacadeService` の公開 API 経由のみ）。
 
-`SerialFacadeService` が既に `SerialConnectionOrchestrationService` を inject しているため、オーケストレーション側まで Facade 経由にすると **Angular DI の循環依存**になりやすい。よって read loop ライフサイクルだけ Pipeline を直接触るのは **data-access 内部の例外** とし、Feature 層の「入口は `SerialFacadeService` のみ」とは両立させる。
+- **`SerialConnectionOrchestrationService`** — 接続成功直後にコマンド用 **read loop** を開始し、切断時に実行中コマンドをキャンセルして read loop を停止する（`startReadLoop` / `stopReadLoop` / `cancelAllCommands`）。
+- **`SerialFacadeService`** — `exec$` / `execRaw$` / `readUntilPrompt$` を Pipeline に委譲する（キュー・プロンプト照合の実装入口）。
+
+`SerialFacadeService` が既に `SerialConnectionOrchestrationService` を inject しているため、オーケストレーション側の read loop 制御まで Facade 経由にすると **Angular DI の循環依存**になりやすい。よって **ライフサイクル側**で Pipeline を直接触るのは上記のとおり data-access 内部のパターンとし、Feature 層の「入口は `SerialFacadeService` のみ」とは両立させる。
 
 ### 実装時のルール（要約）
 
