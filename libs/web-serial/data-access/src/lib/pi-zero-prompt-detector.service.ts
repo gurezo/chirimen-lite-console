@@ -4,8 +4,8 @@ import { Injectable } from '@angular/core';
 /**
  * Pi Zero / Raspberry Pi OS シリアルコンソール固有のプロンプト判定（issue #594）。
  *
- * 汎用な `matchesPrompt` は {@link import('./serial-command/serial-prompt-detector.service').SerialPromptDetectorService}
- * 側に残し、login / password / `pi@…` シェルなど CHIRIMEN/Pi Zero 固有判定は本サービスに集約する。
+ * 汎用な `prompt` / `RegExp` 照合は {@link import('./serial-command/serial-prompt-match').matchesSerialPrompt}
+ *（`SerialCommandPipelineService` から利用）。login / password / `pi@…` シェルなど CHIRIMEN/Pi Zero 固有判定は本サービスに集約する。
  *
  * 利用主は {@link import('./pi-zero-serial-bootstrap.service').PiZeroSerialBootstrapService}。
  * 他サービスから直接利用しないこと（Pi Zero 固有ロジック集約方針）。

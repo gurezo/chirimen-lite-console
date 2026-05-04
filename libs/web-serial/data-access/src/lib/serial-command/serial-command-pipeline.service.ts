@@ -37,8 +37,8 @@ import type {
   CommandExecutionConfig,
   CommandResult,
 } from './serial-command-types';
-import { SerialPromptDetectorService } from './serial-prompt-detector.service';
 import { SerialTransportService } from '../serial-transport.service';
+import { matchesSerialPrompt } from './serial-prompt-match';
 
 /** {@link SerialCommandPipelineService#enqueueCommand$} のキュー制御オプション（issue #565） */
 export interface SerialCommandEnqueueOptions {
@@ -74,10 +74,7 @@ export class SerialCommandPipelineService {
     rejectPendingSlotsBelow: null,
   };
 
-  constructor(
-    private readonly transport: SerialTransportService,
-    private readonly promptDetector: SerialPromptDetectorService,
-  ) {
+  constructor(private readonly transport: SerialTransportService) {
     this.executionQueue$
       .pipe(
         concatMap((work) =>
@@ -404,6 +401,6 @@ export class SerialCommandPipelineService {
     if (config.promptMatch) {
       return config.promptMatch(buffer);
     }
-    return this.promptDetector.matchesPrompt(buffer, config.prompt);
+    return matchesSerialPrompt(buffer, config.prompt);
   }
 }
