@@ -8,13 +8,11 @@ import { SerialCommandPipelineService } from './serial-command/serial-command-pi
 import { SerialConnectionOrchestrationService } from './serial-connection-orchestration.service';
 import { SerialFacadeService } from './serial-facade.service';
 import { SerialTransportService } from './serial-transport.service';
-import { SerialValidatorService } from './serial-validator.service';
 
 describe('SerialFacadeService', () => {
   let facade: SerialFacadeService;
   let transport: Partial<SerialTransportService>;
   let command: Partial<SerialCommandPipelineService>;
-  let validator: Partial<SerialValidatorService>;
   let connection: Partial<SerialConnectionOrchestrationService>;
 
   beforeEach(async () => {
@@ -28,14 +26,12 @@ describe('SerialFacadeService', () => {
       receive$: EMPTY,
       terminalText$: EMPTY,
       send$: vi.fn(() => of(undefined)),
+      isRaspberryPiZero: vi.fn(() => Promise.resolve(false)),
     };
     command = {
       exec$: vi.fn(() => of({ stdout: '' })),
       execRaw$: vi.fn(() => of({ stdout: '' })),
       readUntilPrompt$: vi.fn(() => of({ stdout: '' })),
-    };
-    validator = {
-      isRaspberryPiZeroSerialAccess: vi.fn(() => Promise.resolve(false)),
     };
     connection = {
       connectionEstablished$: EMPTY,
@@ -48,7 +44,6 @@ describe('SerialFacadeService', () => {
         SerialFacadeService,
         { provide: SerialTransportService, useValue: transport },
         { provide: SerialCommandPipelineService, useValue: command },
-        { provide: SerialValidatorService, useValue: validator },
         {
           provide: SerialConnectionOrchestrationService,
           useValue: connection,
@@ -100,11 +95,9 @@ describe('SerialFacadeService', () => {
     expect(facade.terminalText$).toBe(transport.terminalText$);
   });
 
-  it('isRaspberryPiZero delegates to validator with transport', async () => {
+  it('isRaspberryPiZero delegates to transport.isRaspberryPiZero', async () => {
     await facade.isRaspberryPiZero();
-    expect(validator.isRaspberryPiZeroSerialAccess).toHaveBeenCalledWith(
-      transport,
-    );
+    expect(transport.isRaspberryPiZero).toHaveBeenCalledTimes(1);
   });
 
 });
