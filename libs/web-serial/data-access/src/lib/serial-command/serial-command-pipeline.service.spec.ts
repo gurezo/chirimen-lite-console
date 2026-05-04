@@ -16,7 +16,6 @@ import {
 } from '@libs-web-serial-util';
 import { PiZeroPromptDetectorService } from '../pi-zero-prompt-detector.service';
 import type { SerialTransportService } from '../serial-transport.service';
-import { SerialPromptDetectorService } from './serial-prompt-detector.service';
 import { SerialCommandPipelineService } from './serial-command-pipeline.service';
 
 /** モックの入力待ち行（実機 PS1 で `matchesPrompt` が厳格になる）。単独の `pi@…:` だけでは終了しない。 */
@@ -42,11 +41,9 @@ function createService() {
         }),
     ),
   };
-  const promptDetector = new SerialPromptDetectorService();
   const piPromptDetector = new PiZeroPromptDetectorService();
   const service = new SerialCommandPipelineService(
     transport as unknown as SerialTransportService,
-    promptDetector,
   );
   service.startReadLoop();
   return {
@@ -55,7 +52,6 @@ function createService() {
     /** @deprecated 互換: `receiveSubject` と同一 */
     linesSubject: receiveSubject,
     transport,
-    promptDetector,
     piPromptDetector,
   };
 }
@@ -487,7 +483,6 @@ describe('SerialCommandPipelineService (queue)', () => {
   function createQueueOnlyPipeline(): SerialCommandPipelineService {
     return new SerialCommandPipelineService(
       { receive$: NEVER } as unknown as SerialTransportService,
-      new SerialPromptDetectorService(),
     );
   }
 
