@@ -81,6 +81,69 @@ Issue #590 / [#601](https://github.com/gurezo/chirimen-lite-console/issues/601) 
 - **exec 結果の整形表示（エコー削り・プロンプト削り・ANSI 除去）**  
   - `@libs-terminal-util` の `sanitizeSerialStdout`（ライブ表示の `\r` 収束は行わず、`terminalText$` に委譲）。利用は **exec キャプチャ後の後処理**に限定し、残存例は Pi Zero 初期化コマンドのコンソールログや Remote の一覧パースなど（親 [#609](https://github.com/gurezo/chirimen-lite-console/issues/609) の非対象フロー）。
 
+## 公開面の棚卸し（Issue [#672](https://github.com/gurezo/chirimen-lite-console/issues/672)）
+
+親 Issue [#671](https://github.com/gurezo/chirimen-lite-console/issues/671) のサブタスクとして、`@libs-web-serial-data-access` の **barrel（[`libs/web-serial/data-access/src/index.ts`](../libs/web-serial/data-access/src/index.ts)）に載っているシンボル**と、**ワークスペース内の import 実態**を突き合わせ、公開契約・条件付き公開・内部向け候補に分類する。本節は **現状の事実と判断材料**を記録するものであり、barrel の変更は後続 Issue（#673 以降）で小さく行う前提とする。
+
+### Barrel から公開されているシンボル（`index.ts` 由来）
+
+| 公開経路 | シンボル（代表） | 備考 |
+|----------|------------------|------|
+| `@libs-web-serial-util` の再エクスポート | `SerialExecOptions`（型）, `DEFAULT_SERIAL_EXEC_OPTIONS`, `mergeSerialExecOptions` | 実行オプションの型とヘルパ |
+| `export *` | `PiZeroPromptDetectorService` | Pi ログイン／プロンプト判定の実装詳細 |
+| `export *` | `PiZeroSessionService` | 接続後 bootstrap・epoch 制御 |
+| `export *` | `PiZeroSerialBootstrapService` | login / setup の具体シーケンス |
+| `export *` | `PiZeroShellReadinessService` | シェル準備状態 |
+| `export *` | `SerialSetupStatus`（型） | setup 進行状態の列挙 |
+| `export type` | `CommandExecutionConfig`, `CommandResult` | `exec$` 系の戻り値・内部設定型（[#664](https://github.com/gurezo/chirimen-lite-console/issues/664)） |
+| `export type` | `SerialCommandEnqueueOptions` | キュー投入オプション型 |
+| `export *` | `SerialFacadeService`, `SerialFacadeConnectResult`（型） | アプリ主入口 |
+| `export *` | `SerialNotificationService` | 接続 VM 等が利用 |
+| `export *` | `SerialConnectionViewModelFacade`, `SerialConnectionViewModel`（型） | 接続画面用 ViewModel |
+| `export *` | `SerialValidatorService` | ポート検証（Facade から inject） |
+
+**barrel から出ていない（確認ポイント）**: `SerialCommandPipelineService` クラス、`SerialTransportService` — data-access 内部（および `SerialConnectionOrchestrationService` の read loop 制御）に閉じる方針どおり（[#664](https://github.com/gurezo/chirimen-lite-console/issues/664)）。
+
+### ワークスペースでの `@libs-web-serial-data-access` import 実態
+
+`libs/web-serial/data-access` 自身を除き、`import ... from '@libs-web-serial-data-access'` があるファイルは次のとおり。
+
+| import しているシンボル | ファイル |
+|-------------------------|----------|
+| `SerialFacadeService` のみ | `libs/chirimen-setup/data-access`（`setup-command.service`, `extra-setup.service`, `node-install.service`）、`libs/chirimen-setup/feature/setup-page`（本体・spec）、`libs/file-manager/data-access/file.service`（本体・spec）、`libs/i2cdetect/data-access/i2cdetect.service`、`libs/remote/data-access`（`remote-run`, `remote-stop`, `remote-status` および `remote-stop.service.spec`）、`libs/remote/feature/remote-page`（本体・spec）、`libs/shared/guards/connection.guard`、`libs/terminal/ui/terminal-view/terminal-view.component.ts`、`libs/wifi/data-access`（`wifi-scan`, `wifi-config`, `file-content`, `wifi-reboot-flow`）、`libs/wifi/feature/wifi-page`（本体・spec） |
+| `SerialConnectionViewModelFacade`, `SerialConnectionViewModel`（型） | `libs/connect/feature/connect-page`（本体・spec）、`libs/console-shell/feature/console-shell`（本体・spec） |
+| `SerialFacadeService` と `PiZeroSessionService` の併用 | `libs/terminal/ui/terminal-view/terminal-console-orchestration.service`（本体）、`terminal-console-orchestration.service.spec`、`terminal-view.component.spec` |
+| `PiZeroShellReadinessService` | `libs/file-manager/feature/file-tree-feature`（本体・spec） |
+
+**設定のみ**: `libs/terminal/feature/vitest.config.ts` はパスエイリアスで `data-access/src/index.ts` を参照（実行時 import ではない）。
+
+### 三層分類（現状評価と目標の整理）
+
+| 層 | 意味 | 該当シンボル・パターン |
+|----|------|------------------------|
+| **公開契約** | Feature / 他 domain の data-access から依存してよい契約として文書化済み | `SerialFacadeService`（主入口）。`SerialExecOptions` / `CommandResult` / `CommandExecutionConfig` / `SerialCommandEnqueueOptions` は型としての再エクスポートが妥当。`DEFAULT_SERIAL_EXEC_OPTIONS` / `mergeSerialExecOptions` は `exec$` 呼び出し側で利用するなら公開のまま。 |
+| **条件付き公開** | 特定 UI 導線のため barrel を跨ぐが、「第二の入口」として理由を添える | `SerialConnectionViewModelFacade` と `SerialConnectionViewModel`（接続ページ・コンソールシェル）。README の「入口は Facade のみ」と併記し、**接続 UI 専用の公開面**として位置づける。 |
+| **内部向け候補（barrel から外す・非 export の検討）** | data-access 外に利用者がいない、または README の集約方針とズレる公開 | `SerialValidatorService`（現状、web-serial 外から import なし）。`SerialNotificationService`（現状、外部から直接 import なし — VM 内部利用）。`PiZeroPromptDetectorService` / `PiZeroSerialBootstrapService`（bootstrap 集約の内部部品）。`SerialSetupStatus` は VM の型として spec が型 import する可能性はあるが、主に data-access 内。 |
+
+**方針とのギャップ（判断材料）**: [README の Pi 集約方針](../libs/web-serial/data-access/README.md)では Pi 固有処理を `PiZeroSessionService` / `PiZeroSerialBootstrapService` に集約し Feature に散らさない旨がある一方、**`PiZeroSessionService` を `terminal-console-orchestration` が直接 inject**し、**`PiZeroShellReadinessService` を file-manager feature が直接 inject**している。Issue #672 の完了条件は「削除・制限対象の明確化」までとし、**移行（Facade または別 VM への寄せ）**は #671 の後続サブ Issue で扱うのが安全。
+
+### 制限・削除の優先度（提案）
+
+1. **低リスク（ドキュメント／型の整理から）**: `SerialValidatorService` の barrel 非公開化は、利用者が data-access 外にないため後続で検討しやすい（Angular の `providedIn: 'root'` は barrel と独立）。
+2. **中リスク**: `PiZeroPromptDetectorService` / `PiZeroSerialBootstrapService` の barrel 非公開化は、外部から直接 import していないことを確認済みだが、将来のテストや E2E での参照に注意。
+3. **高リスク（要設計）**: `PiZeroSessionService` / `PiZeroShellReadinessService` の Feature 直接利用をやめる場合は、`SerialFacadeService` へのメソッド追加、または接続／ターミナル用の薄いファサードの新設など **移行先の API 設計**が先に必要。
+
+### 回帰確認の観点（export を変更する後続 PR 用）
+
+barrel を変更する際は、少なくとも次を満たすこと（親 #671・[#662](https://github.com/gurezo/chirimen-lite-console/issues/662) 以降の方針と整合）。
+
+- **Terminal**: `terminalText$` の表示、`\r` 再描画の崩れなし。
+- **Input**: `send$` が正常動作。
+- **Command**: `exec$` / `readUntilPrompt$`、並列 `exec` の直列化。
+- **Pi Zero**: ログイン、shell readiness、timezone / setup。
+- **その他**: i2cdetect、ターミナル二重表示なし。
+- 関連 Issue の回帰なし: [#559](https://github.com/gurezo/chirimen-lite-console/issues/559) / [#593](https://github.com/gurezo/chirimen-lite-console/issues/593) / [#606](https://github.com/gurezo/chirimen-lite-console/issues/606) / [#647](https://github.com/gurezo/chirimen-lite-console/issues/647) / [#662](https://github.com/gurezo/chirimen-lite-console/issues/662)。
+
 ## 新規実装をどちらのリポジトリに置くか
 
 | 判断 | 置き場所の目安 |
@@ -101,3 +164,5 @@ Issue #590 / [#601](https://github.com/gurezo/chirimen-lite-console/issues/601) 
 - [#646](https://github.com/gurezo/chirimen-lite-console/issues/646) — README / ドキュメント上の `receive$` / `lines$` / `terminalText$` と Feature 境界の明文化
 - [#649](https://github.com/gurezo/chirimen-lite-console/issues/649) — `SerialFacadeService` の公開 API 縮小（`receive$` 等を Facade から除去）
 - [#664](https://github.com/gurezo/chirimen-lite-console/issues/664) — Facade を実質入口に統一し、パッケージ公開面からコマンド Pipeline クラスを除く（Orchestration の内部例外を文書化）
+- [#671](https://github.com/gurezo/chirimen-lite-console/issues/671) — Web Serial 実装の追加簡素化（公開 API・薄い責務の整理）
+- [#672](https://github.com/gurezo/chirimen-lite-console/issues/672) — `@libs-web-serial-data-access` の公開 API 棚卸し（本節の表・分類）
