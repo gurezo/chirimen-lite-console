@@ -216,4 +216,75 @@ describe('SerialTransportService', () => {
 
     expect(session.send$).toHaveBeenCalledWith('hello');
   });
+
+  describe('isRaspberryPiZero', () => {
+    const PI_ZERO_INFO: SerialPortInfo = {
+      usbVendorId: 0x0525,
+      usbProductId: 0xa4a7,
+    };
+
+    it('returns true when the current port info matches Pi Zero', async () => {
+      const mockPort = {} as SerialPort;
+      const session = buildMockSession(mockPort);
+      (
+        session as unknown as { getPortInfo: () => SerialPortInfo | null }
+      ).getPortInfo = () => PI_ZERO_INFO;
+      mockCreateSerialSession.mockReturnValue(session);
+
+      await firstValueFrom(service.connect$());
+      expect(await service.isRaspberryPiZero()).toBe(true);
+    });
+
+    it('falls back to port.getInfo() and returns true on match', async () => {
+      const mockPort = {
+        getInfo: vi.fn(() => Promise.resolve(PI_ZERO_INFO)),
+      } as unknown as SerialPort;
+      const session = buildMockSession(mockPort);
+      mockCreateSerialSession.mockReturnValue(session);
+
+      await firstValueFrom(service.connect$());
+      expect(await service.isRaspberryPiZero()).toBe(true);
+      expect(mockPort.getInfo).toHaveBeenCalledTimes(1);
+    });
+
+    it('returns false when VID/PID do not match Pi Zero', async () => {
+      const mockPort = {
+        getInfo: vi.fn(() =>
+          Promise.resolve({
+            usbVendorId: 0x1234,
+            usbProductId: 0x5678,
+          } satisfies SerialPortInfo),
+        ),
+      } as unknown as SerialPort;
+      const session = buildMockSession(mockPort);
+      mockCreateSerialSession.mockReturnValue(session);
+
+      await firstValueFrom(service.connect$());
+      expect(await service.isRaspberryPiZero()).toBe(false);
+    });
+
+    it('returns false and logs when port.getInfo() rejects', async () => {
+      const consoleErrorSpy = vi
+        .spyOn(console, 'error')
+        .mockImplementation(() => undefined);
+      const rejection = new Error('getInfo failed');
+      const mockPort = {
+        getInfo: vi.fn(() => Promise.reject(rejection)),
+      } as unknown as SerialPort;
+      const session = buildMockSession(mockPort);
+      mockCreateSerialSession.mockReturnValue(session);
+
+      await firstValueFrom(service.connect$());
+      expect(await service.isRaspberryPiZero()).toBe(false);
+      expect(consoleErrorSpy).toHaveBeenCalledWith(
+        'Failed to get port info:',
+        rejection,
+      );
+      consoleErrorSpy.mockRestore();
+    });
+
+    it('returns false when no session is active', async () => {
+      expect(await service.isRaspberryPiZero()).toBe(false);
+    });
+  });
 });
