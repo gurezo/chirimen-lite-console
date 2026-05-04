@@ -181,14 +181,22 @@ export class TerminalViewComponent implements AfterViewInit, OnDestroy {
     if (text.startsWith(this.lastTerminalText)) {
       const delta = text.slice(this.lastTerminalText.length);
       if (delta) {
-        this.xterminal.write(delta);
+        this.xterminal.write(this.normalizeNewlinesForXterm(delta));
       }
     } else {
       this.xterminal.reset();
       if (text) {
-        this.xterminal.write(text);
+        this.xterminal.write(this.normalizeNewlinesForXterm(text));
       }
     }
     this.lastTerminalText = text;
+  }
+
+  /**
+   * xterm へは LF を CRLF に揃えて渡す。LF のみだと同じカラム位置で改行され、
+   * 行頭が右へずれて見えるため。
+   */
+  private normalizeNewlinesForXterm(chunk: string): string {
+    return chunk.replace(/\r?\n/g, '\r\n');
   }
 }
