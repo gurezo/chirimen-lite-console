@@ -169,14 +169,16 @@ describe('TerminalViewComponent', () => {
     });
   });
 
-  it('forwards terminalText$ payload to xterm without sanitizing ANSI/CR/TAB', async () => {
+  it('keeps ANSI/CR/TAB and normalizes LF to CRLF for xterm write', async () => {
     const writeSpy = vi.spyOn(fixture.componentInstance.xterminal, 'write');
     writeSpy.mockClear();
 
-    const raw = '\u001b[2K\ra\tb\r\n$ ';
+    const raw = '\u001b[2K\ra\tb\n$ ';
     terminalTextSubject.next(raw);
 
-    await vi.waitFor(() => expect(writeSpy).toHaveBeenCalledWith(raw));
+    await vi.waitFor(() =>
+      expect(writeSpy).toHaveBeenCalledWith('\u001b[2K\ra\tb\r\n$ '),
+    );
   });
 
   it('skips re-emission when terminalText$ value is identical to previous', async () => {
