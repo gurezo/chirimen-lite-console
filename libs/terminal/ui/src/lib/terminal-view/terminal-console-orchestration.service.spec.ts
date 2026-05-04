@@ -121,10 +121,8 @@ describe('TerminalConsoleOrchestrationService', () => {
         .bootstrapAfterConnect$('prefix', { writeln, write })
         .pipe(defaultIfEmpty(undefined)),
     );
-    expect(writeln).not.toHaveBeenCalled();
-    expect(write).toHaveBeenCalledWith(
-      '\r\nprefix 初期化済みのためスキップします。\r\n',
-    );
+    expect(write).not.toHaveBeenCalled();
+    expect(writeln).toHaveBeenCalledWith('prefix 初期化済みのためスキップします。');
   });
 
   it('bootstrapAfterConnect$ delegates post-connect work to PiZeroSessionService', async () => {
@@ -147,7 +145,7 @@ describe('TerminalConsoleOrchestrationService', () => {
 
     expect(shouldRunAfterConnect$).toHaveBeenCalledTimes(1);
     expect(runAfterConnect$).toHaveBeenCalledTimes(1);
-    expect(write).toHaveBeenCalledWith('\r\nprefix 初期化しています...\r\n');
+    expect(writeln).toHaveBeenCalledWith('prefix 初期化しています...');
   });
 
   it('bootstrapAfterConnect$ rethrows bootstrap errors for caller handling', async () => {
@@ -168,10 +166,8 @@ describe('TerminalConsoleOrchestrationService', () => {
         ),
       ),
     ).rejects.toThrow('auth failed');
-    expect(write).toHaveBeenCalledWith('\r\nprefix 初期化しています...\r\n');
-    expect(write).toHaveBeenCalledWith(
-      '\r\nprefix 初期化に失敗しました: auth failed\r\n',
-    );
+    expect(writeln).toHaveBeenCalledWith('prefix 初期化しています...');
+    expect(writeln).toHaveBeenCalledWith('prefix 初期化に失敗しました: auth failed');
   });
 
   it('bootstrapAfterConnect$ keeps explicit shell readiness timeout errors', async () => {
@@ -195,8 +191,8 @@ describe('TerminalConsoleOrchestrationService', () => {
         ),
       ),
     ).rejects.toThrow('Shell readiness timeout while waiting for prompt');
-    expect(write).toHaveBeenCalledWith(
-      '\r\nprefix 初期化に失敗しました: Shell readiness timeout while waiting for prompt\r\n',
+    expect(writeln).toHaveBeenCalledWith(
+      'prefix 初期化に失敗しました: Shell readiness timeout while waiting for prompt',
     );
   });
 
