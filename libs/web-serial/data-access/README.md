@@ -172,7 +172,7 @@ PiZeroSerialBootstrapService
   - 接続単位の「一度だけ実行」などのオーケストレーションは `PiZeroSessionService`（[`pi-zero-session.service.ts`](src/lib/pi-zero-session.service.ts)）。
   - 環境初期化ステップ（timezone/language/locale/env）／期待プロンプトの定数は [`pi-zero-bootstrap.config.ts`](src/lib/pi-zero-bootstrap.config.ts) に集約。
 - Pi Zero 固有のプロンプト判定（`pi@…` シェル / `login:` / `Password:` 等）は **`PiZeroPromptDetectorService`** に分離（[`pi-zero-prompt-detector.service.ts`](src/lib/pi-zero-prompt-detector.service.ts)）。
-- `SerialPromptDetectorService` は **汎用 `matchesPrompt` のみ**を提供し、`SerialCommandPipelineService` から共有利用する。
+- `SerialPromptDetectorService` は **汎用 `matchesPrompt` のみ**を提供し、`SerialCommandPipelineService` から利用する。利用者が Pipeline のみであることから、Issue [#675](https://github.com/gurezo/chirimen-lite-console/issues/675) では **純関数モジュールへ寄せる PoC** で統合可否を判断する（親 [#671](https://github.com/gurezo/chirimen-lite-console/issues/671)）。
 - 他サービス（`wifi`, `file-manager`, `remote`, `chirimen-setup`, `i2cdetect` など）は Pi Zero 固有ロジックを保持しない。期待プロンプト文字列としての `PI_ZERO_PROMPT` 利用は許容する。
 
 ## 回帰テスト（自動 / 手動）（[#651](https://github.com/gurezo/chirimen-lite-console/issues/651) / 親 [#643](https://github.com/gurezo/chirimen-lite-console/issues/643)）
