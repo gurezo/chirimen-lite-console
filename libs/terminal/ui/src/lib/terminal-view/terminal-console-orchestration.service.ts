@@ -125,6 +125,6 @@ export class TerminalConsoleOrchestrationService {
   }
 
   private writeConsoleLine(sink: TerminalConsoleSink, line: string): void {
-    sink.write(`\r\n${line}\r\n`);
+    sink.writeln(line);
   }
 }
