@@ -1,3 +1,20 @@
+<!--
+PR タイトルは Conventional Commits 形式で記載してください。
+
+  <type>(<scope>): <description>
+
+- type: feat / fix / docs / style / refactor / perf / test / build / ci / revert
+- scope: commitlint.config.js の scope-enum から選択（例: console, web-serial, workspace ...）
+- description: lowercase / imperative / 末尾ピリオドなし
+
+例:
+  feat(console): add dark mode toggle
+  fix(terminal): prevent resize on reconnect
+  docs(workspace): update CONTRIBUTING with scope list
+
+詳細は CONTRIBUTING.md および .cursor/rules/commit/ を参照してください。
+-->
+
 ## Summary
 
 ## Type of change
