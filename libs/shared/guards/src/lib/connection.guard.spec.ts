@@ -5,9 +5,9 @@ import {
   Router,
   RouterStateSnapshot,
 } from '@angular/router';
-import { Store } from '@ngrx/store';
-import { of } from 'rxjs';
-import { vi } from 'vitest';
+import { UrlTree } from '@angular/router';
+import { SerialFacadeService } from '@libs-web-serial-data-access';
+import { BehaviorSubject, firstValueFrom, isObservable, Observable } from 'rxjs';
 
 import { connectionGuard } from './connection.guard';
 
@@ -21,16 +21,16 @@ describe('connectionGuard', () => {
     );
 
   let router: Router;
-  let storeSelect: ReturnType<typeof vi.fn>;
+  let isConnected$: BehaviorSubject<boolean>;
 
   beforeEach(() => {
-    storeSelect = vi.fn();
+    isConnected$ = new BehaviorSubject<boolean>(false);
     TestBed.configureTestingModule({
       providers: [
         provideRouter([]),
         {
-          provide: Store,
-          useValue: { select: storeSelect },
+          provide: SerialFacadeService,
+          useValue: { isConnected$ },
         },
       ],
     });
@@ -39,7 +39,7 @@ describe('connectionGuard', () => {
 
   describe('接続不要ルート（path: ""）', () => {
     it('常に true を返して許可する', () => {
-      storeSelect.mockReturnValue(of(true));
+      isConnected$.next(true);
 
       const route = {
         routeConfig: { path: '' },
@@ -49,13 +49,12 @@ describe('connectionGuard', () => {
       const result = executeGuard(route, state);
 
       expect(result).toBe(true);
-      expect(storeSelect).not.toHaveBeenCalled();
     });
   });
 
   describe('接続不要ルート（path: "unsupported-browser"）', () => {
     it('常に true を返して許可する', () => {
-      storeSelect.mockReturnValue(of(false));
+      isConnected$.next(false);
 
       const route = {
         routeConfig: { path: 'unsupported-browser' },
@@ -65,13 +64,12 @@ describe('connectionGuard', () => {
       const result = executeGuard(route, state);
 
       expect(result).toBe(true);
-      expect(storeSelect).not.toHaveBeenCalled();
     });
   });
 
   describe('接続必須ルート（上記以外）', () => {
-    it('接続済みの場合は true を返して許可する', (done) => {
-      storeSelect.mockReturnValue(of(true));
+    it('接続済みの場合は true を返して許可する', async () => {
+      isConnected$.next(true);
 
       const route = {
         routeConfig: { path: 'terminal' },
@@ -80,19 +78,15 @@ describe('connectionGuard', () => {
 
       const result = executeGuard(route, state);
 
-      if (typeof result === 'boolean') {
-        expect(result).toBe(true);
-        done();
-      } else {
-        result.subscribe((value) => {
-          expect(value).toBe(true);
-          done();
-        });
-      }
+      expect(isObservable(result)).toBe(true);
+      const value = await firstValueFrom(
+        result as Observable<boolean | UrlTree>
+      );
+      expect(value).toBe(true);
     });
 
-    it('未接続の場合は "/" へリダイレクトする UrlTree を返す', (done) => {
-      storeSelect.mockReturnValue(of(false));
+    it('未接続の場合は "/" へリダイレクトする UrlTree を返す', async () => {
+      isConnected$.next(false);
 
       const route = {
         routeConfig: { path: 'terminal' },
@@ -101,15 +95,11 @@ describe('connectionGuard', () => {
 
       const result = executeGuard(route, state);
 
-      if (typeof result === 'boolean') {
-        expect(result).toEqual(router.parseUrl('/'));
-        done();
-      } else {
-        result.subscribe((value) => {
-          expect(value).toEqual(router.parseUrl('/'));
-          done();
-        });
-      }
+      expect(isObservable(result)).toBe(true);
+      const value = await firstValueFrom(
+        result as Observable<boolean | UrlTree>
+      );
+      expect(value).toEqual(router.parseUrl('/'));
     });
   });
 });
