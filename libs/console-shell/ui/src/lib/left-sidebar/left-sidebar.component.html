@@ -9,7 +9,14 @@
   <div
     class="flex shrink-0 flex-col items-center gap-1 border-l border-gray-200 py-2"
   >
-    <mat-icon aria-hidden="true">folder</mat-icon>
+    <button
+      mat-icon-button
+      type="button"
+      aria-label="Toggle left panel"
+      (click)="toggleLeftSidebar.emit()"
+    >
+      <mat-icon>folder</mat-icon>
+    </button>
     <button
       mat-icon-button
       type="button"
