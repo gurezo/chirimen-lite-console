@@ -1,0 +1,19 @@
+---
+description: Nx workspace baseline rules.
+globs:
+  - "nx.json"
+  - "project.json"
+  - "package.json"
+  - "apps/**"
+  - "libs/**"
+alwaysApply: false
+---
+
+# Nx Workspace Rules
+
+- Understand the workspace structure before editing.
+- Prefer Nx commands for project discovery.
+- Use existing project boundaries.
+- Do not move files across apps/libs without clear reason.
+- Follow existing naming conventions.
+- Prefer small, incremental changes.
