@@ -4,7 +4,14 @@
   <div
     class="flex shrink-0 flex-col items-center gap-1 border-r border-gray-200 py-2"
   >
-    <mat-icon aria-hidden="true">fiber_pin</mat-icon>
+    <button
+      mat-icon-button
+      type="button"
+      aria-label="Toggle right panel"
+      (click)="toggleRightSidebar.emit()"
+    >
+      <mat-icon>fiber_pin</mat-icon>
+    </button>
     <button
       mat-icon-button
       type="button"
