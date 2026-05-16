@@ -4,7 +4,7 @@ import angular from '@analogjs/vite-plugin-angular';
 
 export default defineConfig({
   cacheDir: resolve(process.cwd(), 'node_modules/.vite'),
-  plugins: [angular()],
+  plugins: [angular({ tsconfig: resolve(__dirname, 'tsconfig.spec.json') })],
   test: {
     globals: true,
     environment: 'jsdom',
