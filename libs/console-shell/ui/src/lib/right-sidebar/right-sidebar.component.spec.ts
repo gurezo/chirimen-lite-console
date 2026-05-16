@@ -22,10 +22,20 @@ describe('RightSidebarComponent', () => {
 
   it('should emit toggleRightSidebar when the panel toggle is clicked', () => {
     const emitSpy = vi.spyOn(component.toggleRightSidebar, 'emit');
-    const button: HTMLButtonElement | null =
-      fixture.nativeElement.querySelector('button[mat-icon-button]');
+    const buttons: NodeListOf<HTMLButtonElement> =
+      fixture.nativeElement.querySelectorAll('button[mat-icon-button]');
 
-    button?.click();
+    buttons[1]?.click();
+
+    expect(emitSpy).toHaveBeenCalledTimes(1);
+  });
+
+  it('should emit toggleRightSidebar when the fiber_pin icon is clicked', () => {
+    const emitSpy = vi.spyOn(component.toggleRightSidebar, 'emit');
+    const buttons: NodeListOf<HTMLButtonElement> =
+      fixture.nativeElement.querySelectorAll('button[mat-icon-button]');
+
+    buttons[0]?.click();
 
     expect(emitSpy).toHaveBeenCalledTimes(1);
   });
