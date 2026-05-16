@@ -77,6 +77,17 @@ Vitest で全プロジェクトのユニットテストを実行します。
 npx skills add https://github.com/angular/skills
 ```
 
+### Conventional Commits Skill
+
+本プロジェクト固有の Conventional Commits を AI が生成できるよう、`.agents/skills/conventional-commits/` に Skill を導入しています。
+
+- `SKILL.md` — Conventional Commits の形式・scope 選択・カテゴリ別ガイド
+- `examples.md` — 良い例 / 悪い例
+- `assertions.md` — 検証項目と Valid / Invalid サンプル
+- `scopes.md` — scope 一覧（`commitlint.config.js` と同期）
+
+詳細は Issue [#692](https://github.com/gurezo/chirimen-lite-console/issues/692) および [CONTRIBUTING.md](CONTRIBUTING.md) を参照してください。
+
 ### Nx AI Agent 設定
 
 [Nx AI Agents](https://nx.dev/blog/nx-ai-agent-skills) により、Nx Workspace 構造を AI に理解させるための Skills (`nx-workspace` / `nx-generate` / `nx-run-tasks` ほか)、Nx Console (MCP) 連携、ルート `AGENTS.md`、`.cursor/agents/` 配下のサブエージェント定義を導入しています。
@@ -98,6 +109,10 @@ pnpm nx configure-ai-agents
 │   ├── 10-angular-signals.mdc    # Signals の使い分け
 │   ├── 20-angular-components.mdc # Component 設計
 │   └── 30-angular-testing.mdc    # テスト方針
+├── commit/
+│   ├── 00-conventional-commits.mdc        # Conventional Commits 基本
+│   ├── 10-pull-request-title.mdc          # PR タイトル統一
+│   └── 20-chirimen-lite-console-scope.mdc # 本プロジェクト固有 scope
 ├── nx/
 │   ├── 00-nx-workspace.mdc       # Workspace 全体ルール
 │   ├── 10-nx-generators.mdc      # Nx Generator 利用方針
@@ -108,7 +123,7 @@ pnpm nx configure-ai-agents
 
 各 `.mdc` は `globs` で対象ファイルを限定しているため、対象ファイルを Cursor で開くと自動でルールが参照されます。
 
-詳細は Issue [#690](https://github.com/gurezo/chirimen-lite-console/issues/690) を参照してください。
+詳細は Issue [#690](https://github.com/gurezo/chirimen-lite-console/issues/690) / [#692](https://github.com/gurezo/chirimen-lite-console/issues/692) を参照してください。
 
 ## その他
 

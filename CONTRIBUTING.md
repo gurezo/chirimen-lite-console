@@ -94,3 +94,16 @@ Nx Release は、`nx.json` の `release.version.conventionalCommits` を `true` 
 - ブランチ名は Conventional Commits の意図が分かるようにしてください（例: `feat/console/add-dark-mode`）。
 - プルリクエストのタイトルも Conventional Commits 形式を推奨します。
 - `.github/pull_request_template.md` に沿って概要・変更内容・テスト方法を記載してください。
+
+## AI による補助（Conventional Commits Skill / Rules）
+
+Cursor などの AI コーディングエージェント向けに、本リポジトリ用の Conventional Commits 補助を導入しています。
+
+- `.cursor/rules/commit/`
+  - `00-conventional-commits.mdc` — 形式 / 許可 type / lowercase / imperative / 末尾ピリオド禁止
+  - `10-pull-request-title.mdc` — PR タイトルの統一ルール
+  - `20-chirimen-lite-console-scope.mdc` — 本プロジェクト固有 scope の選び方
+- `.agents/skills/conventional-commits/`
+  - `SKILL.md` / `examples.md` / `assertions.md` / `scopes.md`
+
+scope の単一の真実は本ファイルの「スコープ一覧」と `commitlint.config.js` の `scope-enum` です。AI が生成したメッセージも、`pnpm install` 後は husky の `commit-msg` フックおよび CI の commitlint で検証されます。
