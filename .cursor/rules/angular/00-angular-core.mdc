@@ -1,0 +1,19 @@
+---
+description: Angular project baseline rules.
+globs:
+  - "**/*.ts"
+  - "**/*.html"
+  - "**/*.scss"
+alwaysApply: false
+---
+
+# Angular Core Rules
+
+- Prefer standalone components.
+- Prefer Angular Signals for local state.
+- Use RxJS for async streams.
+- Keep components thin.
+- Move business logic outside components.
+- Follow existing folder structure.
+- Avoid introducing new architecture without checking current patterns.
+- Run lint/test/typecheck after edits.

@@ -1,0 +1,17 @@
+---
+description: Angular component rules.
+globs:
+  - "**/*.component.ts"
+  - "**/*.component.html"
+  - "**/*.component.scss"
+alwaysApply: false
+---
+
+# Angular Component Rules
+
+- Keep components focused.
+- Avoid orchestration in components.
+- Keep templates simple.
+- Prefer semantic HTML.
+- Extract large templates/components.
+- Avoid deeply nested conditionals.
