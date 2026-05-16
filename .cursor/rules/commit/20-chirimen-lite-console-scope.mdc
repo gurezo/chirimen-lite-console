@@ -1,0 +1,66 @@
+---
+description: chirimen-lite-console specific scope rules for Conventional Commits.
+globs:
+  - "**/*"
+alwaysApply: false
+---
+
+# chirimen-lite-console Scope Rules
+
+scope の単一の真実は [commitlint.config.js](../../../commitlint.config.js) の `scope-enum` および [CONTRIBUTING.md](../../../CONTRIBUTING.md) のスコープ表とする。ここから外れる scope はコミット時に commitlint で拒否される。
+
+## 選び方の方針
+
+- 影響範囲が Nx の特定の lib / app に閉じる場合は、その lib / app 名を scope にする
+- ルート（`package.json`, `nx.json`, `tsconfig.base.json`, GitHub Actions 等）への変更は `workspace`
+- ドキュメント単独の変更も、最も関連する scope を選ぶ（リポジトリ横断なら `workspace`）
+
+## scope 一覧
+
+`commitlint.config.js` に登録された scope（実 Nx プロジェクトと整合）。
+
+| Scope                     | 用途                                                          |
+| ------------------------- | ------------------------------------------------------------- |
+| `console`                 | メインアプリ (`apps/console`)                                 |
+| `console-shell`           | コンソールシェル lib                                          |
+| `connect`                 | 接続 lib                                                      |
+| `page-not-found`          | 404 ページ lib                                                |
+| `web-serial`              | Web Serial lib                                                |
+| `web-serial-util`         | Web Serial lib の util                                        |
+| `web-serial-data-access`  | Web Serial lib の data-access                                 |
+| `example`                 | サンプル lib                                                  |
+| `wifi`                    | Wi-Fi lib                                                     |
+| `dialogs`                 | ダイアログ lib                                                |
+| `unsupported-browser`     | 非対応ブラウザ lib                                            |
+| `editor`                  | エディタ lib                                                  |
+| `terminal`                | ターミナル lib                                                |
+| `pin-assign-panel`        | ピン割り当てパネル lib                                        |
+| `shared-ui`               | 共有 UI lib                                                   |
+| `shared-guards`           | 共有ガード lib                                                |
+| `shared-types`            | 共有型定義 lib                                                |
+| `shared-util`             | 共有ユーティリティ lib                                        |
+| `i2cdetect`               | I2C 検出 lib（feature 全体）                                  |
+| `i2cdetect-ui`            | I2C 検出 lib の UI                                            |
+| `i2cdetect-data-access`   | I2C 検出 lib の data-access                                   |
+| `i2cdetect-util`          | I2C 検出 lib の util                                          |
+| `workspace`               | ルート・共通設定（package.json, nx.json, tsconfig, CI など）  |
+| `setup`                   | chirimen セットアップ lib                                     |
+| `file-manager`            | ファイルマネージャ lib                                        |
+| `remote`                  | リモート lib                                                  |
+
+## 採用しない scope
+
+Issue #692 で挙げられていた以下の scope は、現状のワークスペース構成と `commitlint.config.js` に存在しないため採用しない。
+
+- `web-serial-rxjs`, `signal-store`, `ngrx`, `connection`, `connection-guard`, `auth`, `timezone`, `device-detection`, `i2c-detect`（`i2cdetect` を使用）, `menu`, `layout`, `theme`, `shared-store`, `toolbar`, `router`, `settings`, `release`, `ci`, `docs`
+
+`ci` / `release` / `docs` 系の変更は `workspace` scope を使用すること。
+
+## 新しい scope が必要になった場合
+
+新規 lib を作成したり、横断的な scope を増やしたい場合は次の手順で進める。
+
+1. 新規 lib は Nx generator で作成する（必要に応じて `nx-generate` skill を利用）
+2. `commitlint.config.js` の `scope-enum` に新 scope を追加
+3. `CONTRIBUTING.md` のスコープ表を更新
+4. このファイルおよび `.agents/skills/conventional-commits/scopes.md` を更新

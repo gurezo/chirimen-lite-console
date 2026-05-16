@@ -1,0 +1,53 @@
+---
+description: Pull request title rules aligned with Conventional Commits.
+globs:
+  - ".github/pull_request_template.md"
+  - "**/*.md"
+alwaysApply: false
+---
+
+# Pull Request Title Rules
+
+PR タイトルは Conventional Commits に統一する。`commitlint.config.js` の `scope-enum` を満たす scope を必ず指定する。
+
+## フォーマット
+
+```
+<type>(<scope>): <description>
+```
+
+## 推奨
+
+- 1 PR = 1 type / 1 scope を基本とする
+- description は lowercase + imperative + 末尾ピリオドなし
+- 関連 Issue は PR 本文（[.github/pull_request_template.md](.github/pull_request_template.md) の `Related issues` セクション）で `Closes #<n>` / `Fixes #<n>` で紐付ける
+- 破壊的変更がある場合は `!` を付ける（例: `feat(web-serial)!: ...`）
+
+## 良い例
+
+```
+feat(console-shell): add connection status indicator
+fix(web-serial): handle unexpected port close
+refactor(shared-util): simplify session state
+docs(workspace): update CONTRIBUTING with scope list
+ci(workspace): tighten commitlint workflow trigger
+build(workspace): bump @angular/* to 21.2.13
+```
+
+## 悪い例
+
+```
+update files
+fix issue
+WIP
+Refactoring
+Added New Feature.
+feat: Added New Feature.
+```
+
+## チェック観点
+
+- type が許可リストにあるか
+- scope が `commitlint.config.js` の `scope-enum` にあるか
+- description が lowercase / imperative / 末尾ピリオドなし か
+- 破壊的変更がある場合に `!` または `BREAKING CHANGE:` が記載されているか

@@ -1,0 +1,65 @@
+---
+description: Conventional Commits baseline rules for commit messages.
+globs:
+  - "**/*"
+alwaysApply: false
+---
+
+# Conventional Commits Rules
+
+本リポジトリのコミットメッセージは [Conventional Commits](https://www.conventionalcommits.org/) に準拠する。commitlint は `@commitlint/config-angular` を継承しており、`commitlint.config.js` の `scope-enum` を満たすこと。
+
+## フォーマット
+
+```
+<type>(<scope>): <description>
+
+[optional body]
+
+[optional footer(s)]
+```
+
+- ヘッダ（必須）: `<type>(<scope>): <description>`
+- ボディ（任意）: 変更の理由・背景
+- フッタ（任意）: `BREAKING CHANGE: ...` や `Closes #<issue>` など
+
+## 許可される type
+
+- `feat` — 新機能
+- `fix` — バグ修正
+- `docs` — ドキュメントのみの変更
+- `style` — 動作に影響しない書式変更
+- `refactor` — 機能を変えないリファクタリング
+- `perf` — パフォーマンス改善
+- `test` — テストの追加・修正
+- `build` — ビルド・依存関係関連
+- `ci` — CI 設定関連
+- `revert` — 過去のコミットの取り消し
+
+## description の書式
+
+- lowercase で開始する
+- 命令形（imperative）で書く（例: `add`, `fix`, `update`、`added` や `fixes` ではなく）
+- 末尾にピリオドを付けない
+- 簡潔にする（目安: 72 文字以内）
+
+## 破壊的変更（BREAKING CHANGE）
+
+次のいずれかで明示する。
+
+- ヘッダに `!` を付ける: `feat(web-serial)!: change session connection interface`
+- フッタに `BREAKING CHANGE: <summary>` を記載
+
+## scope
+
+scope は `commitlint.config.js` の `scope-enum` から選択する。詳細は `20-chirimen-lite-console-scope.mdc` および `CONTRIBUTING.md` のスコープ表を参照。
+
+## 例
+
+```
+feat(console): add dark mode toggle
+fix(terminal): prevent resize on reconnect
+build(workspace): bump nx to 22.7.2
+docs(workspace): update CONTRIBUTING with scope list
+refactor(web-serial): simplify port detection logic
+```
