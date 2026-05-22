@@ -7,7 +7,7 @@ import {
   throwError,
 } from 'rxjs';
 import { SerialFacadeService } from '@libs-web-serial';
-import { formatI2cdetectResult } from '../functions/i2cdetect-result.util';
+import { formatI2cdetectResult } from '../functions';
 import {
   PI_ZERO_PROMPT,
   SERIAL_TIMEOUT,
