@@ -4,11 +4,7 @@ import angular from '@analogjs/vite-plugin-angular';
 
 export default defineConfig({
   cacheDir: resolve(process.cwd(), 'node_modules/.vite'),
-  plugins: [
-    angular({
-      tsconfig: resolve(__dirname, 'tsconfig.spec.json'),
-    }),
-  ],
+  plugins: [angular({ tsconfig: resolve(__dirname, 'tsconfig.spec.json') })],
   test: {
     globals: true,
     environment: 'jsdom',
@@ -22,12 +18,17 @@ export default defineConfig({
     ],
     coverage: {
       provider: 'v8',
-      reportsDirectory: resolve(__dirname, '../../../coverage/libs/connect/ui'),
+      reportsDirectory: resolve(__dirname, '../../coverage/libs/connect'),
     },
   },
   resolve: {
     alias: {
-      '@libs-connect-ui': resolve(__dirname, './src/index.ts'),
+      '@libs-connect': resolve(__dirname, './src/index.ts'),
+      '@libs-web-serial': resolve(__dirname, '../web-serial/src/index.ts'),
+      '@libs-terminal-util': resolve(__dirname, '../terminal/util/src/index.ts'),
     },
+  },
+  esbuild: {
+    target: 'node22',
   },
 });

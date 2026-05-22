@@ -1,9 +1,7 @@
 import { AsyncPipe } from '@angular/common';
 import { Component, inject } from '@angular/core';
-import {
-  ConnectButtonComponent,
-  ConnectionStatusComponent,
-} from '@libs-connect-ui';
+import { ConnectButtonComponent } from '../connect-button/connect-button.component';
+import { ConnectionStatusComponent } from '../connection-status/connection-status.component';
 import { SerialConnectionViewModelFacade } from '@libs-web-serial';
 
 @Component({
