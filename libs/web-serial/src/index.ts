@@ -1,4 +1,6 @@
 export * from './lib/functions';
+export * from './lib/functions/sanitize-serial-stdout';
+export * from './lib/service/terminal-command-request.service';
 export * from './lib/service/pi-zero-prompt-detector.service';
 export * from './lib/service/pi-zero-session.service';
 export * from './lib/service/pi-zero-serial-bootstrap.service';

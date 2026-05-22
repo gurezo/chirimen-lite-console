@@ -13,7 +13,7 @@ import { FitAddon } from '@xterm/addon-fit';
 import { Terminal } from '@xterm/xterm';
 import { SerialFacadeService } from '@libs-web-serial';
 import { xtermConsoleConfigOptions } from '../../functions/xterm-config';
-import { TerminalCommandRequestService } from '../../service/terminal-command-request.service';
+import { TerminalCommandRequestService } from '@libs-web-serial';
 import {
   TerminalConsoleOrchestrationService,
   type TerminalConsoleSink,

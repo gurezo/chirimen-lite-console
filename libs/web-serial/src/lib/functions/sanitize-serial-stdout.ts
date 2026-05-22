@@ -1,7 +1,7 @@
 import {
   collapseCarriageRedrawsPerLine,
   stripSerialAnsiForPrompt,
-} from '@libs-web-serial';
+} from './serial-ansi';
 
 /**
  * {@link stripSerialAnsiForPrompt} で落ちない端末制御（カーソル退避・文字集合・逆改行）を除く。

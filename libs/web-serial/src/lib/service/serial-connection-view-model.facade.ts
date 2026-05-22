@@ -2,7 +2,7 @@
 
 import { Injectable, inject } from '@angular/core';
 import { SerialSessionState } from '@gurezo/web-serial-rxjs';
-import { TerminalCommandRequestService } from '@libs-terminal';
+import { TerminalCommandRequestService } from './terminal-command-request.service';
 import {
   BehaviorSubject,
   combineLatest,
