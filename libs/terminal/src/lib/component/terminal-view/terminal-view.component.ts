@@ -12,12 +12,12 @@ import { Subscription, filter, merge, switchMap, take } from 'rxjs';
 import { FitAddon } from '@xterm/addon-fit';
 import { Terminal } from '@xterm/xterm';
 import { SerialFacadeService } from '@libs-web-serial';
-import { xtermConsoleConfigOptions } from '../../functions/xterm-config';
+import { xtermConsoleConfigOptions } from '../../functions';
 import { TerminalCommandRequestService } from '@libs-web-serial';
 import {
   TerminalConsoleOrchestrationService,
   type TerminalConsoleSink,
-} from '../../service/terminal-console-orchestration.service';
+} from '../../service';
 import { attachTerminalInput } from '../terminal-input';
 
 /**

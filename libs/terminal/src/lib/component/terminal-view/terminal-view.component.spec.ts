@@ -24,7 +24,7 @@ import {
   PiZeroSessionService,
   SerialFacadeService,
 } from '@libs-web-serial';
-import { coerceLsForSerialListing } from '../../functions/coerce-ls-for-serial-listing';
+import { coerceLsForSerialListing } from '../../functions';
 import { TerminalCommandRequestService } from '@libs-web-serial';
 import { TerminalViewComponent } from './terminal-view.component';
 

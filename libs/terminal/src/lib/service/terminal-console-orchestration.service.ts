@@ -3,7 +3,7 @@ import {
   PiZeroSessionService,
   SerialFacadeService,
 } from '@libs-web-serial';
-import { coerceLsForSerialListing } from '../functions/coerce-ls-for-serial-listing';
+import { coerceLsForSerialListing } from '../functions';
 import {
   EMPTY,
   Observable,
