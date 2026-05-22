@@ -19,34 +19,33 @@ scope の単一の真実は [commitlint.config.js](../../../commitlint.config.js
 
 `commitlint.config.js` に登録された scope（実 Nx プロジェクトと整合）。
 
-| Scope                     | 用途                                                          |
-| ------------------------- | ------------------------------------------------------------- |
-| `console`                 | メインアプリ (`apps/console`)                                 |
-| `console-shell`           | コンソールシェル lib                                          |
-| `connect`                 | 接続 lib                                                      |
-| `page-not-found`          | 404 ページ lib                                                |
-| `web-serial`              | Web Serial lib                                                |
-| `web-serial-util`         | Web Serial lib の util                                        |
-| `web-serial-data-access`  | Web Serial lib の data-access                                 |
-| `example`                 | サンプル lib                                                  |
-| `wifi`                    | Wi-Fi lib                                                     |
-| `dialogs`                 | ダイアログ lib                                                |
-| `unsupported-browser`     | 非対応ブラウザ lib                                            |
-| `editor`                  | エディタ lib                                                  |
-| `terminal`                | ターミナル lib                                                |
-| `pin-assign-panel`        | ピン割り当てパネル lib                                        |
-| `shared-ui`               | 共有 UI lib                                                   |
-| `shared-guards`           | 共有ガード lib                                                |
-| `shared-types`            | 共有型定義 lib                                                |
-| `shared-util`             | 共有ユーティリティ lib                                        |
-| `i2cdetect`               | I2C 検出 lib（feature 全体）                                  |
-| `i2cdetect-ui`            | I2C 検出 lib の UI                                            |
-| `i2cdetect-data-access`   | I2C 検出 lib の data-access                                   |
-| `i2cdetect-util`          | I2C 検出 lib の util                                          |
-| `workspace`               | ルート・共通設定（package.json, nx.json, tsconfig, CI など）  |
-| `setup`                   | chirimen セットアップ lib                                     |
-| `file-manager`            | ファイルマネージャ lib                                        |
-| `remote`                  | リモート lib                                                  |
+| Scope                 | 用途                                                         |
+| --------------------- | ------------------------------------------------------------ |
+| `console`             | メインアプリ (`apps/console`)                                |
+| `console-shell`       | コンソールシェル lib                                         |
+| `connect`             | 接続 lib                                                     |
+| `page-not-found`      | 404 ページ lib                                               |
+| `web-serial`          | Web Serial lib                                               |
+| `example`             | サンプル lib                                                 |
+| `wifi`                | Wi-Fi lib                                                    |
+| `dialogs`             | ダイアログ lib                                               |
+| `unsupported-browser` | 非対応ブラウザ lib                                           |
+| `editor`              | エディタ lib                                                 |
+| `terminal`            | ターミナル lib                                               |
+| `pin-assign-panel`    | ピン割り当てパネル lib                                       |
+| `shared`              | 共有 lib（guards / types / ui / util 統合）                  |
+| `i2cdetect`           | I2C 検出 lib                                                 |
+| `chirimen-setup`      | chirimen セットアップ lib                                    |
+| `setup`               | `chirimen-setup` の別名（後方互換）                          |
+| `file-manager`        | ファイルマネージャ lib                                       |
+| `remote`              | リモート lib                                                 |
+| `workspace`           | ルート・共通設定（package.json, nx.json, tsconfig, CI など） |
+
+## 廃止した scope（Issue #696 統合後）
+
+- `web-serial-util`, `web-serial-data-access` → `web-serial`
+- `shared-ui`, `shared-guards`, `shared-types`, `shared-util` → `shared`
+- `i2cdetect-ui`, `i2cdetect-data-access`, `i2cdetect-util` → `i2cdetect`
 
 ## 採用しない scope
 

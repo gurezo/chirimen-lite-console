@@ -4,52 +4,51 @@ scope の単一の真実は [commitlint.config.js](../../../commitlint.config.js
 
 ## scope 一覧
 
-| Scope                    | 用途                                                         |
-| ------------------------ | ------------------------------------------------------------ |
-| `console`                | メインアプリ (`apps/console`)                                |
-| `console-shell`          | コンソールシェル lib                                         |
-| `connect`                | 接続 lib                                                     |
-| `page-not-found`         | 404 ページ lib                                               |
-| `web-serial`             | Web Serial lib（全体）                                       |
-| `web-serial-util`        | Web Serial lib の util                                       |
-| `web-serial-data-access` | Web Serial lib の data-access                                |
-| `example`                | サンプル lib                                                 |
-| `wifi`                   | Wi-Fi lib                                                    |
-| `dialogs`                | ダイアログ lib                                               |
-| `unsupported-browser`    | 非対応ブラウザ lib                                           |
-| `editor`                 | エディタ lib                                                 |
-| `terminal`               | ターミナル lib                                               |
-| `pin-assign-panel`       | ピン割り当てパネル lib                                       |
-| `shared-ui`              | 共有 UI lib                                                  |
-| `shared-guards`          | 共有ガード lib                                               |
-| `shared-types`           | 共有型定義 lib                                               |
-| `shared-util`            | 共有ユーティリティ lib                                       |
-| `i2cdetect`              | I2C 検出 lib（feature 全体）                                 |
-| `i2cdetect-ui`           | I2C 検出 lib の UI                                           |
-| `i2cdetect-data-access`  | I2C 検出 lib の data-access                                  |
-| `i2cdetect-util`         | I2C 検出 lib の util                                         |
-| `workspace`              | ルート・共通設定（package.json, nx.json, tsconfig, CI など） |
-| `setup`                  | chirimen セットアップ lib                                    |
-| `file-manager`           | ファイルマネージャ lib                                       |
-| `remote`                 | リモート lib                                                 |
+| Scope                 | 用途                                                         |
+| --------------------- | ------------------------------------------------------------ |
+| `console`             | メインアプリ (`apps/console`)                                |
+| `console-shell`       | コンソールシェル lib                                         |
+| `connect`             | 接続 lib                                                     |
+| `page-not-found`      | 404 ページ lib                                               |
+| `web-serial`          | Web Serial lib                                               |
+| `example`             | サンプル lib                                                 |
+| `wifi`                | Wi-Fi lib                                                    |
+| `dialogs`             | ダイアログ lib                                               |
+| `unsupported-browser` | 非対応ブラウザ lib                                           |
+| `editor`              | エディタ lib                                                 |
+| `terminal`            | ターミナル lib                                               |
+| `pin-assign-panel`    | ピン割り当てパネル lib                                       |
+| `shared`              | 共有 lib（guards / types / ui / util 統合）                  |
+| `i2cdetect`           | I2C 検出 lib                                                 |
+| `chirimen-setup`      | chirimen セットアップ lib                                    |
+| `setup`               | `chirimen-setup` の別名（後方互換）                          |
+| `file-manager`        | ファイルマネージャ lib                                       |
+| `remote`              | リモート lib                                                 |
+| `workspace`           | ルート・共通設定（package.json, nx.json, tsconfig, CI など） |
 
 ## 選び方
 
 1. 影響が 1 つの lib / app に閉じる → その lib / app 名を選ぶ
 2. ルート設定 / CI / husky / commitlint / docs 横断 → `workspace`
-3. リポジトリ全体の運用ドキュメント → `workspace`
+3. リポジトリ全体の運用ドocument → `workspace`
 4. 複数 lib にまたがる変更は、可能なら commit / PR を分割する
+
+## 廃止した scope（Issue #696 統合後）
+
+以下は分割 lib 時代の scope です。新規コミットでは使用しない。
+
+- `web-serial-util`, `web-serial-data-access`
+- `shared-ui`, `shared-guards`, `shared-types`, `shared-util`
+- `i2cdetect-ui`, `i2cdetect-data-access`, `i2cdetect-util`
 
 ## 採用しない scope（Issue #692 由来）
 
-下記は本ワークスペースに対応する Nx プロジェクトが存在しない、または既存 scope と重複するため採用しません。
-
-- `web-serial-rxjs` — 外部パッケージ。本リポジトリの変更 scope ではない
-- `signal-store`, `ngrx`, `shared-store` — 専用 lib として分離されていない
-- `connection`, `connection-guard` — 機能は `connect` / `shared-guards` でカバー
+- `web-serial-rxjs` — 外部パッケージ
+- `signal-store`, `ngrx`, `shared-store` — 専用 lib なし
+- `connection`, `connection-guard` — `connect` / `shared` でカバー
 - `auth`, `timezone`, `device-detection` — 該当 lib なし
-- `i2c-detect` — `i2cdetect` を使用する
-- `menu`, `layout`, `theme`, `toolbar`, `router`, `settings` — 該当 lib なし、`console` / `console-shell` で吸収
+- `i2c-detect` — `i2cdetect` を使用
+- `menu`, `layout`, `theme`, `toolbar`, `router`, `settings` — `console` / `console-shell` で吸収
 - `release`, `ci`, `docs` — `workspace` で吸収
 
 ## scope を追加したい場合

@@ -39,27 +39,25 @@ Angular のコミットガイドラインに合わせ、コミットメッセー
 
 | スコープ              | 説明                                                           |
 | --------------------- | -------------------------------------------------------------- |
-| `chirimen-setup`      | chirimen セットアップ lib（data-access / feature / ui / util） |
+| `chirimen-setup`      | chirimen セットアップ lib（`libs/chirimen-setup`）             |
+| `setup`               | `chirimen-setup` の別名（後方互換）                            |
 | `console`             | メインアプリ (apps/console)                                    |
 | `workspace`           | ルート・共通設定（package.json, nx, ツール設定など）           |
-| `connect`             | 接続 lib（feature / ui / util）                                |
-| `console-shell`       | コンソールシェル lib（feature / ui / util）                    |
+| `connect`             | 接続 lib（`libs/connect`）                                     |
+| `console-shell`       | コンソールシェル lib（`libs/console-shell`）                   |
 | `page-not-found`      | 404 ページ lib                                                 |
-| `web-serial`          | Web Serial lib（util / data-access / state）                   |
-| `example`             | サンプル lib（util / data-access / ui / feature）              |
-| `wifi`                | Wi‑Fi lib（util / data-access / ui / feature）                 |
-| `dialogs`             | ダイアログ lib（feature / ui / util）                          |
+| `web-serial`          | Web Serial lib（`libs/web-serial`）                            |
+| `example`             | サンプル lib（`libs/example`）                                 |
+| `wifi`                | Wi‑Fi lib（`libs/wifi`）                                       |
+| `dialogs`             | ダイアログ lib（`libs/dialogs`）                               |
 | `unsupported-browser` | 非対応ブラウザ lib                                             |
-| `editor`              | エディタ lib（data-access / feature / ui / util）              |
-| `terminal`            | ターミナル lib（feature / ui / util）                          |
-| `file-manager`        | ファイルマネージャ lib（data-access / feature / ui / util）    |
-| `i2cdetect`           | I2C 検出 lib（ui / data-access / util に分割）                 |
-| `pin-assign-panel`    | ピン割り当てパネル lib（ui）                                   |
-| `remote`              | リモート lib（data-access / feature / ui / util）              |
-| `shared-ui`           | 共有 UI lib                                                    |
-| `shared-guards`       | 共有ガード lib                                                 |
-| `shared-types`        | 共有型定義 lib                                                 |
-| `shared-util`         | 共有ユーティリティ lib                                         |
+| `editor`              | エディタ lib（`libs/editor`）                                  |
+| `terminal`            | ターミナル lib（`libs/terminal`）                              |
+| `file-manager`        | ファイルマネージャ lib（`libs/file-manager`）                  |
+| `i2cdetect`           | I2C 検出 lib（`libs/i2cdetect`）                               |
+| `pin-assign-panel`    | ピン割り当てパネル lib（`libs/pin-assign-panel`）              |
+| `remote`              | リモート lib（`libs/remote`）                                  |
+| `shared`              | 共有 lib（guards / types / ui / util を統合）                  |
 
 ### 例
 
@@ -86,7 +84,7 @@ Nx Release は、`nx.json` の `release.version.conventionalCommits` を `true` 
 インポートには `tsconfig.base.json` の `compilerOptions.paths` で定義したエイリアスを使用します。
 
 - **アプリ**: `@app/*` → `apps/console/src/app/*`
-- **lib 群**: `@libs-<lib名>` 形式（例: `@libs-shared`, `@libs-shared`, `@libs-wifi-feature`）
+- **lib 群**: `@libs-<domain>` 形式（例: `@libs-shared`, `@libs-wifi`, `@libs-console-shell`）。各 lib は `libs/<domain>/src/index.ts` から公開 API を export する
 - 一覧は `tsconfig.base.json` の `paths` を参照してください。
 
 ## プルリクエスト
