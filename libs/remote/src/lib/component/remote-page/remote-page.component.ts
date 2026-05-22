@@ -4,20 +4,16 @@ import { MatDividerModule } from '@angular/material/divider';
 import { firstValueFrom, take } from 'rxjs';
 import { ConfirmDialogComponent } from '@libs-dialogs';
 import { DialogService } from '@libs-dialogs';
-import {
-  RemoteRunService,
-  RemoteStatusService,
-  RemoteStopService,
-} from '@libs-remote-data-access';
-import {
-  RemoteRunButtonComponent,
-  RemoteStatusListComponent,
-  RemoteStopButtonComponent,
-} from '@libs-remote-ui';
-import { parseForeverListPlain } from '@libs-remote-util';
+import { RemoteRunButtonComponent } from '../remote-run-button/remote-run-button.component';
+import { RemoteStatusListComponent } from '../remote-status-list/remote-status-list.component';
+import { RemoteStopButtonComponent } from '../remote-stop-button/remote-stop-button.component';
+import { parseForeverListPlain } from '../../functions/remote.util';
+import { RemoteRunService } from '../../service/remote-run.service';
+import { RemoteStatusService } from '../../service/remote-status.service';
+import { RemoteStopService } from '../../service/remote-stop.service';
 import type { ForeverProcess } from '@libs-shared';
 import { ButtonComponent, NotificationService } from '@libs-shared';
-import { sanitizeSerialStdout } from '@libs-terminal-util';
+import { sanitizeSerialStdout } from '@libs-terminal';
 import { SerialFacadeService } from '@libs-web-serial';
 import { PI_ZERO_PROMPT } from '@libs-web-serial';
 
