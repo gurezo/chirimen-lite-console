@@ -1,29 +1,26 @@
 {
-  "name": "libs-file-manager",
+  "name": "libs-wifi",
   "$schema": "../../node_modules/nx/schemas/project-schema.json",
-  "root": "libs/file-manager",
-  "sourceRoot": "libs/file-manager/src",
-  "prefix": "lib",
+  "root": "libs/wifi",
+  "sourceRoot": "libs/wifi/src",
+  "prefix": "choh",
   "projectType": "library",
-  "tags": ["type:feature", "domain:file-manager"],
-  "implicitDependencies": [
-    "libs-web-serial",
-    "libs-wifi"
-  ],
+  "tags": ["type:feature", "domain:wifi"],
+  "implicitDependencies": ["libs-dialogs", "libs-shared", "libs-web-serial"],
   "targets": {
     "build": {
       "dependsOn": ["^build"],
       "executor": "nx:run-commands",
       "outputs": ["{workspaceRoot}/dist/{projectRoot}"],
       "options": {
-        "command": "echo \"build libs-file-manager\""
+        "command": "echo \"build libs-wifi\""
       }
     },
     "test": {
       "executor": "nx:run-commands",
       "outputs": ["{workspaceRoot}/coverage/{projectRoot}"],
       "options": {
-        "command": "vitest run --config libs/file-manager/vitest.config.ts",
+        "command": "vitest run --config libs/wifi/vitest.config.ts",
         "cwd": "{workspaceRoot}"
       }
     },
@@ -31,8 +28,8 @@
       "executor": "@nx/eslint:lint",
       "options": {
         "lintFilePatterns": [
-          "libs/file-manager/**/*.ts",
-          "libs/file-manager/**/*.html"
+          "libs/wifi/**/*.ts",
+          "libs/wifi/**/*.html"
         ]
       }
     }

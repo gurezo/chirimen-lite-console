@@ -1,10 +1,16 @@
 import { defineConfig } from 'vitest/config';
+import { nxViteTsPaths } from '@nx/vite/plugins/nx-tsconfig-paths.plugin';
 import { resolve } from 'path';
 import angular from '@analogjs/vite-plugin-angular';
 
 export default defineConfig({
   cacheDir: resolve(process.cwd(), 'node_modules/.vite'),
-  plugins: [angular({ tsconfig: resolve(__dirname, 'tsconfig.spec.json') })],
+  plugins: [
+    angular({
+      tsconfig: resolve(__dirname, 'tsconfig.spec.json'),
+    }),
+    nxViteTsPaths(),
+  ],
   test: {
     globals: true,
     environment: 'jsdom',
@@ -18,15 +24,12 @@ export default defineConfig({
     ],
     coverage: {
       provider: 'v8',
-      reportsDirectory: resolve(__dirname, '../../coverage/libs/file-manager'),
+      reportsDirectory: resolve(__dirname, '../../coverage/libs/wifi'),
     },
   },
   resolve: {
     alias: {
-      '@libs-file-manager': resolve(__dirname, './src/index.ts'),
-      '@libs-web-serial': resolve(__dirname, '../web-serial/src/index.ts'),
-      '@libs-wifi': resolve(__dirname, '../wifi/src/index.ts'),
-      '@libs-terminal': resolve(__dirname, '../terminal/src/index.ts'),
+      '@libs-wifi': resolve(__dirname, './src/index.ts'),
     },
   },
   esbuild: {
