@@ -2,7 +2,7 @@ import { Component, inject, input, output } from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
 import { MatIconButton } from '@angular/material/button';
 import { MatIcon } from '@angular/material/icon';
-import { ConsoleShellStore } from '@libs-console-shell-util';
+import { ConsoleShellStore } from '../../service/console-shell.store';
 import { FileTreeFeatureComponent } from '@libs-file-manager';
 
 @Component({

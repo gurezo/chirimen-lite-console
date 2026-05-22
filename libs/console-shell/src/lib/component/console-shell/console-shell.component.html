@@ -1,0 +1,54 @@
+@let connected = connected$ | async;
+
+<div class="flex h-[100dvh] min-h-0 flex-col overflow-hidden">
+  <div
+    class="shrink-0"
+    [class.border-b]="connected"
+    [class.border-gray-200]="connected"
+  >
+    <lib-header-toolbar
+      (eventConnect)="onConnect()"
+      (eventDisConnect)="onDisConnect()"
+    />
+    @if (connected) {
+      <lib-breadcrumb [segments]="breadcrumbSegments()" />
+    }
+  </div>
+  <div class="flex min-h-0 flex-1 flex-col overflow-hidden">
+    @if (connected) {
+      <div
+        class="grid h-full min-h-0 gap-x-0 gap-y-0"
+        [style.grid-template-columns]="gridTemplateColumns()"
+      >
+        <div class="flex min-h-0 min-w-0 flex-col overflow-hidden">
+          <lib-left-sidebar
+            [leftNavOpen]="leftNavOpen()"
+            (toggleLeftSidebar)="onToggleLeftSidebar()"
+          />
+        </div>
+
+        <div class="flex min-h-0 min-w-0 flex-col overflow-hidden">
+          <lib-action-tool-bar
+            [connected$]="connected$"
+            (toolbarAction)="onToolbarAction($event)"
+          />
+          <div class="min-h-0 flex-1 overflow-hidden">
+            <router-outlet />
+          </div>
+        </div>
+
+        <div
+          class="flex min-h-0 min-w-0 flex-col overflow-hidden border-l border-gray-200"
+        >
+          <lib-right-sidebar
+            class="min-h-0 min-w-0 flex-1"
+            [rightNavOpen]="rightNavOpen()"
+            (toggleRightSidebar)="onToggleRightSidebar()"
+          />
+        </div>
+      </div>
+    } @else {
+      <lib-connect-page />
+    }
+  </div>
+</div>

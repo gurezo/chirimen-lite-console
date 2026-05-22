@@ -1,4 +1,4 @@
-import type { ConsoleShellState } from './console-shell.store';
+import type { ConsoleShellState } from '../service/console-shell.store';
 
 export interface BreadcrumbSegment {
   label: string;
