@@ -1,4 +1,4 @@
-import { FileTreeNode } from '../models/file-tree.model';
+import { FileTreeNode } from '../models';
 
 function normalizeDirectoryPath(path: string): string {
   if (!path || path === '.') {

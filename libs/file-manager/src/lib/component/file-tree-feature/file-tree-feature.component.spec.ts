@@ -1,8 +1,8 @@
 /// <reference types="vitest/globals" />
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { FileTreeFeatureComponent } from './file-tree-feature.component';
-import { FileTreeNode } from '../../models/file-tree.model';
-import { FileService } from '../../service/file.service';
+import { FileTreeNode } from '../../models';
+import { FileService } from '../../service';
 import { PiZeroShellReadinessService } from '@libs-web-serial';
 import { BehaviorSubject } from 'rxjs';
 
