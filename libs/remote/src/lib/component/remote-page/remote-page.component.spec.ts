@@ -2,11 +2,9 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { BehaviorSubject, of } from 'rxjs';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { DialogService } from '@libs-dialogs';
-import {
-  RemoteRunService,
-  RemoteStatusService,
-  RemoteStopService,
-} from '@libs-remote-data-access';
+import { RemoteRunService } from '../../service/remote-run.service';
+import { RemoteStatusService } from '../../service/remote-status.service';
+import { RemoteStopService } from '../../service/remote-stop.service';
 import { NotificationService } from '@libs-shared';
 import { SerialFacadeService } from '@libs-web-serial';
 import { RemotePageComponent } from './remote-page.component';
