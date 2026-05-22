@@ -6,7 +6,6 @@
   "prefix": "choh",
   "projectType": "library",
   "tags": ["type:data-access", "domain:web-serial"],
-  "implicitDependencies": ["libs-terminal"],
   "targets": {
     "build": {
       "dependsOn": ["^build"],

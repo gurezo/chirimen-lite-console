@@ -1,7 +1,7 @@
 import '@angular/compiler';
 import { Injector } from '@angular/core';
 import { SerialSessionState } from '@gurezo/web-serial-rxjs';
-import { TerminalCommandRequestService } from '@libs-terminal';
+import { TerminalCommandRequestService } from './terminal-command-request.service';
 import { BehaviorSubject, firstValueFrom, of } from 'rxjs';
 import { describe, expect, it, vi } from 'vitest';
 import { PiZeroSessionService } from './pi-zero-session.service';

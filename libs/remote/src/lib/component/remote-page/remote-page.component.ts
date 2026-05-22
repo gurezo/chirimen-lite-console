@@ -13,7 +13,7 @@ import { RemoteStatusService } from '../../service/remote-status.service';
 import { RemoteStopService } from '../../service/remote-stop.service';
 import type { ForeverProcess } from '@libs-shared';
 import { ButtonComponent, NotificationService } from '@libs-shared';
-import { sanitizeSerialStdout } from '@libs-terminal';
+import { sanitizeSerialStdout } from '@libs-web-serial';
 import { SerialFacadeService } from '@libs-web-serial';
 import { PI_ZERO_PROMPT } from '@libs-web-serial';
 

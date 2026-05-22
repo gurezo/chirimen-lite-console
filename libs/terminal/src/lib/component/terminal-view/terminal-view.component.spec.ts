@@ -25,7 +25,7 @@ import {
   SerialFacadeService,
 } from '@libs-web-serial';
 import { coerceLsForSerialListing } from '../../functions/coerce-ls-for-serial-listing';
-import { TerminalCommandRequestService } from '../../service/terminal-command-request.service';
+import { TerminalCommandRequestService } from '@libs-web-serial';
 import { TerminalViewComponent } from './terminal-view.component';
 
 describe('TerminalViewComponent', () => {
