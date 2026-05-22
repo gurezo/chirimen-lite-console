@@ -3,7 +3,7 @@ import { ActivatedRoute, Router } from '@angular/router';
 import { MatIconButton } from '@angular/material/button';
 import { MatIcon } from '@angular/material/icon';
 import { ConsoleShellStore } from '@libs-console-shell-util';
-import { FileTreeFeatureComponent } from '@libs-file-manager-feature';
+import { FileTreeFeatureComponent } from '@libs-file-manager';
 
 @Component({
   selector: 'lib-left-sidebar',
