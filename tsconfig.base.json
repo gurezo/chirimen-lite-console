@@ -22,23 +22,9 @@
       "@libs-console-shell-ui": ["libs/console-shell/ui/src/index.ts"],
       "@libs-console-shell-util": ["libs/console-shell/util/src/index.ts"],
       "@libs-dialogs": ["libs/dialogs/src/index.ts"],
-      "@libs-editor-data-access": ["libs/editor/data-access/src/index.ts"],
-      "@libs-editor-feature": ["libs/editor/feature/src/index.ts"],
-      "@libs-editor-ui": ["libs/editor/ui/src/index.ts"],
-      "@libs-editor-util": ["libs/editor/util/src/index.ts"],
-      "@libs-example-util": ["libs/example/util/src/index.ts"],
-      "@libs-example-data-access": ["libs/example/data-access/src/index.ts"],
-      "@libs-example-ui": ["libs/example/ui/src/index.ts"],
-      "@libs-example-ui/example-list/example-list.component": [
-        "libs/example/ui/src/lib/example-list/example-list.component.ts"
-      ],
-      "@libs-example-feature": ["libs/example/feature/src/index.ts"],
-      "@libs-file-manager-data-access": [
-        "libs/file-manager/data-access/src/index.ts"
-      ],
-      "@libs-file-manager-feature": ["libs/file-manager/feature/src/index.ts"],
-      "@libs-file-manager-ui": ["libs/file-manager/ui/src/index.ts"],
-      "@libs-file-manager-util": ["libs/file-manager/util/src/index.ts"],
+      "@libs-editor": ["libs/editor/src/index.ts"],
+      "@libs-example": ["libs/example/src/index.ts"],
+      "@libs-file-manager": ["libs/file-manager/src/index.ts"],
       "@libs-i2cdetect": ["libs/i2cdetect/src/index.ts"],
       "@libs-page-not-found": ["libs/page-not-found/src/index.ts"],
       "@libs-pin-assign-panel": ["libs/pin-assign-panel/src/index.ts"],
@@ -55,14 +41,7 @@
       "@libs-wifi-data-access": ["libs/wifi/data-access/src/index.ts"],
       "@libs-wifi-ui": ["libs/wifi/ui/src/index.ts"],
       "@libs-wifi-feature": ["libs/wifi/feature/src/index.ts"],
-      "@libs-chirimen-setup-data-access": [
-        "libs/chirimen-setup/data-access/src/index.ts"
-      ],
-      "@libs-chirimen-setup-feature": [
-        "libs/chirimen-setup/feature/src/index.ts"
-      ],
-      "@libs-chirimen-setup-ui": ["libs/chirimen-setup/ui/src/index.ts"],
-      "@libs-chirimen-setup-util": ["libs/chirimen-setup/util/src/index.ts"]
+      "@libs-chirimen-setup": ["libs/chirimen-setup/src/index.ts"]
     }
   }
 }

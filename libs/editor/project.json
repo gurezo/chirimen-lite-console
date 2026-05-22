@@ -1,32 +1,39 @@
 {
-  "name": "libs-editor-feature",
-  "$schema": "../../../node_modules/nx/schemas/project-schema.json",
-  "sourceRoot": "libs/editor/feature/src",
+  "name": "libs-editor",
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "root": "libs/editor",
+  "sourceRoot": "libs/editor/src",
   "prefix": "choh",
   "projectType": "library",
   "tags": ["type:feature", "domain:editor"],
-  "implicitDependencies": ["libs-editor-ui", "libs-editor-data-access"],
+  "implicitDependencies": [
+    "libs-wifi-data-access",
+    "libs-console-shell-util"
+  ],
   "targets": {
     "build": {
       "dependsOn": ["^build"],
       "executor": "nx:run-commands",
       "outputs": ["{workspaceRoot}/dist/{projectRoot}"],
       "options": {
-        "command": "echo \"build libs-editor-feature\""
+        "command": "echo \"build libs-editor\""
       }
     },
     "test": {
       "executor": "nx:run-commands",
       "outputs": ["{workspaceRoot}/coverage/{projectRoot}"],
       "options": {
-        "command": "vitest run --config libs/editor/feature/vitest.config.ts",
+        "command": "vitest run --config libs/editor/vitest.config.ts",
         "cwd": "{workspaceRoot}"
       }
     },
     "lint": {
       "executor": "@nx/eslint:lint",
       "options": {
-        "lintFilePatterns": ["libs/editor/feature/**/*.ts"]
+        "lintFilePatterns": [
+          "libs/editor/**/*.ts",
+          "libs/editor/**/*.html"
+        ]
       }
     }
   }
