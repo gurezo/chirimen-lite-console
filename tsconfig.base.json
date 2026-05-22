@@ -15,9 +15,6 @@
     "paths": {
       "@app/*": ["apps/console/src/app/*"],
       "@libs-shared": ["libs/shared/src/index.ts"],
-      "@libs-shared/component/button": [
-        "libs/shared/src/lib/component/button/index.ts"
-      ],
       "@libs-connect": ["libs/connect/src/index.ts"],
       "@libs-console-shell": ["libs/console-shell/src/index.ts"],
       "@libs-dialogs": ["libs/dialogs/src/index.ts"],
