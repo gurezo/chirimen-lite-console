@@ -10,7 +10,7 @@ import {
   SERIAL_TIMEOUT,
   wrapSerialError,
 } from '@libs-web-serial';
-import type { WiFiInfo } from '@libs-shared-types';
+import type { WiFiInfo } from '@libs-shared';
 import { firstValueFrom } from 'rxjs';
 
 /**

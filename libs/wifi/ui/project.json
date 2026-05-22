@@ -7,7 +7,7 @@
   "implicitDependencies": [
     "libs-wifi-util",
     "libs-wifi-data-access",
-    "libs-shared-ui"
+    "libs-shared"
   ],
   "targets": {
     "build": {

@@ -1,36 +1,40 @@
 {
-  "name": "libs-shared-ui",
-  "$schema": "../../../node_modules/nx/schemas/project-schema.json",
-  "sourceRoot": "libs/shared/ui/src",
-  "prefix": "lib",
+  "name": "libs-shared",
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "root": "libs/shared",
+  "sourceRoot": "libs/shared/src",
+  "prefix": "choh",
   "projectType": "library",
-  "tags": [],
+  "tags": ["type:shared", "domain:shared"],
   "targets": {
     "build": {
       "dependsOn": ["^build"],
       "executor": "nx:run-commands",
       "outputs": ["{workspaceRoot}/dist/{projectRoot}"],
       "options": {
-        "command": "echo \"build libs-shared-ui\""
+        "command": "echo \"build libs-shared\""
       }
     },
     "test": {
       "executor": "nx:run-commands",
       "outputs": ["{workspaceRoot}/coverage/{projectRoot}"],
       "options": {
-        "command": "vitest run --config libs/shared/ui/vitest.config.ts",
+        "command": "vitest run --config libs/shared/vitest.config.ts",
         "cwd": "{workspaceRoot}"
       }
     },
     "lint": {
-      "executor": "@nx/eslint:lint"
+      "executor": "@nx/eslint:lint",
+      "options": {
+        "lintFilePatterns": ["libs/shared/**/*.ts"]
+      }
     },
     "storybook": {
       "executor": "@storybook/angular:start-storybook",
       "options": {
         "port": 4400,
-        "configDir": "libs/shared/ui/.storybook",
-        "browserTarget": "libs-shared-ui:build-storybook",
+        "configDir": "libs/shared/.storybook",
+        "browserTarget": "libs-shared:build-storybook",
         "compodoc": false
       },
       "configurations": {
@@ -43,9 +47,9 @@
       "executor": "@storybook/angular:build-storybook",
       "outputs": ["{options.outputDir}"],
       "options": {
-        "outputDir": "dist/storybook/libs-shared-ui",
-        "configDir": "libs/shared/ui/.storybook",
-        "browserTarget": "libs-shared-ui:build-storybook",
+        "outputDir": "dist/storybook/libs-shared",
+        "configDir": "libs/shared/.storybook",
+        "browserTarget": "libs-shared:build-storybook",
         "compodoc": false,
         "styles": ["apps/console/src/styles.scss"]
       },
@@ -58,20 +62,20 @@
     "test-storybook": {
       "executor": "nx:run-commands",
       "options": {
-        "command": "test-storybook -c libs/shared/ui/.storybook --url=http://localhost:4400"
+        "command": "test-storybook -c libs/shared/.storybook --url=http://localhost:4400"
       }
     },
     "static-storybook": {
       "executor": "@nx/web:file-server",
       "dependsOn": ["build-storybook"],
       "options": {
-        "buildTarget": "libs-shared-ui:build-storybook",
-        "staticFilePath": "dist/storybook/libs-shared-ui",
+        "buildTarget": "libs-shared:build-storybook",
+        "staticFilePath": "dist/storybook/libs-shared",
         "spa": true
       },
       "configurations": {
         "ci": {
-          "buildTarget": "libs-shared-ui:build-storybook:ci"
+          "buildTarget": "libs-shared:build-storybook:ci"
         }
       }
     }

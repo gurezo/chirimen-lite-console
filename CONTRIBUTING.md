@@ -86,7 +86,7 @@ Nx Release は、`nx.json` の `release.version.conventionalCommits` を `true` 
 インポートには `tsconfig.base.json` の `compilerOptions.paths` で定義したエイリアスを使用します。
 
 - **アプリ**: `@app/*` → `apps/console/src/app/*`
-- **lib 群**: `@libs-<lib名>` 形式（例: `@libs-shared-guards`, `@libs-shared-ui`, `@libs-wifi-feature`）
+- **lib 群**: `@libs-<lib名>` 形式（例: `@libs-shared`, `@libs-shared`, `@libs-wifi-feature`）
 - 一覧は `tsconfig.base.json` の `paths` を参照してください。
 
 ## プルリクエスト

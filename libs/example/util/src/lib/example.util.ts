@@ -1,6 +1,6 @@
-import type { ExampleJson, ExampleItem } from '@libs-shared-types';
+import type { ExampleJson, ExampleItem } from '@libs-shared';
 
-export type { ExampleJson, ExampleItem } from '@libs-shared-types';
+export type { ExampleJson, ExampleItem } from '@libs-shared';
 
 export function convertExampleJsonToList(
   jsonList: ExampleJson[]

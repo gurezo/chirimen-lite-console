@@ -1,5 +1,5 @@
 import { Component, input, output } from '@angular/core';
-import type { ForeverProcess } from '@libs-shared-types';
+import type { ForeverProcess } from '@libs-shared';
 
 @Component({
   selector: 'lib-remote-status-list',

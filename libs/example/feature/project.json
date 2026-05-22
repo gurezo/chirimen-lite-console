@@ -9,7 +9,7 @@
     "libs-example-ui",
     "libs-example-data-access",
     "libs-dialogs-feature",
-    "libs-shared-ui"
+    "libs-shared"
   ],
   "targets": {
     "build": {

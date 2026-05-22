@@ -10,7 +10,7 @@
     "libs-wifi-data-access",
     "libs-wifi-util",
     "libs-dialogs-ui",
-    "libs-shared-ui",
+    "libs-shared",
     "libs-web-serial"
   ],
   "targets": {

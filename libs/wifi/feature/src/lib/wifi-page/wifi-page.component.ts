@@ -2,8 +2,8 @@ import { Dialog } from '@angular/cdk/dialog';
 import { Component, inject, signal } from '@angular/core';
 import { MatDividerModule } from '@angular/material/divider';
 import { ConfirmDialogComponent } from '@libs-dialogs-ui';
-import type { WiFiInfo } from '@libs-shared-types';
-import { ButtonComponent, NotificationService } from '@libs-shared-ui';
+import type { WiFiInfo } from '@libs-shared';
+import { ButtonComponent, NotificationService } from '@libs-shared';
 import { SerialFacadeService } from '@libs-web-serial';
 import { WifiRebootFlowService, WifiScanService } from '@libs-wifi-data-access';
 import {

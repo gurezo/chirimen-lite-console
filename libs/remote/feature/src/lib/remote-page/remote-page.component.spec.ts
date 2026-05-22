@@ -7,7 +7,7 @@ import {
   RemoteStatusService,
   RemoteStopService,
 } from '@libs-remote-data-access';
-import { NotificationService } from '@libs-shared-ui';
+import { NotificationService } from '@libs-shared';
 import { SerialFacadeService } from '@libs-web-serial';
 import { RemotePageComponent } from './remote-page.component';
 

@@ -10,7 +10,7 @@
     "libs-connect-ui",
     "libs-web-serial",
     "libs-console-shell-ui",
-    "libs-shared-ui",
+    "libs-shared",
     "libs-terminal-util"
   ],
   "targets": {

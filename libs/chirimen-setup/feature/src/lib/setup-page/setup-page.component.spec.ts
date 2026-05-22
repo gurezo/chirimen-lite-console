@@ -2,7 +2,7 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { SetupCommandService } from '@libs-chirimen-setup-data-access';
 import { DialogService } from '@libs-dialogs-util';
-import { NotificationService } from '@libs-shared-ui';
+import { NotificationService } from '@libs-shared';
 import { SerialFacadeService } from '@libs-web-serial';
 import { of } from 'rxjs';
 import { SetupPageComponent } from './setup-page.component';
