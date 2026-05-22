@@ -6,8 +6,8 @@ import {
   wrapSerialError,
 } from '@libs-web-serial';
 import { firstValueFrom } from 'rxjs';
-import { FileUtils } from '../functions/file.utils';
-import type { FileContentInfo } from '../models/file-content.types';
+import { FileUtils } from '../functions';
+import type { FileContentInfo } from '../models';
 
 /**
  * ファイルコンテンツサービス

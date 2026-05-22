@@ -5,8 +5,8 @@ import { MatButtonModule } from '@angular/material/button';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
 import { NotificationService } from '@libs-shared';
-import type { WifiConnectDialogData } from '../../models/wifi-connect-dialog.types';
-import { WifiConfigService } from '../../service/wifi-config.service';
+import type { WifiConnectDialogData } from '../../models';
+import { WifiConfigService } from '../../service';
 
 @Component({
   selector: 'choh-wifi-connect-dialog',
