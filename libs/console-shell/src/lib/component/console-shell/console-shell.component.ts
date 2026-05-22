@@ -34,8 +34,8 @@ import {
   startWith,
   Subscription,
 } from 'rxjs';
-import { buildConsoleShellBreadcrumbSegments } from '../../functions/breadcrumb-segments';
-import { ConsoleShellStore } from '../../service/console-shell.store';
+import { buildConsoleShellBreadcrumbSegments } from '../../functions';
+import { ConsoleShellStore } from '../../service';
 
 @Component({
   selector: 'lib-console-shell',
