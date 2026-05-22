@@ -1,6 +1,6 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import type { ForeverProcess } from '@libs-shared-types';
+import type { ForeverProcess } from '@libs-shared';
 import { RemoteStatusListComponent } from './remote-status-list.component';
 
 describe('RemoteStatusListComponent', () => {

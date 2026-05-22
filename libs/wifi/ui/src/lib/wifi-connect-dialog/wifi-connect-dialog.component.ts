@@ -5,7 +5,7 @@ import { MatButtonModule } from '@angular/material/button';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
 import { WifiConfigService } from '@libs-wifi-data-access';
-import { NotificationService } from '@libs-shared-ui';
+import { NotificationService } from '@libs-shared';
 
 export interface WifiConnectDialogData {
   initialSsid?: string;

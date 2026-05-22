@@ -14,7 +14,7 @@
     "baseUrl": ".",
     "paths": {
       "@app/*": ["apps/console/src/app/*"],
-      "@libs-shared-guards": ["libs/shared/guards/src/index.ts"],
+      "@libs-shared": ["libs/shared/src/index.ts"],
       "@libs-connect-feature": ["libs/connect/feature/src/index.ts"],
       "@libs-connect-ui": ["libs/connect/ui/src/index.ts"],
       "@libs-console-shell-feature": [
@@ -53,15 +53,9 @@
       "@libs-remote-feature": ["libs/remote/feature/src/index.ts"],
       "@libs-remote-ui": ["libs/remote/ui/src/index.ts"],
       "@libs-remote-util": ["libs/remote/util/src/index.ts"],
-      "@libs-shared-types": ["libs/shared/types/src/index.ts"],
-      "@libs-shared-util": ["libs/shared/util/src/index.ts"],
       "@libs-terminal-feature": ["libs/terminal/feature/src/index.ts"],
       "@libs-terminal-ui": ["libs/terminal/ui/src/index.ts"],
       "@libs-terminal-util": ["libs/terminal/util/src/index.ts"],
-      "@libs-shared-ui": ["libs/shared/ui/src/index.ts"],
-      "@libs-shared-ui/components/button/button.component": [
-        "libs/shared/ui/src/lib/components/button/button.component.ts"
-      ],
       "@libs-unsupported-browser": ["libs/unsupported-browser/src/index.ts"],
       "@libs-web-serial": ["libs/web-serial/src/index.ts"],
       "@libs-wifi-util": ["libs/wifi/util/src/index.ts"],

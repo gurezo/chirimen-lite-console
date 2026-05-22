@@ -2,12 +2,12 @@ import { Dialog } from '@angular/cdk/dialog';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { BehaviorSubject, of } from 'rxjs';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { NotificationService } from '@libs-shared-ui';
+import { NotificationService } from '@libs-shared';
 import {
   WifiRebootFlowService,
   WifiScanService,
 } from '@libs-wifi-data-access';
-import type { WiFiInfo } from '@libs-shared-types';
+import type { WiFiInfo } from '@libs-shared';
 import { SerialFacadeService } from '@libs-web-serial';
 import { WifiPageComponent } from './wifi-page.component';
 

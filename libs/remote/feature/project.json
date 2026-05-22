@@ -10,8 +10,8 @@
     "libs-remote-util",
     "libs-dialogs-util",
     "libs-dialogs-ui",
-    "libs-shared-ui",
-    "libs-shared-types",
+    "libs-shared",
+    "libs-shared",
     "libs-terminal-util",
     "libs-web-serial",
     "libs-web-serial"

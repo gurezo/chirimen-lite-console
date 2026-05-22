@@ -1,4 +1,4 @@
-import type { ForeverProcess } from '@libs-shared-types';
+import type { ForeverProcess } from '@libs-shared';
 
 function stripAnsi(text: string): string {
   const esc = String.fromCharCode(0x1b);

@@ -20,7 +20,7 @@ import {
   SetupProgressComponent,
 } from '@libs-chirimen-setup-ui';
 import { DialogService } from '@libs-dialogs-util';
-import { NotificationService } from '@libs-shared-ui';
+import { NotificationService } from '@libs-shared';
 import { SerialFacadeService } from '@libs-web-serial';
 import { MatDividerModule } from '@angular/material/divider';
 import { firstValueFrom, take } from 'rxjs';

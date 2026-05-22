@@ -1,7 +1,7 @@
 {
   "extends": "./tsconfig.json",
   "compilerOptions": {
-    "outDir": "../../../dist/out-tsc",
+    "outDir": "../../dist/out-tsc",
     "declaration": true,
     "declarationMap": false,
     "inlineSources": true,
@@ -14,8 +14,7 @@
     "src/**/*.spec.ts",
     "src/test-setup.ts",
     "src/**/*.test.ts",
-    "**/*.stories.ts",
-    "**/*.stories.js"
+    "src/**/*.stories.ts"
   ],
   "include": ["src/**/*.ts"]
 }
