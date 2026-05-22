@@ -2,8 +2,8 @@ import { Component, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { MatDividerModule } from '@angular/material/divider';
 import { firstValueFrom, take } from 'rxjs';
-import { ConfirmDialogComponent } from '@libs-dialogs-ui';
-import { DialogService } from '@libs-dialogs-util';
+import { ConfirmDialogComponent } from '@libs-dialogs';
+import { DialogService } from '@libs-dialogs';
 import {
   RemoteRunService,
   RemoteStatusService,

@@ -19,7 +19,7 @@ import {
   SetupExecuteButtonComponent,
   SetupProgressComponent,
 } from '@libs-chirimen-setup-ui';
-import { DialogService } from '@libs-dialogs-util';
+import { DialogService } from '@libs-dialogs';
 import { NotificationService } from '@libs-shared';
 import { SerialFacadeService } from '@libs-web-serial';
 import { MatDividerModule } from '@angular/material/divider';

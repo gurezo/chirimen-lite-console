@@ -1,7 +1,7 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { BehaviorSubject, of } from 'rxjs';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { DialogService } from '@libs-dialogs-util';
+import { DialogService } from '@libs-dialogs';
 import {
   RemoteRunService,
   RemoteStatusService,
