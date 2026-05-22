@@ -2,11 +2,10 @@ import { AsyncPipe } from '@angular/common';
 import { Component, inject, OnInit } from '@angular/core';
 import { DialogService } from '@libs-dialogs';
 import { EditorService } from '@libs-editor';
-import { ButtonComponent } from '@libs-shared/component/button';
+import { ButtonComponent } from '@libs-shared';
 import { BehaviorSubject, firstValueFrom, forkJoin } from 'rxjs';
 import { ExampleItem } from '../../models';
-import { ExampleDataService } from '../../service';
-import { ExampleService } from '../../service';
+import { ExampleDataService, ExampleService } from '../../service';
 import { ExampleListComponent } from '../example-list/example-list.component';
 
 @Component({
