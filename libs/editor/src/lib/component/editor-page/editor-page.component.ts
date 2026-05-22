@@ -11,7 +11,7 @@ import { ConsoleShellStore } from '@libs-console-shell';
 import { EditorToolbarComponent } from '../editor-toolbar/editor-toolbar.component';
 import { FileNameDisplayComponent } from '../file-name-display/file-name-display.component';
 import { MonacoEditorComponent } from '../monaco-editor/monaco-editor.component';
-import { EditorService } from '../../service/editor.service';
+import { EditorService } from '../../service';
 
 const DEFAULT_CODE = `
     onload = async function () {
