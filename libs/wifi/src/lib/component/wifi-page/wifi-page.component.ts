@@ -3,13 +3,11 @@ import { Component, inject, signal } from '@angular/core';
 import { MatDividerModule } from '@angular/material/divider';
 import { ConfirmDialogComponent } from '@libs-dialogs';
 import type { WiFiInfo } from '@libs-shared';
-import { NotificationService } from '@libs-shared';
-import { ButtonComponent } from '@libs-shared/component/button';
+import { ButtonComponent, NotificationService } from '@libs-shared';
 import { SerialFacadeService } from '@libs-web-serial';
 import { firstValueFrom, take } from 'rxjs';
 import type { WifiConnectDialogData } from '../../models';
-import { WifiRebootFlowService } from '../../service';
-import { WifiScanService } from '../../service';
+import { WifiRebootFlowService, WifiScanService } from '../../service';
 import { WifiConnectDialogComponent } from '../wifi-connect-dialog/wifi-connect-dialog.component';
 import { WifiListComponent } from '../wifi-list/wifi-list.component';
 
