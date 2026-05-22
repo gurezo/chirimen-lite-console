@@ -2,13 +2,13 @@ import { Injectable, inject } from '@angular/core';
 import { SerialFacadeService } from '@libs-web-serial';
 import { PI_ZERO_PROMPT, SERIAL_TIMEOUT } from '@libs-web-serial';
 import { firstValueFrom } from 'rxjs';
-import { EXTRA_SETUP_STEPS } from '../constants/setup.constants';
+import { EXTRA_SETUP_STEPS } from '../constants';
 import {
   ExtraSetupService,
   type ExtraSetupStep,
 } from './extra-setup.service';
 import { NodeInstallService, type NodeInstallStep } from './node-install.service';
-import type { SetupStepProgress } from '../models/setup-progress.types';
+import type { SetupStepProgress } from '../models';
 
 export interface SetupCommandOptions {
   /**

@@ -2,11 +2,11 @@ import { Injectable, inject } from '@angular/core';
 import { SerialFacadeService } from '@libs-web-serial';
 import { PI_ZERO_PROMPT, SERIAL_TIMEOUT } from '@libs-web-serial';
 import { firstValueFrom } from 'rxjs';
-import { buildNodeInstallStepList } from '../functions/node-install.steps';
-import type { NodeInstallOptions, NodeInstallStep } from '../models/node-install.types';
+import { buildNodeInstallStepList } from '../functions';
+import type { NodeInstallOptions, NodeInstallStep } from '../models';
 
-export type { NodeInstallOptions, NodeInstallStep } from '../models/node-install.types';
-export { buildNodeInstallStepList } from '../functions/node-install.steps';
+export type { NodeInstallOptions, NodeInstallStep } from '../models';
+export { buildNodeInstallStepList } from '../functions';
 
 @Injectable({ providedIn: 'root' })
 export class NodeInstallService {

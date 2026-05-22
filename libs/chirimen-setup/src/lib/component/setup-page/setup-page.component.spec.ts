@@ -1,6 +1,6 @@
 /// <reference types="vitest/globals" />
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { SetupCommandService } from '../../service/setup-command.service';
+import { SetupCommandService } from '../../service';
 import { DialogService } from '@libs-dialogs';
 import { NotificationService } from '@libs-shared';
 import { SerialFacadeService } from '@libs-web-serial';

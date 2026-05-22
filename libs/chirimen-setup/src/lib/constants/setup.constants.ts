@@ -1,4 +1,4 @@
-import type { ExtraSetupStep } from '../models/extra-setup.types';
+import type { ExtraSetupStep } from '../models';
 
 /**
  * Pi Zero（linux-armv6l）向け Node.js 非公式ビルドのデフォルト URL。

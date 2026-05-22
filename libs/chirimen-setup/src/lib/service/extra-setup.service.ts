@@ -2,11 +2,11 @@ import { Injectable, inject } from '@angular/core';
 import { SerialFacadeService } from '@libs-web-serial';
 import { PI_ZERO_PROMPT, SERIAL_TIMEOUT } from '@libs-web-serial';
 import { firstValueFrom } from 'rxjs';
-import { EXTRA_SETUP_STEPS } from '../constants/setup.constants';
-import type { ExtraSetupStep } from '../models/extra-setup.types';
+import { EXTRA_SETUP_STEPS } from '../constants';
+import type { ExtraSetupStep } from '../models';
 
-export type { ExtraSetupStep } from '../models/extra-setup.types';
-export { EXTRA_SETUP_STEP_COUNT } from '../constants/setup.constants';
+export type { ExtraSetupStep } from '../models';
+export { EXTRA_SETUP_STEP_COUNT } from '../constants';
 
 @Injectable({ providedIn: 'root' })
 export class ExtraSetupService {

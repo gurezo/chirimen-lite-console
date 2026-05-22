@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { EXTRA_SETUP_STEP_COUNT } from '../constants/setup.constants';
+import { EXTRA_SETUP_STEP_COUNT } from '../constants';
 import { buildNodeInstallStepList } from './node-install.steps';
 
 const sampleUrl =
