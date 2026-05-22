@@ -16,11 +16,7 @@
       "@app/*": ["apps/console/src/app/*"],
       "@libs-shared": ["libs/shared/src/index.ts"],
       "@libs-connect": ["libs/connect/src/index.ts"],
-      "@libs-console-shell-feature": [
-        "libs/console-shell/feature/src/index.ts"
-      ],
-      "@libs-console-shell-ui": ["libs/console-shell/ui/src/index.ts"],
-      "@libs-console-shell-util": ["libs/console-shell/util/src/index.ts"],
+      "@libs-console-shell": ["libs/console-shell/src/index.ts"],
       "@libs-dialogs": ["libs/dialogs/src/index.ts"],
       "@libs-editor": ["libs/editor/src/index.ts"],
       "@libs-example": ["libs/example/src/index.ts"],
@@ -28,19 +24,11 @@
       "@libs-i2cdetect": ["libs/i2cdetect/src/index.ts"],
       "@libs-page-not-found": ["libs/page-not-found/src/index.ts"],
       "@libs-pin-assign-panel": ["libs/pin-assign-panel/src/index.ts"],
-      "@libs-remote-data-access": ["libs/remote/data-access/src/index.ts"],
-      "@libs-remote-feature": ["libs/remote/feature/src/index.ts"],
-      "@libs-remote-ui": ["libs/remote/ui/src/index.ts"],
-      "@libs-remote-util": ["libs/remote/util/src/index.ts"],
-      "@libs-terminal-feature": ["libs/terminal/feature/src/index.ts"],
-      "@libs-terminal-ui": ["libs/terminal/ui/src/index.ts"],
-      "@libs-terminal-util": ["libs/terminal/util/src/index.ts"],
+      "@libs-remote": ["libs/remote/src/index.ts"],
+      "@libs-terminal": ["libs/terminal/src/index.ts"],
       "@libs-unsupported-browser": ["libs/unsupported-browser/src/index.ts"],
       "@libs-web-serial": ["libs/web-serial/src/index.ts"],
-      "@libs-wifi-util": ["libs/wifi/util/src/index.ts"],
-      "@libs-wifi-data-access": ["libs/wifi/data-access/src/index.ts"],
-      "@libs-wifi-ui": ["libs/wifi/ui/src/index.ts"],
-      "@libs-wifi-feature": ["libs/wifi/feature/src/index.ts"],
+      "@libs-wifi": ["libs/wifi/src/index.ts"],
       "@libs-chirimen-setup": ["libs/chirimen-setup/src/index.ts"]
     }
   }
