@@ -14,7 +14,7 @@ import {
 } from 'rxjs';
 import { PiZeroSessionService } from './pi-zero-session.service';
 import { PiZeroShellReadinessService } from './pi-zero-shell-readiness.service';
-import type { SerialSetupStatus } from '../models/serial-setup-status';
+import type { SerialSetupStatus } from '../models';
 import { SerialFacadeService } from './serial-facade.service';
 import { SerialNotificationService } from './serial-notification.service';
 

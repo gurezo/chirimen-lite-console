@@ -36,7 +36,7 @@ import {
 import type {
   CommandExecutionConfig,
   CommandResult,
-} from '../../models/serial-command-types';
+} from '../../models';
 import { SerialTransportService } from '../serial-transport.service';
 import { matchesSerialPrompt } from './serial-prompt-match';
 

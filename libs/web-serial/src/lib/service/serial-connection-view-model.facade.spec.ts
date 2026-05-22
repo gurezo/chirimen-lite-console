@@ -9,7 +9,7 @@ import { PiZeroShellReadinessService } from './pi-zero-shell-readiness.service';
 import { SerialFacadeService } from './serial-facade.service';
 import { SerialNotificationService } from './serial-notification.service';
 import { SerialConnectionViewModelFacade } from './serial-connection-view-model.facade';
-import type { SerialSetupStatus } from '../models/serial-setup-status';
+import type { SerialSetupStatus } from '../models';
 
 describe('SerialConnectionViewModelFacade', () => {
   it('combines state into vm$', async () => {
