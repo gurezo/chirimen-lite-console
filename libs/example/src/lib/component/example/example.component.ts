@@ -1,13 +1,13 @@
 import { AsyncPipe } from '@angular/common';
 import { Component, inject, OnInit } from '@angular/core';
 import { DialogService } from '@libs-dialogs';
-import { ButtonComponent } from '@libs-shared/component/button';
 import { EditorService } from '@libs-editor';
+import { ButtonComponent } from '@libs-shared/component/button';
 import { BehaviorSubject, firstValueFrom, forkJoin } from 'rxjs';
+import { ExampleItem } from '../../models';
+import { ExampleDataService } from '../../service';
+import { ExampleService } from '../../service';
 import { ExampleListComponent } from '../example-list/example-list.component';
-import { ExampleItem } from '../../models/example.model';
-import { ExampleDataService } from '../../service/example.data.service';
-import { ExampleService } from '../../service/example.service';
 
 @Component({
   selector: 'choh-example',
