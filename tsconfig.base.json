@@ -15,8 +15,7 @@
     "paths": {
       "@app/*": ["apps/console/src/app/*"],
       "@libs-shared": ["libs/shared/src/index.ts"],
-      "@libs-connect-feature": ["libs/connect/feature/src/index.ts"],
-      "@libs-connect-ui": ["libs/connect/ui/src/index.ts"],
+      "@libs-connect": ["libs/connect/src/index.ts"],
       "@libs-console-shell-feature": [
         "libs/console-shell/feature/src/index.ts"
       ],
@@ -40,13 +39,9 @@
       "@libs-file-manager-feature": ["libs/file-manager/feature/src/index.ts"],
       "@libs-file-manager-ui": ["libs/file-manager/ui/src/index.ts"],
       "@libs-file-manager-util": ["libs/file-manager/util/src/index.ts"],
-      "@libs-i2cdetect-data-access": [
-        "libs/i2cdetect/data-access/src/index.ts"
-      ],
-      "@libs-i2cdetect-ui": ["libs/i2cdetect/ui/src/index.ts"],
-      "@libs-i2cdetect-util": ["libs/i2cdetect/util/src/index.ts"],
+      "@libs-i2cdetect": ["libs/i2cdetect/src/index.ts"],
       "@libs-page-not-found": ["libs/page-not-found/src/index.ts"],
-      "@libs-pin-assign-panel-ui": ["libs/pin-assign-panel/ui/src/index.ts"],
+      "@libs-pin-assign-panel": ["libs/pin-assign-panel/src/index.ts"],
       "@libs-remote-data-access": ["libs/remote/data-access/src/index.ts"],
       "@libs-remote-feature": ["libs/remote/feature/src/index.ts"],
       "@libs-remote-ui": ["libs/remote/ui/src/index.ts"],

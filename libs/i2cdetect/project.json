@@ -1,0 +1,37 @@
+{
+  "name": "libs-i2cdetect",
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "root": "libs/i2cdetect",
+  "sourceRoot": "libs/i2cdetect/src",
+  "prefix": "choh",
+  "projectType": "library",
+  "tags": ["type:feature", "domain:i2cdetect"],
+  "implicitDependencies": ["libs-web-serial"],
+  "targets": {
+    "build": {
+      "dependsOn": ["^build"],
+      "executor": "nx:run-commands",
+      "outputs": ["{workspaceRoot}/dist/{projectRoot}"],
+      "options": {
+        "command": "echo \"build libs-i2cdetect\""
+      }
+    },
+    "test": {
+      "executor": "nx:run-commands",
+      "outputs": ["{workspaceRoot}/coverage/{projectRoot}"],
+      "options": {
+        "command": "vitest run --config libs/i2cdetect/vitest.config.ts",
+        "cwd": "{workspaceRoot}"
+      }
+    },
+    "lint": {
+      "executor": "@nx/eslint:lint",
+      "options": {
+        "lintFilePatterns": [
+          "libs/i2cdetect/**/*.ts",
+          "libs/i2cdetect/**/*.html"
+        ]
+      }
+    }
+  }
+}

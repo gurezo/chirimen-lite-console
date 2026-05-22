@@ -5,6 +5,12 @@ import angular from '@analogjs/vite-plugin-angular';
 export default defineConfig({
   cacheDir: resolve(process.cwd(), 'node_modules/.vite'),
   plugins: [angular({ tsconfig: resolve(__dirname, 'tsconfig.spec.json') })],
+  resolve: {
+    alias: {
+      '@libs-i2cdetect': resolve(__dirname, './src/index.ts'),
+      '@libs-web-serial': resolve(__dirname, '../web-serial/src/index.ts'),
+    },
+  },
   test: {
     globals: true,
     environment: 'jsdom',
@@ -15,7 +21,10 @@ export default defineConfig({
     ],
     coverage: {
       provider: 'v8',
-      reportsDirectory: resolve(__dirname, '../../../coverage/libs/i2cdetect/ui'),
+      reportsDirectory: resolve(__dirname, '../../coverage/libs/i2cdetect'),
     },
+  },
+  esbuild: {
+    target: 'node22',
   },
 });
