@@ -3,7 +3,7 @@ import {
   PiZeroSessionService,
   SerialFacadeService,
 } from '@libs-web-serial';
-import { coerceLsForSerialListing } from '@libs-terminal-util';
+import { coerceLsForSerialListing } from '../functions/coerce-ls-for-serial-listing';
 import {
   EMPTY,
   Observable,
@@ -40,7 +40,7 @@ export interface TerminalConsoleSink {
  *
  * ### stdout 整形（issue #613）
  *
- * `sanitizeSerialStdout`（@libs-terminal-util）のような exec キャプチャ向けの stdout
+ * `sanitizeSerialStdout`（@libs-terminal）のような exec キャプチャ向けの stdout
  * 整形は、ターミナル UI 経路では使用しない（送信のみ・表示は `terminalText$`）。
  */
 @Injectable({

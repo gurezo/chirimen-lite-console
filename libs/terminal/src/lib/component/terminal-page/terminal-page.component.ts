@@ -1,5 +1,5 @@
 import { Component } from '@angular/core';
-import { TerminalViewComponent } from '@libs-terminal-ui';
+import { TerminalViewComponent } from '../terminal-view/terminal-view.component';
 
 @Component({
   selector: 'choh-terminal',

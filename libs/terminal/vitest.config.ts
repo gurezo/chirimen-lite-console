@@ -18,22 +18,23 @@ export default defineConfig({
     passWithNoTests: true,
     /** xterm schedules viewport refresh timers that can throw after dispose() in jsdom */
     dangerouslyIgnoreUnhandledErrors: true,
-    coverage: {
-      provider: 'v8',
-      reporter: ['text', 'json', 'html'],
-      reportsDirectory: resolve(__dirname, '../../../coverage/libs/terminal/ui'),
-    },
     include: [
       resolve(
         __dirname,
         './src/**/*.{test,spec}.{js,mjs,cjs,ts,mts,cts,jsx,tsx}',
       ),
     ],
+    coverage: {
+      provider: 'v8',
+      reporter: ['text', 'json', 'html'],
+      reportsDirectory: resolve(__dirname, '../../coverage/libs/terminal'),
+    },
   },
   resolve: {
     alias: {
-      '@': resolve(__dirname, './src'),
-      '@libs-terminal-util': resolve(__dirname, '../util/src/index.ts'),
+      '@libs-terminal': resolve(__dirname, './src/index.ts'),
+      '@libs-dialogs': resolve(__dirname, '../dialogs/src/index.ts'),
+      '@libs-web-serial': resolve(__dirname, '../web-serial/src/index.ts'),
     },
   },
   esbuild: {

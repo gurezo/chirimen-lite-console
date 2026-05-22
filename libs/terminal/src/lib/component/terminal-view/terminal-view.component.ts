@@ -11,16 +11,14 @@ import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { Subscription, filter, merge, switchMap, take } from 'rxjs';
 import { FitAddon } from '@xterm/addon-fit';
 import { Terminal } from '@xterm/xterm';
-import {
-  TerminalCommandRequestService,
-  xtermConsoleConfigOptions,
-} from '@libs-terminal-util';
-import { attachTerminalInput } from '../terminal-input';
 import { SerialFacadeService } from '@libs-web-serial';
+import { xtermConsoleConfigOptions } from '../../functions/xterm-config';
+import { TerminalCommandRequestService } from '../../service/terminal-command-request.service';
 import {
   TerminalConsoleOrchestrationService,
   type TerminalConsoleSink,
-} from './terminal-console-orchestration.service';
+} from '../../service/terminal-console-orchestration.service';
+import { attachTerminalInput } from '../terminal-input';
 
 /**
  * ターミナル表示専用コンポーネント。ライブ表示は {@link SerialFacadeService#terminalText$}
