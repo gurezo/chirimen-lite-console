@@ -1,7 +1,7 @@
 import { inject, Injectable } from '@angular/core';
 import { catchError, map, Observable } from 'rxjs';
-import { convertExampleJsonToList } from '../functions/example.util';
-import { ExampleItem } from '../models/example.model';
+import { convertExampleJsonToList } from '../functions';
+import { ExampleItem } from '../models';
 import { ExampleService } from './example.service';
 
 @Injectable({
