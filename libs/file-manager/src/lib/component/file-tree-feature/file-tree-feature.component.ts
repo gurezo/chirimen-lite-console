@@ -1,9 +1,9 @@
 import { Component, DestroyRef, inject, OnInit, output } from '@angular/core';
 import { MatProgressSpinner } from '@angular/material/progress-spinner';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
-import { joinPath } from '../../functions/file-tree.util';
-import { FileTreeNode } from '../../models/file-tree.model';
-import { FileService } from '../../service/file.service';
+import { joinPath } from '../../functions';
+import { FileTreeNode } from '../../models';
+import { FileService } from '../../service';
 import { FileTreeComponent } from '../file-tree/file-tree.component';
 import { PiZeroShellReadinessService } from '@libs-web-serial';
 import { filter, take } from 'rxjs/operators';

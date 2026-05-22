@@ -1,6 +1,6 @@
 import { Component, input, output } from '@angular/core';
 import { MatIcon } from '@angular/material/icon';
-import { FileTreeNode } from '../../models/file-tree.model';
+import { FileTreeNode } from '../../models';
 
 @Component({
   selector: 'lib-file-tree',

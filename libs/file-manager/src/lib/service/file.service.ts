@@ -1,8 +1,8 @@
 import { Injectable, inject } from '@angular/core';
 import { FileContentService, FileUtils } from '@libs-wifi';
 import { PI_ZERO_PROMPT, SERIAL_TIMEOUT, SerialFacadeService } from '@libs-web-serial';
-import { parseLsOutput } from '../functions/file-tree.util';
-import { FileTreeNode } from '../models/file-tree.model';
+import { parseLsOutput } from '../functions';
+import { FileTreeNode } from '../models';
 import { firstValueFrom } from 'rxjs';
 
 @Injectable({ providedIn: 'root' })
