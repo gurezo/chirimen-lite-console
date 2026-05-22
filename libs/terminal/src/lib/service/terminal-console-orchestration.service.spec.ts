@@ -11,7 +11,7 @@ import {
   PiZeroSessionService,
   SerialFacadeService,
 } from '@libs-web-serial';
-import { coerceLsForSerialListing } from '../functions/coerce-ls-for-serial-listing';
+import { coerceLsForSerialListing } from '../functions';
 import { TerminalConsoleOrchestrationService } from './terminal-console-orchestration.service';
 
 describe('TerminalConsoleOrchestrationService', () => {
