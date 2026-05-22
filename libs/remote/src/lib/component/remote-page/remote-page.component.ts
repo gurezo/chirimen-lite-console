@@ -11,10 +11,12 @@ import {
   SerialFacadeService,
 } from '@libs-web-serial';
 import { firstValueFrom, take } from 'rxjs';
-import { parseForeverListPlain } from '../../functions/remote.util';
-import { RemoteRunService } from '../../service/remote-run.service';
-import { RemoteStatusService } from '../../service/remote-status.service';
-import { RemoteStopService } from '../../service/remote-stop.service';
+import { parseForeverListPlain } from '../../functions';
+import {
+  RemoteRunService,
+  RemoteStatusService,
+  RemoteStopService,
+} from '../../service';
 import { RemoteRunButtonComponent } from '../remote-run-button/remote-run-button.component';
 import { RemoteStatusListComponent } from '../remote-status-list/remote-status-list.component';
 import { RemoteStopButtonComponent } from '../remote-stop-button/remote-stop-button.component';
