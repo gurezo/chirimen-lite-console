@@ -33,7 +33,7 @@ chirimen-lite-console（本リポジトリ）
 
 Issue #590 / [#601](https://github.com/gurezo/chirimen-lite-console/issues/601) / [#649](https://github.com/gurezo/chirimen-lite-console/issues/649) 以降は、外部公開 API を `SerialFacadeService` に集約し、利用側は `terminalText$` / `lines$` / `state$` / `isConnected$` / `errors$` / `portInfo$` / `connectionEstablished$` と `connect$()` / `disconnect$()` / `send$()` / `exec$()` / `execRaw$()` / `readUntilPrompt$()` / `isBrowserSupported()` / `isRaspberryPiZero()` を基本導線とする。`receive$` は **Facade では橋渡しせず**、`SerialTransportService` 経由で data-access 内部（`SerialCommandPipelineService`）のみがプロンプト照合・`exec$` の stdout 集約に用いる（[#646](https://github.com/gurezo/chirimen-lite-console/issues/646)）。Pi Zero のログイン〜タイムゾーン初期化の期待シーケンスは [Issue #606](https://github.com/gurezo/chirimen-lite-console/issues/606) を参照。
 
-[#664](https://github.com/gurezo/chirimen-lite-console/issues/664) に沿い、`@libs-web-serial-data-access` のパッケージ公開面からは **`SerialCommandPipelineService` クラスを export せず**、コマンド実行の利用入口は Facade の `exec$` / `execRaw$` / `readUntilPrompt$` とする。実装として **`SerialFacadeService` は上記 API を Pipeline に委譲するため Pipeline を直接 inject** する。接続ライフサイクルの read loop 開始・停止・切断時キャンセルは、`SerialFacadeService` と `SerialConnectionOrchestrationService` の **循環 DI を避けるため**、オーケストレーションも Pipeline を **data-access 内部だけ**直接 inject して制御する（詳細は [libs/web-serial/data-access/README.md](../libs/web-serial/data-access/README.md) の「Orchestration と Pipeline」節）。
+[#664](https://github.com/gurezo/chirimen-lite-console/issues/664) に沿い、`@libs-web-serial` のパッケージ公開面からは **`SerialCommandPipelineService` クラスを export せず**、コマンド実行の利用入口は Facade の `exec$` / `execRaw$` / `readUntilPrompt$` とする。実装として **`SerialFacadeService` は上記 API を Pipeline に委譲するため Pipeline を直接 inject** する。接続ライフサイクルの read loop 開始・停止・切断時キャンセルは、`SerialFacadeService` と `SerialConnectionOrchestrationService` の **循環 DI を避けるため**、オーケストレーションも Pipeline を **data-access 内部だけ**直接 inject して制御する（詳細は [libs/web-serial/data-access/README.md](../libs/web-serial/data-access/README.md) の「Orchestration と Pipeline」節）。
 
 ### `exec$` 系 API の責務（[#616](https://github.com/gurezo/chirimen-lite-console/issues/616)）
 
@@ -83,13 +83,13 @@ Issue #590 / [#601](https://github.com/gurezo/chirimen-lite-console/issues/601) 
 
 ## 公開面の棚卸し（Issue [#672](https://github.com/gurezo/chirimen-lite-console/issues/672)）
 
-親 Issue [#671](https://github.com/gurezo/chirimen-lite-console/issues/671) のサブタスクとして、`@libs-web-serial-data-access` の **barrel（[`libs/web-serial/data-access/src/index.ts`](../libs/web-serial/data-access/src/index.ts)）に載っているシンボル**と、**ワークスペース内の import 実態**を突き合わせ、公開契約・条件付き公開・内部向け候補に分類する。本節は **現状の事実と判断材料**を記録するものであり、barrel の変更は後続 Issue（#673 以降）で小さく行う前提とする。
+親 Issue [#671](https://github.com/gurezo/chirimen-lite-console/issues/671) のサブタスクとして、`@libs-web-serial` の **barrel（[`libs/web-serial/data-access/src/index.ts`](../libs/web-serial/data-access/src/index.ts)）に載っているシンボル**と、**ワークスペース内の import 実態**を突き合わせ、公開契約・条件付き公開・内部向け候補に分類する。本節は **現状の事実と判断材料**を記録するものであり、barrel の変更は後続 Issue（#673 以降）で小さく行う前提とする。
 
 ### Barrel から公開されているシンボル（`index.ts` 由来）
 
 | 公開経路 | シンボル（代表） | 備考 |
 |----------|------------------|------|
-| `@libs-web-serial-util` の再エクスポート | `SerialExecOptions`（型）, `DEFAULT_SERIAL_EXEC_OPTIONS`, `mergeSerialExecOptions` | 実行オプションの型とヘルパ |
+| `@libs-web-serial` の再エクスポート | `SerialExecOptions`（型）, `DEFAULT_SERIAL_EXEC_OPTIONS`, `mergeSerialExecOptions` | 実行オプションの型とヘルパ |
 | `export *` | `PiZeroPromptDetectorService` | Pi ログイン／プロンプト判定の実装詳細 |
 | `export *` | `PiZeroSessionService` | 接続後 bootstrap・epoch 制御 |
 | `export *` | `PiZeroSerialBootstrapService` | login / setup の具体シーケンス |
@@ -110,9 +110,9 @@ Issue #590 / [#601](https://github.com/gurezo/chirimen-lite-console/issues/601) 
 - **責務**: `exec$` / `readUntilPrompt$` の `prompt` 文字列／`RegExp` による受信バッファ照合（`user@host:` 行末の厳格化、`[$#%]` で終わる「入力待ち」行の判定など）。Pi Zero 固有の login / password / シェル到達は `PiZeroPromptDetectorService` のまま（本サブ Issue の対象外）。
 - **統合済み（#675）**: `SerialPromptDetectorService`（Injectable）を廃止し、同等ロジックを [`serial-prompt-match.ts`](../libs/web-serial/data-access/src/lib/serial-command/serial-prompt-match.ts) の **`matchesSerialPrompt` 純関数**に集約。`SerialCommandPipelineService` が直接 import する。利用者が Pipeline のみで外部 I/O がなく、親 [#671](https://github.com/gurezo/chirimen-lite-console/issues/671) の「小さいサービスだけ統合」に合致。PoC では `serial-prompt-match.spec.ts` に境界ケースを移せば可読性を維持でき、Pipeline の DI 引数も減るため **統合を採用**。barrel の公開面に変更はない。
 
-### ワークスペースでの `@libs-web-serial-data-access` import 実態
+### ワークスペースでの `@libs-web-serial` import 実態
 
-`libs/web-serial/data-access` 自身を除き、`import ... from '@libs-web-serial-data-access'` があるファイルは次のとおり。
+`libs/web-serial/data-access` 自身を除き、`import ... from '@libs-web-serial'` があるファイルは次のとおり。
 
 | import しているシンボル | ファイル |
 |-------------------------|----------|
@@ -183,7 +183,7 @@ npx nx run apps-console:test
 - [#649](https://github.com/gurezo/chirimen-lite-console/issues/649) — `SerialFacadeService` の公開 API 縮小（`receive$` 等を Facade から除去）
 - [#664](https://github.com/gurezo/chirimen-lite-console/issues/664) — Facade を実質入口に統一し、パッケージ公開面からコマンド Pipeline クラスを除く（Orchestration の内部例外を文書化）
 - [#671](https://github.com/gurezo/chirimen-lite-console/issues/671) — Web Serial 実装の追加簡素化（公開 API・薄い責務の整理）
-- [#672](https://github.com/gurezo/chirimen-lite-console/issues/672) — `@libs-web-serial-data-access` の公開 API 棚卸し（本節の表・分類）
+- [#672](https://github.com/gurezo/chirimen-lite-console/issues/672) — `@libs-web-serial` の公開 API 棚卸し（本節の表・分類）
 - [#673](https://github.com/gurezo/chirimen-lite-console/issues/673) — Facade / Orchestration / Pipeline の境界整理（docs / JSDoc の整合）
 - [#674](https://github.com/gurezo/chirimen-lite-console/issues/674) — `SerialValidatorService` を `SerialTransportService` に統合（Pi Zero 判定の集約）
 - [#676](https://github.com/gurezo/chirimen-lite-console/issues/676) — 回帰テスト・実機確認（親 #671 の受け入れ）

@@ -13,8 +13,8 @@
     "libs-shared-ui",
     "libs-shared-types",
     "libs-terminal-util",
-    "libs-web-serial-data-access",
-    "libs-web-serial-util"
+    "libs-web-serial",
+    "libs-web-serial"
   ],
   "targets": {
     "build": {

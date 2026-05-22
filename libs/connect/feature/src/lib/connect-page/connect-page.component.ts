@@ -4,7 +4,7 @@ import {
   ConnectButtonComponent,
   ConnectionStatusComponent,
 } from '@libs-connect-ui';
-import { SerialConnectionViewModelFacade } from '@libs-web-serial-data-access';
+import { SerialConnectionViewModelFacade } from '@libs-web-serial';
 
 @Component({
   selector: 'lib-connect-page',

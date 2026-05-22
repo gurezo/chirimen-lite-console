@@ -2,7 +2,7 @@ import { Injectable, inject } from '@angular/core';
 import {
   PiZeroSessionService,
   SerialFacadeService,
-} from '@libs-web-serial-data-access';
+} from '@libs-web-serial';
 import { coerceLsForSerialListing } from '@libs-terminal-util';
 import {
   EMPTY,

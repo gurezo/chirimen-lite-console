@@ -24,7 +24,7 @@ import {
 } from '@libs-console-shell-ui';
 import { SetupPageComponent } from '@libs-chirimen-setup-feature';
 import { RemotePageComponent } from '@libs-remote-feature';
-import { SerialConnectionViewModelFacade } from '@libs-web-serial-data-access';
+import { SerialConnectionViewModelFacade } from '@libs-web-serial';
 import { DialogService } from '@libs-dialogs-util';
 import {
   distinctUntilChanged,

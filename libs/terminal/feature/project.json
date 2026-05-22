@@ -5,7 +5,7 @@
   "prefix": "choh",
   "projectType": "library",
   "tags": ["type:feature", "domain:terminal"],
-  "implicitDependencies": ["libs-terminal-ui", "libs-terminal-util", "libs-dialogs-feature", "libs-web-serial-data-access"],
+  "implicitDependencies": ["libs-terminal-ui", "libs-terminal-util", "libs-dialogs-feature", "libs-web-serial"],
   "targets": {
     "build": {
       "dependsOn": ["^build"],

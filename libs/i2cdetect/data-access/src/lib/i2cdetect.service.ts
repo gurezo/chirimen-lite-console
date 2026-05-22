@@ -6,13 +6,13 @@ import {
   map,
   throwError,
 } from 'rxjs';
-import { SerialFacadeService } from '@libs-web-serial-data-access';
+import { SerialFacadeService } from '@libs-web-serial';
 import { formatI2cdetectResult } from '@libs-i2cdetect-util';
 import {
   PI_ZERO_PROMPT,
   SERIAL_TIMEOUT,
   wrapSerialError,
-} from '@libs-web-serial-util';
+} from '@libs-web-serial';
 
 /**
  * I2C デバイス検出サービス

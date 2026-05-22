@@ -6,7 +6,7 @@ import {
   RouterStateSnapshot,
 } from '@angular/router';
 import { UrlTree } from '@angular/router';
-import { SerialFacadeService } from '@libs-web-serial-data-access';
+import { SerialFacadeService } from '@libs-web-serial';
 import { BehaviorSubject, firstValueFrom, isObservable, Observable } from 'rxjs';
 
 import { connectionGuard } from './connection.guard';

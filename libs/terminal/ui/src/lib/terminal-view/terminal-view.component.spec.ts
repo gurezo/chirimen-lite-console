@@ -23,7 +23,7 @@ vi.mock('@xterm/addon-fit', () => ({
 import {
   PiZeroSessionService,
   SerialFacadeService,
-} from '@libs-web-serial-data-access';
+} from '@libs-web-serial';
 import { coerceLsForSerialListing } from '@libs-terminal-util';
 import { TerminalCommandRequestService } from '@libs-terminal-util';
 import { TerminalViewComponent } from './terminal-view.component';

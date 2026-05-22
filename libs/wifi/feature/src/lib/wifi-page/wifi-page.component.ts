@@ -4,7 +4,7 @@ import { MatDividerModule } from '@angular/material/divider';
 import { ConfirmDialogComponent } from '@libs-dialogs-ui';
 import type { WiFiInfo } from '@libs-shared-types';
 import { ButtonComponent, NotificationService } from '@libs-shared-ui';
-import { SerialFacadeService } from '@libs-web-serial-data-access';
+import { SerialFacadeService } from '@libs-web-serial';
 import { WifiRebootFlowService, WifiScanService } from '@libs-wifi-data-access';
 import {
   WifiConnectDialogComponent,

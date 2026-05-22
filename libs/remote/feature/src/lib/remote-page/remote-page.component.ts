@@ -18,8 +18,8 @@ import { parseForeverListPlain } from '@libs-remote-util';
 import type { ForeverProcess } from '@libs-shared-types';
 import { ButtonComponent, NotificationService } from '@libs-shared-ui';
 import { sanitizeSerialStdout } from '@libs-terminal-util';
-import { SerialFacadeService } from '@libs-web-serial-data-access';
-import { PI_ZERO_PROMPT } from '@libs-web-serial-util';
+import { SerialFacadeService } from '@libs-web-serial';
+import { PI_ZERO_PROMPT } from '@libs-web-serial';
 
 const FOREVER_LIST_CMD = 'forever list --plain';
 

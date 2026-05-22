@@ -1,5 +1,5 @@
 import { Injectable, inject } from '@angular/core';
-import { SerialFacadeService } from '@libs-web-serial-data-access';
+import { SerialFacadeService } from '@libs-web-serial';
 import {
   parseWifiIfconfigOutput,
   parseWifiIwconfigOutput,
@@ -9,7 +9,7 @@ import {
   PI_ZERO_PROMPT,
   SERIAL_TIMEOUT,
   wrapSerialError,
-} from '@libs-web-serial-util';
+} from '@libs-web-serial';
 import type { WiFiInfo } from '@libs-shared-types';
 import { firstValueFrom } from 'rxjs';
 
