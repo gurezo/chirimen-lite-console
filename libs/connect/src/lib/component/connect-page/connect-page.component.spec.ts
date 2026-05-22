@@ -16,6 +16,7 @@ function vmBase(
     isConnecting: false,
     isLoggedIn: false,
     isInitializing: false,
+    setupStatus: 'idle',
     errorMessage: null,
     ...overrides,
   };
