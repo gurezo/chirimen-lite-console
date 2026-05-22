@@ -13,7 +13,7 @@ import {
   Router,
   RouterOutlet,
 } from '@angular/router';
-import { ConnectPageComponent } from '@libs-connect-feature';
+import { ConnectPageComponent } from '@libs-connect';
 import {
   ActionToolBarComponent,
   BreadcrumbComponent,

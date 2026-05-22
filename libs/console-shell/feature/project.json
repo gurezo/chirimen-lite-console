@@ -6,8 +6,7 @@
   "projectType": "library",
   "tags": ["type:feature", "domain:console-shell"],
   "implicitDependencies": [
-    "libs-connect-feature",
-    "libs-connect-ui",
+    "libs-connect",
     "libs-web-serial",
     "libs-console-shell-ui",
     "libs-shared",
