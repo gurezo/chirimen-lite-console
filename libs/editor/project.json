@@ -7,8 +7,8 @@
   "projectType": "library",
   "tags": ["type:feature", "domain:editor"],
   "implicitDependencies": [
-    "libs-wifi-data-access",
-    "libs-console-shell-util"
+    "libs-wifi",
+    "libs-console-shell"
   ],
   "targets": {
     "build": {

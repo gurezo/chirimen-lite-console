@@ -1,6 +1,6 @@
 import { Injectable, inject } from '@angular/core';
 import type { editor } from 'monaco-editor';
-import { FileContentService } from '@libs-wifi-data-access';
+import { FileContentService } from '@libs-wifi';
 
 /**
  * エディターサービス

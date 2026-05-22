@@ -5,14 +5,14 @@ export const routes: Routes = [
   {
     path: '',
     loadComponent: () =>
-      import('@libs-console-shell-feature').then((m) => m.ConsoleShellComponent),
+      import('@libs-console-shell').then((m) => m.ConsoleShellComponent),
     canActivate: [browserCheckGuard],
     children: [
       { path: '', pathMatch: 'full', redirectTo: 'terminal' },
       {
         path: 'terminal',
         loadComponent: () =>
-          import('@libs-terminal-feature').then((m) => m.TerminalPageComponent),
+          import('@libs-terminal').then((m) => m.TerminalPageComponent),
       },
       {
         path: 'editor',
@@ -27,7 +27,7 @@ export const routes: Routes = [
       {
         path: 'wifi',
         loadComponent: () =>
-          import('@libs-wifi-feature').then((m) => m.WifiPageComponent),
+          import('@libs-wifi').then((m) => m.WifiPageComponent),
       },
     ],
   },

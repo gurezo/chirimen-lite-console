@@ -1,9 +1,9 @@
 import '@angular/compiler';
 import { Injector } from '@angular/core';
-import { FileContentService } from '@libs-wifi-data-access';
+import { FileContentService } from '@libs-wifi';
 import { SerialFacadeService } from '@libs-web-serial';
 import { PI_ZERO_PROMPT, SERIAL_TIMEOUT } from '@libs-web-serial';
-import { FileUtils } from '@libs-wifi-util';
+import { FileUtils } from '@libs-wifi';
 import { from } from 'rxjs';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { FileService } from './file.service';

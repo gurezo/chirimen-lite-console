@@ -1,8 +1,6 @@
 import { Injectable, inject } from '@angular/core';
-import { FileContentService } from '@libs-wifi-data-access';
-import { SerialFacadeService } from '@libs-web-serial';
-import { FileUtils } from '@libs-wifi-util';
-import { PI_ZERO_PROMPT, SERIAL_TIMEOUT } from '@libs-web-serial';
+import { FileContentService, FileUtils } from '@libs-wifi';
+import { PI_ZERO_PROMPT, SERIAL_TIMEOUT, SerialFacadeService } from '@libs-web-serial';
 import { parseLsOutput } from '../functions/file-tree.util';
 import { FileTreeNode } from '../models/file-tree.model';
 import { firstValueFrom } from 'rxjs';
