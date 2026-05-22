@@ -2,7 +2,7 @@
 /**
  * Issue #650 / parent #643: Web Serial の「アプリ境界」が data-access 内部実装に食い込まないことを検証する。
  *
- * - `SerialTransportService`（および `receive$` 橋渡しの低レイヤー）は `libs/web-serial/data-access` のみで import / DI されること。
+ * - `SerialTransportService`（および `receive$` 橋渡しの低レイヤー）は `libs/web-serial/src/lib/service` のみで import / DI されること。
  *
  * 逸脱があれば非ゼロ終了コードで終了する（CI 用）。
  */
@@ -11,7 +11,7 @@ import { join, relative } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const ROOT = join(fileURLToPath(new URL('.', import.meta.url)), '..');
-const EXCLUDED_PREFIX = 'libs/web-serial/data-access';
+const EXCLUDED_PREFIX = 'libs/web-serial/src/lib/service';
 
 /** @param {string} relPosix */
 function isExcluded(relPosix) {
@@ -88,7 +88,7 @@ for (const root of ['libs', 'apps']) {
       violations.push({
         file: rel,
         reason:
-          'SerialTransportService は libs/web-serial/data-access 外から参照しない（SerialFacadeService 経由に統一する）',
+          'SerialTransportService は libs/web-serial/src/lib/service 外から参照しない（SerialFacadeService 経由に統一する）',
       });
     }
   }
@@ -105,5 +105,5 @@ if (violations.length > 0) {
 }
 
 console.log(
-  'verify-serial-feature-boundary: OK（libs/web-serial/data-access 外に SerialTransportService の import / provide はありません）',
+  'verify-serial-feature-boundary: OK（libs/web-serial/src/lib/service 外に SerialTransportService の import / provide はありません）',
 );
