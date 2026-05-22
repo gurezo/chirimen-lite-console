@@ -4,7 +4,7 @@ import {
   PI_ZERO_LOGIN_PASSWORD,
   PI_ZERO_LOGIN_USER,
   PI_ZERO_PROMPT,
-} from '../functions';
+} from '../constants';
 import { PiZeroPromptDetectorService } from './pi-zero-prompt-detector.service';
 import { PiZeroSerialBootstrapService } from './pi-zero-serial-bootstrap.service';
 import type { SerialFacadeService } from './serial-facade.service';

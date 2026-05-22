@@ -4,8 +4,8 @@ import { sanitizeSerialStdout } from '../functions/sanitize-serial-stdout';
 import {
   PI_ZERO_LOGIN_PASSWORD,
   PI_ZERO_LOGIN_USER,
-  SERIAL_TIMEOUT,
-} from '../functions';
+} from '../constants';
+import { SERIAL_TIMEOUT } from '../functions';
 import type { Observable } from 'rxjs';
 import {
   catchError,

@@ -1,21 +1,23 @@
 import { Component, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { MatDividerModule } from '@angular/material/divider';
+import { ConfirmDialogComponent, DialogService } from '@libs-dialogs';
+import type { ForeverProcess } from '@libs-shared';
+import { NotificationService } from '@libs-shared';
+import { ButtonComponent } from '@libs-shared/component/button';
+import {
+  PI_ZERO_PROMPT,
+  sanitizeSerialStdout,
+  SerialFacadeService,
+} from '@libs-web-serial';
 import { firstValueFrom, take } from 'rxjs';
-import { ConfirmDialogComponent } from '@libs-dialogs';
-import { DialogService } from '@libs-dialogs';
-import { RemoteRunButtonComponent } from '../remote-run-button/remote-run-button.component';
-import { RemoteStatusListComponent } from '../remote-status-list/remote-status-list.component';
-import { RemoteStopButtonComponent } from '../remote-stop-button/remote-stop-button.component';
 import { parseForeverListPlain } from '../../functions/remote.util';
 import { RemoteRunService } from '../../service/remote-run.service';
 import { RemoteStatusService } from '../../service/remote-status.service';
 import { RemoteStopService } from '../../service/remote-stop.service';
-import type { ForeverProcess } from '@libs-shared';
-import { ButtonComponent, NotificationService } from '@libs-shared';
-import { sanitizeSerialStdout } from '@libs-web-serial';
-import { SerialFacadeService } from '@libs-web-serial';
-import { PI_ZERO_PROMPT } from '@libs-web-serial';
+import { RemoteRunButtonComponent } from '../remote-run-button/remote-run-button.component';
+import { RemoteStatusListComponent } from '../remote-status-list/remote-status-list.component';
+import { RemoteStopButtonComponent } from '../remote-stop-button/remote-stop-button.component';
 
 const FOREVER_LIST_CMD = 'forever list --plain';
 
@@ -51,9 +53,7 @@ export class RemotePageComponent {
   }
 
   private async ensureSerial(): Promise<boolean> {
-    const ok = await firstValueFrom(
-      this.serial.isConnected$.pipe(take(1)),
-    );
+    const ok = await firstValueFrom(this.serial.isConnected$.pipe(take(1)));
     if (!ok) {
       this.notify.warning('Remote', 'シリアル接続してください');
       return false;
@@ -72,7 +72,11 @@ export class RemotePageComponent {
     this.listInProgress.set(true);
     try {
       const stdout = await this.remoteStatus.listPlain();
-      const cleaned = sanitizeSerialStdout(stdout, FOREVER_LIST_CMD, PI_ZERO_PROMPT);
+      const cleaned = sanitizeSerialStdout(
+        stdout,
+        FOREVER_LIST_CMD,
+        PI_ZERO_PROMPT,
+      );
       this.processes = parseForeverListPlain(cleaned);
       const prev = this.selected;
       if (prev) {
@@ -81,7 +85,10 @@ export class RemotePageComponent {
         );
         this.selected = still ?? null;
       }
-      this.notify.success('Remote', `プロセス ${this.processes.length} 件を取得しました`);
+      this.notify.success(
+        'Remote',
+        `プロセス ${this.processes.length} 件を取得しました`,
+      );
     } catch (e: unknown) {
       const msg = e instanceof Error ? e.message : '一覧の取得に失敗しました';
       this.notify.error('Remote', msg);

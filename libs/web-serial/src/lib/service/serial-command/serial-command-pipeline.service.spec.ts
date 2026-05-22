@@ -11,9 +11,7 @@ import {
   take,
   timer,
 } from 'rxjs';
-import {
-  PI_ZERO_PROMPT,
-} from '../../functions';
+import { PI_ZERO_PROMPT } from '../../constants';
 import { PiZeroPromptDetectorService } from '../pi-zero-prompt-detector.service';
 import type { SerialTransportService } from '../serial-transport.service';
 import { SerialCommandPipelineService } from './serial-command-pipeline.service';

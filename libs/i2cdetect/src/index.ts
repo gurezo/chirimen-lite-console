@@ -1,2 +1,3 @@
-export * from './lib/service/i2cdetect.service';
-export * from './lib/functions/i2cdetect-result.util';
+export * from './lib/service';
+export * from './lib/functions';
+export * from './lib/component';
