@@ -17,12 +17,12 @@ export const routes: Routes = [
       {
         path: 'editor',
         loadComponent: () =>
-          import('@libs-editor-feature').then((m) => m.EditorPageComponent),
+          import('@libs-editor').then((m) => m.EditorPageComponent),
       },
       {
         path: 'example',
         loadComponent: () =>
-          import('@libs-example-feature').then((m) => m.ExampleComponent),
+          import('@libs-example').then((m) => m.ExampleComponent),
       },
       {
         path: 'wifi',

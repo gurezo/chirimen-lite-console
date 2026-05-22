@@ -1,5 +1,5 @@
 {
-  "extends": ["../../../.eslintrc.json"],
+  "extends": ["../../.eslintrc.json"],
   "ignorePatterns": ["!**/*"],
   "overrides": [
     {
@@ -11,11 +11,19 @@
       "rules": {
         "@angular-eslint/directive-selector": [
           "error",
-          { "type": "attribute", "prefix": "choh", "style": "camelCase" }
+          {
+            "type": "attribute",
+            "prefix": "choh",
+            "style": "camelCase"
+          }
         ],
         "@angular-eslint/component-selector": [
           "error",
-          { "type": "element", "prefix": "choh", "style": "kebab-case" }
+          {
+            "type": "element",
+            "prefix": "choh",
+            "style": "kebab-case"
+          }
         ]
       }
     },
