@@ -18,7 +18,7 @@ import {
 import type { PiZeroBootstrapStatusHandler } from './pi-zero-serial-bootstrap.service';
 import { PiZeroSerialBootstrapService } from './pi-zero-serial-bootstrap.service';
 import { PiZeroShellReadinessService } from './pi-zero-shell-readiness.service';
-import type { SerialSetupStatus } from '../models/serial-setup-status';
+import type { SerialSetupStatus } from '../models';
 import { SerialConnectionOrchestrationService } from './serial-connection-orchestration.service';
 import type { SerialFacadeConnectResult } from './serial-facade.service';
 import { SerialFacadeService } from './serial-facade.service';
