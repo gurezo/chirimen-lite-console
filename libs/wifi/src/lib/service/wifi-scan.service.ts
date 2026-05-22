@@ -4,7 +4,7 @@ import {
   parseWifiIfconfigOutput,
   parseWifiIwconfigOutput,
   parseWifiIwlistOutput,
-} from '../functions/wifi-parser';
+} from '../functions';
 import {
   PI_ZERO_PROMPT,
   SERIAL_TIMEOUT,

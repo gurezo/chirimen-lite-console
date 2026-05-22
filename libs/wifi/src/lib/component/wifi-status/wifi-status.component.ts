@@ -1,5 +1,5 @@
 import { Component, input } from '@angular/core';
-import type { WifiStatusData } from '../../models/wifi-status.types';
+import type { WifiStatusData } from '../../models';
 
 /**
  * WiFi 接続状態（IP / iwconfig 等）の表示

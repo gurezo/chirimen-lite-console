@@ -7,9 +7,9 @@ import { NotificationService } from '@libs-shared';
 import { ButtonComponent } from '@libs-shared/component/button';
 import { SerialFacadeService } from '@libs-web-serial';
 import { firstValueFrom, take } from 'rxjs';
-import type { WifiConnectDialogData } from '../../models/wifi-connect-dialog.types';
-import { WifiRebootFlowService } from '../../service/wifi-reboot-flow.service';
-import { WifiScanService } from '../../service/wifi-scan.service';
+import type { WifiConnectDialogData } from '../../models';
+import { WifiRebootFlowService } from '../../service';
+import { WifiScanService } from '../../service';
 import { WifiConnectDialogComponent } from '../wifi-connect-dialog/wifi-connect-dialog.component';
 import { WifiListComponent } from '../wifi-list/wifi-list.component';
 

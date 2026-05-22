@@ -1,8 +1,8 @@
 import { Injectable, inject } from '@angular/core';
 import { FileContentService } from './file-content.service';
 import { SerialFacadeService } from '@libs-web-serial';
-import { FileUtils } from '../functions/file.utils';
-import { shellSingleQuote } from '../functions/shell-quote';
+import { FileUtils } from '../functions';
+import { shellSingleQuote } from '../functions';
 import { WifiRebootFlowService } from './wifi-reboot-flow.service';
 import {
   PI_ZERO_PROMPT,
