@@ -1,7 +1,7 @@
 import { AsyncPipe } from '@angular/common';
 import { Component, inject, OnInit } from '@angular/core';
 import { DialogService } from '@libs-dialogs';
-import { ButtonComponent } from '@libs-shared';
+import { ButtonComponent } from '@libs-shared/component/button';
 import { EditorService } from '@libs-editor';
 import { BehaviorSubject, firstValueFrom, forkJoin } from 'rxjs';
 import { ExampleListComponent } from '../example-list/example-list.component';

@@ -22,11 +22,8 @@ import {
   tap,
   throwError,
 } from 'rxjs';
-import {
-  getConnectionErrorMessage,
-  getWriteErrorMessage,
-  RASPBERRY_PI_ZERO_INFO,
-} from '../functions';
+import { RASPBERRY_PI_ZERO_INFO } from '../constants';
+import { getConnectionErrorMessage, getWriteErrorMessage } from '../functions';
 
 /**
  * Angular 向けの薄いアダプタ。実体は常に `@gurezo/web-serial-rxjs` v2.3.1 の {@link SerialSession} 1 個。

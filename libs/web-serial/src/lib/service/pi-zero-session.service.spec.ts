@@ -1,9 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import { firstValueFrom, from, of, throwError } from 'rxjs';
-import {
-  PI_ZERO_LOGIN_USER,
-  PI_ZERO_PROMPT,
-} from '../functions';
+import { PI_ZERO_LOGIN_USER, PI_ZERO_PROMPT } from '../constants';
 import { PiZeroPromptDetectorService } from './pi-zero-prompt-detector.service';
 import { PiZeroSerialBootstrapService } from './pi-zero-serial-bootstrap.service';
 import type { PiZeroShellReadinessService } from './pi-zero-shell-readiness.service';

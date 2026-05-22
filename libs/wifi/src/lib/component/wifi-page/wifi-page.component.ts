@@ -3,14 +3,15 @@ import { Component, inject, signal } from '@angular/core';
 import { MatDividerModule } from '@angular/material/divider';
 import { ConfirmDialogComponent } from '@libs-dialogs';
 import type { WiFiInfo } from '@libs-shared';
-import { ButtonComponent, NotificationService } from '@libs-shared';
+import { NotificationService } from '@libs-shared';
+import { ButtonComponent } from '@libs-shared/component/button';
 import { SerialFacadeService } from '@libs-web-serial';
+import { firstValueFrom, take } from 'rxjs';
 import type { WifiConnectDialogData } from '../../models/wifi-connect-dialog.types';
 import { WifiRebootFlowService } from '../../service/wifi-reboot-flow.service';
 import { WifiScanService } from '../../service/wifi-scan.service';
 import { WifiConnectDialogComponent } from '../wifi-connect-dialog/wifi-connect-dialog.component';
 import { WifiListComponent } from '../wifi-list/wifi-list.component';
-import { firstValueFrom, take } from 'rxjs';
 
 /**
  * WiFi 設定画面（スマートコンポーネント）
@@ -34,9 +35,7 @@ export class WifiPageComponent {
   private readonly wifiReboot = inject(WifiRebootFlowService);
 
   private async ensureSerial(): Promise<boolean> {
-    const ok = await firstValueFrom(
-      this.serial.isConnected$.pipe(take(1)),
-    );
+    const ok = await firstValueFrom(this.serial.isConnected$.pipe(take(1)));
     if (!ok) {
       this.notify.warning('WiFi', 'シリアル接続してください');
       return false;

@@ -28,6 +28,10 @@ export default defineConfig({
   },
   resolve: {
     alias: {
+      '@libs-shared/component/button': resolve(
+        __dirname,
+        '../shared/src/lib/component/button/index.ts',
+      ),
       '@libs-console-shell': resolve(__dirname, './src/index.ts'),
     },
   },
