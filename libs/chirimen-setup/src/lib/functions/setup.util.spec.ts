@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { DEFAULT_PROJECT_SUBDIR } from '../constants/setup.constants';
+import { DEFAULT_PROJECT_SUBDIR } from '../constants';
 import {
   isValidNodeTarUrl,
   sanitizeProjectSubdir,

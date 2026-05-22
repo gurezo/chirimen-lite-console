@@ -1,5 +1,5 @@
 import { sanitizeProjectSubdir } from './setup.util';
-import type { NodeInstallOptions, NodeInstallStep } from '../models/node-install.types';
+import type { NodeInstallOptions, NodeInstallStep } from '../models';
 
 /**
  * Node 導入〜 CHIRIMEN 依存までのシェルコマンド列

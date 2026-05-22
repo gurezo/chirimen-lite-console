@@ -1,4 +1,4 @@
-import { DEFAULT_PROJECT_SUBDIR } from '../constants/setup.constants';
+import { DEFAULT_PROJECT_SUBDIR } from '../constants';
 
 export function isValidNodeTarUrl(url: string): boolean {
   const t = url.trim();

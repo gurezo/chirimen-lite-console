@@ -8,13 +8,13 @@ import {
 import {
   DEFAULT_NODE_TAR_URL,
   DEFAULT_PROJECT_SUBDIR,
-} from '../../constants/setup.constants';
+} from '../../constants';
 import {
   isValidNodeTarUrl,
   sanitizeProjectSubdir,
-} from '../../functions/setup.util';
-import { SetupCommandService } from '../../service/setup-command.service';
-import type { SetupStepProgress } from '../../models/setup-progress.types';
+} from '../../functions';
+import { SetupCommandService } from '../../service';
+import type { SetupStepProgress } from '../../models';
 import { SetupExecuteButtonComponent } from '../setup-execute-button/setup-execute-button.component';
 import { SetupProgressComponent } from '../setup-progress/setup-progress.component';
 import { DialogService } from '@libs-dialogs';
