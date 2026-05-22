@@ -1,7 +1,7 @@
 import { Dialog } from '@angular/cdk/dialog';
 import { Component, inject, signal } from '@angular/core';
 import { MatDividerModule } from '@angular/material/divider';
-import { ConfirmDialogComponent } from '@libs-dialogs-ui';
+import { ConfirmDialogComponent } from '@libs-dialogs';
 import type { WiFiInfo } from '@libs-shared';
 import { ButtonComponent, NotificationService } from '@libs-shared';
 import { SerialFacadeService } from '@libs-web-serial';

@@ -10,12 +10,18 @@ export default defineConfig({
     environment: 'jsdom',
     setupFiles: [resolve(__dirname, './src/test-setup.ts')],
     passWithNoTests: true,
-    include: [
-      resolve(__dirname, './src/**/*.{test,spec}.{js,mjs,cjs,ts,mts,cts,jsx,tsx}'),
-    ],
+    include: [resolve(__dirname, './src/**/*.{test,spec}.{js,mjs,cjs,ts,mts,cts,jsx,tsx}')],
     coverage: {
       provider: 'v8',
-      reportsDirectory: resolve(__dirname, '../../../coverage/libs/dialogs/ui'),
+      reportsDirectory: resolve(__dirname, '../../coverage/libs/dialogs'),
     },
+  },
+  resolve: {
+    alias: {
+      '@libs-dialogs': resolve(__dirname, './src/index.ts'),
+    },
+  },
+  esbuild: {
+    target: 'node22',
   },
 });

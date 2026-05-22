@@ -5,7 +5,7 @@ import {
   SerialConnectionViewModelFacade,
   type SerialConnectionViewModel,
 } from '@libs-web-serial';
-import { DialogService } from '@libs-dialogs-util';
+import { DialogService } from '@libs-dialogs';
 import { ConsoleShellStore } from '@libs-console-shell-util';
 import { EMPTY, BehaviorSubject, of } from 'rxjs';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
