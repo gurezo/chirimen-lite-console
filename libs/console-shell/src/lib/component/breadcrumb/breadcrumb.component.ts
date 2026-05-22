@@ -1,5 +1,5 @@
 import { Component, input } from '@angular/core';
-import type { BreadcrumbSegment } from '@libs-console-shell-util';
+import type { BreadcrumbSegment } from '../../functions/breadcrumb-segments';
 
 @Component({
   selector: 'lib-breadcrumb',
