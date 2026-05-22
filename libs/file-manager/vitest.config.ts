@@ -27,6 +27,8 @@ export default defineConfig({
       '@libs-web-serial': resolve(__dirname, '../web-serial/src/index.ts'),
       '@libs-wifi': resolve(__dirname, '../wifi/src/index.ts'),
       '@libs-terminal': resolve(__dirname, '../terminal/src/index.ts'),
+      '@libs-dialogs': resolve(__dirname, '../dialogs/src/index.ts'),
+      '@libs-shared': resolve(__dirname, '../shared/src/index.ts'),
     },
   },
   esbuild: {
