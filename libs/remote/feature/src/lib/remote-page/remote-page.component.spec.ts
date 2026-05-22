@@ -8,7 +8,7 @@ import {
   RemoteStopService,
 } from '@libs-remote-data-access';
 import { NotificationService } from '@libs-shared-ui';
-import { SerialFacadeService } from '@libs-web-serial-data-access';
+import { SerialFacadeService } from '@libs-web-serial';
 import { RemotePageComponent } from './remote-page.component';
 
 const PLAIN_ROW =

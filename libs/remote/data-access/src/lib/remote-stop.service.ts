@@ -1,6 +1,6 @@
 import { Injectable, inject } from '@angular/core';
-import { SerialFacadeService } from '@libs-web-serial-data-access';
-import { PI_ZERO_PROMPT, SERIAL_TIMEOUT } from '@libs-web-serial-util';
+import { SerialFacadeService } from '@libs-web-serial';
+import { PI_ZERO_PROMPT, SERIAL_TIMEOUT } from '@libs-web-serial';
 import { firstValueFrom } from 'rxjs';
 
 @Injectable({ providedIn: 'root' })

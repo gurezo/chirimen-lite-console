@@ -11,7 +11,7 @@
     "libs-wifi-util",
     "libs-dialogs-ui",
     "libs-shared-ui",
-    "libs-web-serial-data-access"
+    "libs-web-serial"
   ],
   "targets": {
     "build": {

@@ -4,7 +4,7 @@ import { ActivatedRoute, Router } from '@angular/router';
 import {
   SerialConnectionViewModelFacade,
   type SerialConnectionViewModel,
-} from '@libs-web-serial-data-access';
+} from '@libs-web-serial';
 import { DialogService } from '@libs-dialogs-util';
 import { ConsoleShellStore } from '@libs-console-shell-util';
 import { EMPTY, BehaviorSubject, of } from 'rxjs';

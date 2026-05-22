@@ -1,13 +1,13 @@
 import { Injectable, inject } from '@angular/core';
 import { FileContentService } from './file-content.service';
-import { SerialFacadeService } from '@libs-web-serial-data-access';
+import { SerialFacadeService } from '@libs-web-serial';
 import { FileUtils, shellSingleQuote } from '@libs-wifi-util';
 import { WifiRebootFlowService } from './wifi-reboot-flow.service';
 import {
   PI_ZERO_PROMPT,
   SERIAL_TIMEOUT,
   wrapSerialError,
-} from '@libs-web-serial-util';
+} from '@libs-web-serial';
 import { firstValueFrom } from 'rxjs';
 
 /**

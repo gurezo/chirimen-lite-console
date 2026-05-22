@@ -4,7 +4,7 @@ import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { FileService } from '@libs-file-manager-data-access';
 import { FileTreeComponent } from '@libs-file-manager-ui';
 import { FileTreeNode, joinPath } from '@libs-file-manager-util';
-import { PiZeroShellReadinessService } from '@libs-web-serial-data-access';
+import { PiZeroShellReadinessService } from '@libs-web-serial';
 import { filter, take } from 'rxjs/operators';
 
 @Component({

@@ -10,7 +10,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   PiZeroSessionService,
   SerialFacadeService,
-} from '@libs-web-serial-data-access';
+} from '@libs-web-serial';
 import { coerceLsForSerialListing } from '@libs-terminal-util';
 import { TerminalConsoleOrchestrationService } from './terminal-console-orchestration.service';
 

@@ -8,7 +8,7 @@ import {
   WifiScanService,
 } from '@libs-wifi-data-access';
 import type { WiFiInfo } from '@libs-shared-types';
-import { SerialFacadeService } from '@libs-web-serial-data-access';
+import { SerialFacadeService } from '@libs-web-serial';
 import { WifiPageComponent } from './wifi-page.component';
 
 describe('WifiPageComponent', () => {

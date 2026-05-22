@@ -3,7 +3,7 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { FileTreeFeatureComponent } from './file-tree-feature.component';
 import { FileService } from '@libs-file-manager-data-access';
 import { FileTreeNode } from '@libs-file-manager-util';
-import { PiZeroShellReadinessService } from '@libs-web-serial-data-access';
+import { PiZeroShellReadinessService } from '@libs-web-serial';
 import { BehaviorSubject } from 'rxjs';
 
 describe('FileTreeFeatureComponent', () => {

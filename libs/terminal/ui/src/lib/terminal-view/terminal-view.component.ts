@@ -16,7 +16,7 @@ import {
   xtermConsoleConfigOptions,
 } from '@libs-terminal-util';
 import { attachTerminalInput } from '../terminal-input';
-import { SerialFacadeService } from '@libs-web-serial-data-access';
+import { SerialFacadeService } from '@libs-web-serial';
 import {
   TerminalConsoleOrchestrationService,
   type TerminalConsoleSink,

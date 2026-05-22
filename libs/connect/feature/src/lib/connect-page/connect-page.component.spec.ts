@@ -2,7 +2,7 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import {
   type SerialConnectionViewModel,
   SerialConnectionViewModelFacade,
-} from '@libs-web-serial-data-access';
+} from '@libs-web-serial';
 import { BehaviorSubject, firstValueFrom } from 'rxjs';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { ConnectPageComponent } from './connect-page.component';
