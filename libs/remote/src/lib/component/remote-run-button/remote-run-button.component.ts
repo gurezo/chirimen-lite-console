@@ -1,5 +1,5 @@
 import { Component, input, output } from '@angular/core';
-import { ButtonComponent } from '@libs-shared/component/button';
+import { ButtonComponent } from '@libs-shared';
 
 @Component({
   selector: 'lib-remote-run-button',

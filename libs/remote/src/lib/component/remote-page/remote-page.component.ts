@@ -3,8 +3,7 @@ import { FormsModule } from '@angular/forms';
 import { MatDividerModule } from '@angular/material/divider';
 import { ConfirmDialogComponent, DialogService } from '@libs-dialogs';
 import type { ForeverProcess } from '@libs-shared';
-import { NotificationService } from '@libs-shared';
-import { ButtonComponent } from '@libs-shared/component/button';
+import { ButtonComponent, NotificationService } from '@libs-shared';
 import {
   PI_ZERO_PROMPT,
   sanitizeSerialStdout,
