@@ -24,13 +24,13 @@ export default defineConfig({
       provider: 'v8',
       reportsDirectory: resolve(
         __dirname,
-        '../../../coverage/libs/pin-assign-panel/ui',
+        '../../coverage/libs/pin-assign-panel',
       ),
     },
   },
   resolve: {
     alias: {
-      '@libs-pin-assign-panel-ui': resolve(__dirname, './src/index.ts'),
+      '@libs-pin-assign-panel': resolve(__dirname, './src/index.ts'),
     },
   },
 });
