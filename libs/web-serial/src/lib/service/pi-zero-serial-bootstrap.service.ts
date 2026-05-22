@@ -1,6 +1,6 @@
 /** Full rewrite (#606). Pi Zero bootstrap; I/O via {@link SerialFacadeService} / `SerialSession` v2.3.1. */
 import { Injectable } from '@angular/core';
-import { sanitizeSerialStdout } from '@libs-terminal-util';
+import { sanitizeSerialStdout } from '@libs-terminal';
 import {
   PI_ZERO_LOGIN_PASSWORD,
   PI_ZERO_LOGIN_USER,
