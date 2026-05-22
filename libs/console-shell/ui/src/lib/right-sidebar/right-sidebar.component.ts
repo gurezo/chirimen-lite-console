@@ -1,7 +1,7 @@
 import { Component, input, output } from '@angular/core';
 import { MatIconButton } from '@angular/material/button';
 import { MatIcon } from '@angular/material/icon';
-import { PinAssignComponent } from '@libs-pin-assign-panel-ui';
+import { PinAssignComponent } from '@libs-pin-assign-panel';
 
 @Component({
   selector: 'lib-right-sidebar',
