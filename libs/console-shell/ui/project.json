@@ -4,7 +4,7 @@
   "sourceRoot": "libs/console-shell/ui/src",
   "prefix": "lib",
   "projectType": "library",
-  "implicitDependencies": ["libs-console-shell-util"],
+  "implicitDependencies": ["libs-console-shell-util", "libs-pin-assign-panel"],
   "tags": ["type:ui", "domain:console-shell"],
   "targets": {
     "build": {

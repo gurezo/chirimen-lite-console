@@ -1,0 +1,37 @@
+{
+  "name": "libs-pin-assign-panel",
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "root": "libs/pin-assign-panel",
+  "sourceRoot": "libs/pin-assign-panel/src",
+  "prefix": "choh",
+  "projectType": "library",
+  "tags": ["type:ui", "domain:pin-assign-panel"],
+  "implicitDependencies": ["libs-dialogs", "libs-shared"],
+  "targets": {
+    "build": {
+      "dependsOn": ["^build"],
+      "executor": "nx:run-commands",
+      "outputs": ["{workspaceRoot}/dist/{projectRoot}"],
+      "options": {
+        "command": "echo \"build libs-pin-assign-panel\""
+      }
+    },
+    "test": {
+      "executor": "nx:run-commands",
+      "outputs": ["{workspaceRoot}/coverage/{projectRoot}"],
+      "options": {
+        "command": "vitest run --config libs/pin-assign-panel/vitest.config.ts",
+        "cwd": "{workspaceRoot}"
+      }
+    },
+    "lint": {
+      "executor": "@nx/eslint:lint",
+      "options": {
+        "lintFilePatterns": [
+          "libs/pin-assign-panel/**/*.ts",
+          "libs/pin-assign-panel/**/*.html"
+        ]
+      }
+    }
+  }
+}
