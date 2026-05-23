@@ -17,9 +17,6 @@
       "@libs-shared": ["libs/shared/src/index.ts"],
       "@libs-connect": ["libs/connect/src/index.ts"],
       "@libs-console-shell": ["libs/console-shell/src/index.ts"],
-      "@libs-console-shell/service": [
-        "libs/console-shell/src/lib/service/index.ts"
-      ],
       "@libs-dialogs": ["libs/dialogs/src/index.ts"],
       "@libs-editor": ["libs/editor/src/index.ts"],
       "@libs-example": ["libs/example/src/index.ts"],
