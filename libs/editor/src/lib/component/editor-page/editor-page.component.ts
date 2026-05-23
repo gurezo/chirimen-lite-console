@@ -7,7 +7,7 @@ import {
   signal,
 } from '@angular/core';
 import type { editor } from 'monaco-editor';
-import { ConsoleShellStore } from '@libs-console-shell';
+import { ConsoleShellStore } from '@libs-console-shell/service';
 import { EditorToolbarComponent } from '../editor-toolbar/editor-toolbar.component';
 import { FileNameDisplayComponent } from '../file-name-display/file-name-display.component';
 import { MonacoEditorComponent } from '../monaco-editor/monaco-editor.component';
