@@ -6,6 +6,7 @@ export const routes: Routes = [
     path: '',
     loadChildren: () =>
       import('@libs-console-shell').then((m) => m.consoleShellRoutes),
+    canActivate: [browserCheckGuard],
   },
   {
     path: 'unsupported-browser',
