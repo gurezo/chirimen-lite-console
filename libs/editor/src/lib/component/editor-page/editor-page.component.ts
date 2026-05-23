@@ -6,12 +6,12 @@ import {
   OnInit,
   signal,
 } from '@angular/core';
+import { ConsoleShellStore } from '@libs-console-shell';
 import type { editor } from 'monaco-editor';
-import { ConsoleShellStore } from '@libs-console-shell/service';
+import { EditorService } from '../../service';
 import { EditorToolbarComponent } from '../editor-toolbar/editor-toolbar.component';
 import { FileNameDisplayComponent } from '../file-name-display/file-name-display.component';
 import { MonacoEditorComponent } from '../monaco-editor/monaco-editor.component';
-import { EditorService } from '../../service';
 
 const DEFAULT_CODE = `
     onload = async function () {
@@ -87,7 +87,10 @@ export class EditorPageComponent implements OnInit {
 
     this.isSaving.set(true);
     try {
-      await this.editorService.saveTextFile(this.currentFilePath(), this.code());
+      await this.editorService.saveTextFile(
+        this.currentFilePath(),
+        this.code(),
+      );
       this.isDirty.set(false);
     } finally {
       this.isSaving.set(false);

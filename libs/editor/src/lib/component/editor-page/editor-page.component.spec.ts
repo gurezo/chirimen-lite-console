@@ -1,7 +1,7 @@
 /// <reference types="vitest/globals" />
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { ConsoleShellStore } from '@libs-console-shell';
 import { provideMonacoEditor } from 'ngx-monaco-editor-v2';
-import { ConsoleShellStore } from '@libs-console-shell/service';
 import { EditorService } from '../../service';
 import { EditorPageComponent } from './editor-page.component';
 
@@ -44,7 +44,7 @@ describe('EditorPageComponent', () => {
 
     expect(editorServiceMock.saveTextFile).toHaveBeenCalledWith(
       '/home/pi/edited.js',
-      'updated'
+      'updated',
     );
     expect(component.isDirty()).toBe(false);
   });
