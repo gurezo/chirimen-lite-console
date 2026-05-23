@@ -5,7 +5,7 @@ export const consoleShellRoutes: Routes = [
   {
     path: '',
     loadComponent: () =>
-      import('./lib/component/console-shell/console-shell.component').then(
+      import('./component/console-shell/console-shell.component').then(
         (m) => m.ConsoleShellComponent,
       ),
     canActivate: [browserCheckGuard],
