@@ -1,9 +1,6 @@
 packages:
   - 'apps/*'
 
-minimumReleaseAgeExclude:
-  - '@gurezo/web-serial-rxjs@2.3.3'
-
 onlyBuiltDependencies:
   - '@parcel/watcher'
   - esbuild
@@ -13,4 +10,4 @@ onlyBuiltDependencies:
 
 # Malicious releases are often detected and removed within a week.
 # 7 days x 24h x 60 min
-# minimumReleaseAge: 10080
+minimumReleaseAge: 10080
