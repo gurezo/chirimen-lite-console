@@ -1,6 +1,9 @@
 packages:
   - 'apps/*'
 
+minimumReleaseAgeExclude:
+  - '@gurezo/web-serial-rxjs@2.3.3'
+
 onlyBuiltDependencies:
   - '@parcel/watcher'
   - esbuild
