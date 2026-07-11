@@ -4,7 +4,7 @@ import { Injectable } from '@angular/core';
 import {
   createSerialSession,
   SerialError,
-  SerialSessionState,
+  SerialSessionStatus,
   type SerialSession,
 } from '@gurezo/web-serial-rxjs';
 import {
@@ -26,7 +26,7 @@ import { RASPBERRY_PI_ZERO_INFO } from '../constants';
 import { getConnectionErrorMessage, getWriteErrorMessage } from '../functions';
 
 /**
- * Angular 向けの薄いアダプタ。実体は常に `@gurezo/web-serial-rxjs` v2.3.1 の {@link SerialSession} 1 個。
+ * Angular 向けの薄いアダプタ。実体は常に `@gurezo/web-serial-rxjs` の {@link SerialSession} 1 個。
  *
  * アプリは未接続時でも次をそのまま購読できる（接続後はライブラリの Observable に切り替わる）。
  * - {@link SerialSession.isBrowserSupported} … {@link #isBrowserSupported}
@@ -69,7 +69,7 @@ export class SerialTransportService {
 
   readonly state$ = this.fromSession(
     (s) => s.state$,
-    concat(of(SerialSessionState.Idle), NEVER),
+    concat(of({ status: SerialSessionStatus.Idle }), NEVER),
   ).pipe(distinctUntilChanged());
 
   /** {@link SerialSession.isConnected$} */

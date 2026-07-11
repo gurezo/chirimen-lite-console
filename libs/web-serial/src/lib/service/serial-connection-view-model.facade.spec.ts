@@ -1,6 +1,6 @@
 import '@angular/compiler';
 import { Injector } from '@angular/core';
-import { SerialSessionState } from '@gurezo/web-serial-rxjs';
+import { SerialSessionStatus, type SerialSessionState } from '@gurezo/web-serial-rxjs';
 import { TerminalCommandRequestService } from './terminal-command-request.service';
 import { BehaviorSubject, firstValueFrom, of } from 'rxjs';
 import { describe, expect, it, vi } from 'vitest';
@@ -13,9 +13,9 @@ import type { SerialSetupStatus } from '../models';
 
 describe('SerialConnectionViewModelFacade', () => {
   it('combines state into vm$', async () => {
-    const state$ = new BehaviorSubject<SerialSessionState>(
-      SerialSessionState.Idle,
-    );
+    const state$ = new BehaviorSubject<SerialSessionState>({
+      status: SerialSessionStatus.Idle,
+    });
     const connected$ = new BehaviorSubject(false);
     const setupStatus$ = new BehaviorSubject<SerialSetupStatus>('idle');
     const ready$ = new BehaviorSubject(false);
@@ -57,7 +57,7 @@ describe('SerialConnectionViewModelFacade', () => {
     const facade = injector.get(SerialConnectionViewModelFacade);
 
     connected$.next(true);
-    state$.next(SerialSessionState.Connecting);
+    state$.next({ status: SerialSessionStatus.Connecting });
 
     let vm = await firstValueFrom(facade.vm$);
     expect(vm.isConnected).toBe(true);
@@ -65,7 +65,10 @@ describe('SerialConnectionViewModelFacade', () => {
     expect(vm.isInitializing).toBe(false);
 
     ready$.next(true);
-    state$.next(SerialSessionState.Connected);
+    state$.next({
+      status: SerialSessionStatus.Connected,
+      portInfo: {} as SerialPortInfo,
+    });
 
     vm = await firstValueFrom(facade.vm$);
     expect(vm.isConnecting).toBe(false);
@@ -80,7 +83,7 @@ describe('SerialConnectionViewModelFacade', () => {
   it('connect on failure notifies and sets vm errorMessage', async () => {
     const notifyConnectionError = vi.fn();
     const serial: Partial<SerialFacadeService> = {
-      state$: of(SerialSessionState.Idle),
+      state$: of({ status: SerialSessionStatus.Idle }),
       isConnected$: of(false),
       isBrowserSupported: vi.fn(() => true),
       connect$: vi.fn(() =>
@@ -125,7 +128,7 @@ describe('SerialConnectionViewModelFacade', () => {
 
   it('clearError resets errorMessage in vm$', async () => {
     const serial: Partial<SerialFacadeService> = {
-      state$: of(SerialSessionState.Idle),
+      state$: of({ status: SerialSessionStatus.Idle }),
       isConnected$: of(false),
       isBrowserSupported: vi.fn(() => true),
       connect$: vi.fn(() => of({ ok: false, errorMessage: 'fail' })),
@@ -179,7 +182,7 @@ describe('SerialConnectionViewModelFacade', () => {
         {
           provide: SerialFacadeService,
           useValue: {
-            state$: of(SerialSessionState.Idle),
+            state$: of({ status: SerialSessionStatus.Idle }),
             isConnected$: of(false),
             isBrowserSupported: vi.fn(() => true),
             connect$: vi.fn(),

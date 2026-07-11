@@ -1,8 +1,9 @@
 import {
   SerialError,
   SerialErrorCode,
-  SerialSessionState,
+  SerialSessionStatus,
   type SerialSession,
+  type SerialSessionState,
 } from '@gurezo/web-serial-rxjs';
 import {
   BehaviorSubject,
@@ -36,15 +37,18 @@ function buildMockSession(
   terminalText$?: Observable<string>,
   receive$?: Observable<string>,
 ): SerialSession {
-  const state$ = new BehaviorSubject<SerialSessionState>(
-    SerialSessionState.Connecting,
-  );
+  const state$ = new BehaviorSubject<SerialSessionState>({
+    status: SerialSessionStatus.Connecting,
+  });
   const isConnected$ = new BehaviorSubject(false);
   const getCurrentPort = vi.fn((): SerialPort | null => port);
   return {
     isBrowserSupported: () => true,
     connect$: vi.fn(() => {
-      state$.next(SerialSessionState.Connected);
+      state$.next({
+        status: SerialSessionStatus.Connected,
+        portInfo: {} as SerialPortInfo,
+      });
       isConnected$.next(true);
       if (port) {
         getCurrentPort.mockReturnValue(port);
@@ -52,7 +56,7 @@ function buildMockSession(
       return of(undefined);
     }),
     disconnect$: vi.fn(() => {
-      state$.next(SerialSessionState.Idle);
+      state$.next({ status: SerialSessionStatus.Idle });
       isConnected$.next(false);
       getCurrentPort.mockReturnValue(null);
       return of(undefined);
@@ -81,7 +85,7 @@ describe('SerialTransportService', () => {
 
   it('should expose idle / not connected before any session is created', async () => {
     const state = await firstValueFrom(service.state$);
-    expect(state).toBe(SerialSessionState.Idle);
+    expect(state.status).toBe(SerialSessionStatus.Idle);
     const connectedFlag = await firstValueFrom(service.isConnected$);
     expect(connectedFlag).toBe(false);
     expect(service.getPort()).toBeUndefined();
@@ -96,7 +100,7 @@ describe('SerialTransportService', () => {
     await firstValueFrom(service.connect$());
 
     const state = await firstValueFrom(service.state$);
-    expect(state).toBe(SerialSessionState.Connected);
+    expect(state.status).toBe(SerialSessionStatus.Connected);
     const connectedFlag = await firstValueFrom(service.isConnected$);
     expect(connectedFlag).toBe(true);
     expect(service.getPort()).toBe(mockPort);
@@ -115,7 +119,7 @@ describe('SerialTransportService', () => {
     await firstValueFrom(service.disconnect$());
 
     const state = await firstValueFrom(service.state$);
-    expect(state).toBe(SerialSessionState.Idle);
+    expect(state.status).toBe(SerialSessionStatus.Idle);
     expect(
       await firstValueFrom(service.isConnected$.pipe(take(1))),
     ).toBe(false);

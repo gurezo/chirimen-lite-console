@@ -1,39 +1,38 @@
 {
   "name": "libs-file-manager",
   "$schema": "../../node_modules/nx/schemas/project-schema.json",
-  "root": "libs/file-manager",
   "sourceRoot": "libs/file-manager/src",
   "prefix": "lib",
   "projectType": "library",
-  "tags": ["type:feature", "domain:file-manager"],
+  "tags": [
+    "type:feature",
+    "domain:file-manager"
+  ],
   "implicitDependencies": [
     "libs-web-serial",
     "libs-wifi"
   ],
   "targets": {
     "build": {
-      "dependsOn": ["^build"],
+      "dependsOn": [
+        "^build"
+      ],
       "executor": "nx:run-commands",
-      "outputs": ["{workspaceRoot}/dist/{projectRoot}"],
+      "outputs": [
+        "{workspaceRoot}/dist/{projectRoot}"
+      ],
       "options": {
         "command": "echo \"build libs-file-manager\""
       }
     },
     "test": {
       "executor": "nx:run-commands",
-      "outputs": ["{workspaceRoot}/coverage/{projectRoot}"],
+      "outputs": [
+        "{workspaceRoot}/coverage/{projectRoot}"
+      ],
       "options": {
         "command": "vitest run --config libs/file-manager/vitest.config.ts",
         "cwd": "{workspaceRoot}"
-      }
-    },
-    "lint": {
-      "executor": "@nx/eslint:lint",
-      "options": {
-        "lintFilePatterns": [
-          "libs/file-manager/**/*.ts",
-          "libs/file-manager/**/*.html"
-        ]
       }
     }
   }

@@ -29,6 +29,7 @@ minimumReleaseAgeExclude:
   - tinyglobby
   - tmp
   - typescript
+  - typescript-eslint
   - vite
   - vitest
 

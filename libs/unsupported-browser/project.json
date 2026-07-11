@@ -1,7 +1,6 @@
 {
   "name": "libs-unsupported-browser",
   "$schema": "../../node_modules/nx/schemas/project-schema.json",
-  "root": "libs/unsupported-browser",
   "sourceRoot": "libs/unsupported-browser/src",
   "prefix": "choh",
   "projectType": "library",
@@ -22,9 +21,6 @@
         "command": "vitest run --config libs/unsupported-browser/vitest.config.ts",
         "cwd": "{workspaceRoot}"
       }
-    },
-    "lint": {
-      "executor": "@nx/eslint:lint"
     }
   }
 }
