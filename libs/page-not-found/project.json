@@ -1,7 +1,6 @@
 {
   "name": "libs-page-not-found",
   "$schema": "../../node_modules/nx/schemas/project-schema.json",
-  "root": "libs/page-not-found",
   "sourceRoot": "libs/page-not-found/src",
   "prefix": "choh",
   "projectType": "library",
@@ -22,9 +21,6 @@
         "command": "vitest run --config libs/page-not-found/vitest.config.ts",
         "cwd": "{workspaceRoot}"
       }
-    },
-    "lint": {
-      "executor": "@nx/eslint:lint"
     }
   }
 }

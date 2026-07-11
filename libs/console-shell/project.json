@@ -1,11 +1,13 @@
 {
   "name": "libs-console-shell",
   "$schema": "../../node_modules/nx/schemas/project-schema.json",
-  "root": "libs/console-shell",
   "sourceRoot": "libs/console-shell/src",
   "prefix": "lib",
   "projectType": "library",
-  "tags": ["type:feature", "domain:console-shell"],
+  "tags": [
+    "type:feature",
+    "domain:console-shell"
+  ],
   "implicitDependencies": [
     "libs-chirimen-setup",
     "libs-connect",
@@ -20,26 +22,21 @@
     "build": {
       "dependsOn": [],
       "executor": "nx:run-commands",
-      "outputs": ["{workspaceRoot}/dist/{projectRoot}"],
+      "outputs": [
+        "{workspaceRoot}/dist/{projectRoot}"
+      ],
       "options": {
         "command": "echo \"build libs-console-shell\""
       }
     },
     "test": {
       "executor": "nx:run-commands",
-      "outputs": ["{workspaceRoot}/coverage/{projectRoot}"],
+      "outputs": [
+        "{workspaceRoot}/coverage/{projectRoot}"
+      ],
       "options": {
         "command": "vitest run --config libs/console-shell/vitest.config.ts",
         "cwd": "{workspaceRoot}"
-      }
-    },
-    "lint": {
-      "executor": "@nx/eslint:lint",
-      "options": {
-        "lintFilePatterns": [
-          "libs/console-shell/**/*.ts",
-          "libs/console-shell/**/*.html"
-        ]
       }
     }
   }

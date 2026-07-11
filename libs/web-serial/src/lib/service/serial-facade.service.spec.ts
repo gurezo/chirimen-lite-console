@@ -1,6 +1,6 @@
 import '@angular/compiler';
 import { Injector } from '@angular/core';
-import { SerialSessionState } from '@gurezo/web-serial-rxjs';
+import { SerialSessionStatus } from '@gurezo/web-serial-rxjs';
 import { type SerialExecOptions } from '../functions';
 import { EMPTY, firstValueFrom, of } from 'rxjs';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
@@ -17,7 +17,7 @@ describe('SerialFacadeService', () => {
 
   beforeEach(async () => {
     transport = {
-      state$: of(SerialSessionState.Idle),
+      state$: of({ status: SerialSessionStatus.Idle }),
       isConnected$: of(false),
       isBrowserSupported: vi.fn(() => true),
       errors$: EMPTY,

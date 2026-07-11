@@ -1,7 +1,7 @@
 /// <reference types="@types/w3c-web-serial" />
 
 import { Injectable, inject } from '@angular/core';
-import { SerialSessionState } from '@gurezo/web-serial-rxjs';
+import { SerialSessionStatus } from '@gurezo/web-serial-rxjs';
 import { TerminalCommandRequestService } from './terminal-command-request.service';
 import {
   BehaviorSubject,
@@ -63,7 +63,7 @@ export class SerialConnectionViewModelFacade {
     map(([state, connected, setupStatus, loggedInReady, errorMessage]) => ({
       isBrowserSupported: this.serial.isBrowserSupported(),
       isConnected: connected,
-      isConnecting: state === SerialSessionState.Connecting,
+      isConnecting: state.status === SerialSessionStatus.Connecting,
       isLoggedIn: loggedInReady,
       isInitializing: !['idle', 'ready', 'failed'].includes(setupStatus),
       setupStatus,
