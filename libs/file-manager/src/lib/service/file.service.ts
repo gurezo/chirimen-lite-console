@@ -1,6 +1,11 @@
 import { Injectable, inject } from '@angular/core';
 import { FileContentService, FileUtils } from '@libs-wifi';
-import { PI_ZERO_PROMPT, SERIAL_TIMEOUT, SerialFacadeService } from '@libs-web-serial';
+import {
+  createPiZeroShellExecOptions,
+  PiZeroPromptDetectorService,
+  SERIAL_TIMEOUT,
+  SerialFacadeService,
+} from '@libs-web-serial';
 import { parseLsOutput } from '../functions';
 import { FileTreeNode } from '../models';
 import { firstValueFrom } from 'rxjs';
@@ -9,6 +14,11 @@ import { firstValueFrom } from 'rxjs';
 export class FileService {
   private serial = inject(SerialFacadeService);
   private fileContent = inject(FileContentService);
+  private promptDetector = inject(PiZeroPromptDetectorService);
+
+  private shellExecOptions(timeout = SERIAL_TIMEOUT.DEFAULT) {
+    return createPiZeroShellExecOptions(this.promptDetector, { timeout });
+  }
 
   /**
    * ディレクトリ直下の ls 出力（行単位）を返します。
@@ -18,10 +28,12 @@ export class FileService {
     const escaped = FileUtils.escapePath(dir);
 
     const stdout = (
-      await firstValueFrom(this.serial.exec$(`ls -al --quoting-style=c -- ${escaped}`, {
-        prompt: PI_ZERO_PROMPT,
-        timeout: SERIAL_TIMEOUT.LONG,
-      }))
+      await firstValueFrom(
+        this.serial.exec$(
+          `ls -al --quoting-style=c -- ${escaped}`,
+          this.shellExecOptions(SERIAL_TIMEOUT.LONG),
+        ),
+      )
     ).stdout;
 
     return stdout
@@ -40,26 +52,23 @@ export class FileService {
 
   async mkdir(path: string): Promise<void> {
     const escaped = FileUtils.escapePath(path);
-    await firstValueFrom(this.serial.exec$(`mkdir -p -- ${escaped}`, {
-      prompt: PI_ZERO_PROMPT,
-      timeout: SERIAL_TIMEOUT.DEFAULT,
-    }));
+    await firstValueFrom(
+      this.serial.exec$(`mkdir -p -- ${escaped}`, this.shellExecOptions()),
+    );
   }
 
   async touch(path: string): Promise<void> {
     const escaped = FileUtils.escapePath(path);
-    await firstValueFrom(this.serial.exec$(`touch -- ${escaped}`, {
-      prompt: PI_ZERO_PROMPT,
-      timeout: SERIAL_TIMEOUT.DEFAULT,
-    }));
+    await firstValueFrom(
+      this.serial.exec$(`touch -- ${escaped}`, this.shellExecOptions()),
+    );
   }
 
   async remove(path: string): Promise<void> {
     const escaped = FileUtils.escapePath(path);
-    await firstValueFrom(this.serial.exec$(`rm -- ${escaped}`, {
-      prompt: PI_ZERO_PROMPT,
-      timeout: SERIAL_TIMEOUT.DEFAULT,
-    }));
+    await firstValueFrom(
+      this.serial.exec$(`rm -- ${escaped}`, this.shellExecOptions()),
+    );
   }
 
   async read(path: string): Promise<string> {
@@ -73,10 +82,12 @@ export class FileService {
   async move(fromPath: string, toPath: string): Promise<void> {
     const fromEscaped = FileUtils.escapePath(fromPath);
     const toEscaped = FileUtils.escapePath(toPath);
-    await firstValueFrom(this.serial.exec$(`mv -- ${fromEscaped} ${toEscaped}`, {
-      prompt: PI_ZERO_PROMPT,
-      timeout: SERIAL_TIMEOUT.DEFAULT,
-    }));
+    await firstValueFrom(
+      this.serial.exec$(
+        `mv -- ${fromEscaped} ${toEscaped}`,
+        this.shellExecOptions(),
+      ),
+    );
   }
 
   /**
