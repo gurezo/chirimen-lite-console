@@ -21,7 +21,6 @@ import { DialogService } from '@libs-dialogs';
 import { NotificationService } from '@libs-shared';
 import { SerialFacadeService } from '@libs-web-serial';
 import { MatDividerModule } from '@angular/material/divider';
-import { firstValueFrom, take } from 'rxjs';
 
 @Component({
   selector: 'lib-setup-page',
@@ -80,9 +79,7 @@ export class SetupPageComponent {
   }
 
   async runSetup(): Promise<void> {
-    const connected = await firstValueFrom(
-      this.serial.isConnected$.pipe(take(1)),
-    );
+    const connected = this.serial.isConnected();
     if (!connected) {
       this.notify.warning('Setup', 'シリアル接続してください');
       return;

@@ -4,10 +4,10 @@ import {
   provideRouter,
   Router,
   RouterStateSnapshot,
+  UrlTree,
 } from '@angular/router';
-import { UrlTree } from '@angular/router';
+import { computed, signal } from '@angular/core';
 import { SerialFacadeService } from '@libs-web-serial';
-import { BehaviorSubject, firstValueFrom, isObservable, Observable } from 'rxjs';
 
 import { connectionGuard } from './connection.guard';
 
@@ -21,16 +21,18 @@ describe('connectionGuard', () => {
     );
 
   let router: Router;
-  let isConnected$: BehaviorSubject<boolean>;
+  let isConnectedSignal: ReturnType<typeof signal<boolean>>;
 
   beforeEach(() => {
-    isConnected$ = new BehaviorSubject<boolean>(false);
+    isConnectedSignal = signal(false);
     TestBed.configureTestingModule({
       providers: [
         provideRouter([]),
         {
           provide: SerialFacadeService,
-          useValue: { isConnected$ },
+          useValue: {
+            isConnected: computed(() => isConnectedSignal()),
+          },
         },
       ],
     });
@@ -39,7 +41,7 @@ describe('connectionGuard', () => {
 
   describe('接続不要ルート（path: ""）', () => {
     it('常に true を返して許可する', () => {
-      isConnected$.next(true);
+      isConnectedSignal.set(true);
 
       const route = {
         routeConfig: { path: '' },
@@ -54,7 +56,7 @@ describe('connectionGuard', () => {
 
   describe('接続不要ルート（path: "unsupported-browser"）', () => {
     it('常に true を返して許可する', () => {
-      isConnected$.next(false);
+      isConnectedSignal.set(false);
 
       const route = {
         routeConfig: { path: 'unsupported-browser' },
@@ -68,8 +70,8 @@ describe('connectionGuard', () => {
   });
 
   describe('接続必須ルート（上記以外）', () => {
-    it('接続済みの場合は true を返して許可する', async () => {
-      isConnected$.next(true);
+    it('接続済みの場合は true を返して許可する', () => {
+      isConnectedSignal.set(true);
 
       const route = {
         routeConfig: { path: 'terminal' },
@@ -78,15 +80,11 @@ describe('connectionGuard', () => {
 
       const result = executeGuard(route, state);
 
-      expect(isObservable(result)).toBe(true);
-      const value = await firstValueFrom(
-        result as Observable<boolean | UrlTree>
-      );
-      expect(value).toBe(true);
+      expect(result).toBe(true);
     });
 
-    it('未接続の場合は "/" へリダイレクトする UrlTree を返す', async () => {
-      isConnected$.next(false);
+    it('未接続の場合は "/" へリダイレクトする UrlTree を返す', () => {
+      isConnectedSignal.set(false);
 
       const route = {
         routeConfig: { path: 'terminal' },
@@ -95,11 +93,7 @@ describe('connectionGuard', () => {
 
       const result = executeGuard(route, state);
 
-      expect(isObservable(result)).toBe(true);
-      const value = await firstValueFrom(
-        result as Observable<boolean | UrlTree>
-      );
-      expect(value).toEqual(router.parseUrl('/'));
+      expect(result).toEqual(router.parseUrl('/'));
     });
   });
 });
