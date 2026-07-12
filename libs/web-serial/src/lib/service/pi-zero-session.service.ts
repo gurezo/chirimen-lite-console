@@ -5,6 +5,7 @@ import {
   catchError,
   defer,
   distinctUntilChanged,
+  EMPTY,
   finalize,
   map,
   type Observable,
@@ -64,6 +65,21 @@ export class PiZeroSessionService {
         status !== 'idle' && status !== 'ready' && status !== 'failed';
       this.initializingSubject.next(isInitializing);
     });
+
+    this.serial.connectionEstablished$
+      .pipe(
+        switchMap(() => this.runAfterConnect$()),
+        catchError((error: unknown) => {
+          const message =
+            error instanceof Error ? error.message : String(error);
+          console.error(
+            '[PiZeroSession] post-connect bootstrap failed:',
+            message,
+          );
+          return EMPTY;
+        }),
+      )
+      .subscribe();
   }
 
   connect$(baudRate = 115200): Observable<SerialFacadeConnectResult> {
