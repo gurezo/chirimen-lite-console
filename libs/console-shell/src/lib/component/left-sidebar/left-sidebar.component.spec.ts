@@ -7,7 +7,8 @@ import {
   SerialConnectionViewModelFacade,
   type SerialConnectionViewModel,
 } from '@libs-web-serial';
-import { BehaviorSubject, EMPTY } from 'rxjs';
+import { computed, signal } from '@angular/core';
+import { EMPTY } from 'rxjs';
 import { LeftSidebarComponent } from './left-sidebar.component';
 
 const baseVm: SerialConnectionViewModel = {
@@ -42,7 +43,7 @@ describe('LeftSidebarComponent', () => {
         {
           provide: SerialConnectionViewModelFacade,
           useValue: {
-            vm$: new BehaviorSubject<SerialConnectionViewModel>(baseVm).asObservable(),
+            vm: signal(baseVm).asReadonly(),
             connect: vi.fn(),
             disconnect: vi.fn(),
             sendCommand: vi.fn(),

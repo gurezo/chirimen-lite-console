@@ -1,21 +1,21 @@
-@let connected = connected$ | async;
+@let isConnected = connected();
 
 <div class="flex h-[100dvh] min-h-0 flex-col overflow-hidden">
   <div
     class="shrink-0"
-    [class.border-b]="connected"
-    [class.border-gray-200]="connected"
+    [class.border-b]="isConnected"
+    [class.border-gray-200]="isConnected"
   >
     <lib-header-toolbar
       (eventConnect)="onConnect()"
       (eventDisConnect)="onDisConnect()"
     />
-    @if (connected) {
+    @if (isConnected) {
       <lib-breadcrumb [segments]="breadcrumbSegments()" />
     }
   </div>
   <div class="flex min-h-0 flex-1 flex-col overflow-hidden">
-    @if (connected) {
+    @if (isConnected) {
       <div
         class="grid h-full min-h-0 gap-x-0 gap-y-0"
         [style.grid-template-columns]="gridTemplateColumns()"
@@ -29,7 +29,7 @@
 
         <div class="flex min-h-0 min-w-0 flex-col overflow-hidden">
           <lib-action-tool-bar
-            [connected$]="connected$"
+            [connected]="isConnected"
             (toolbarAction)="onToolbarAction($event)"
           />
           <div class="min-h-0 flex-1 overflow-hidden">

@@ -1,4 +1,5 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { computed, signal } from '@angular/core';
 import { By } from '@angular/platform-browser';
 import { ActivatedRoute, Router } from '@angular/router';
 import {
@@ -7,7 +8,7 @@ import {
 } from '@libs-web-serial';
 import { DialogService } from '@libs-dialogs';
 import { ConsoleShellStore } from '../../service';
-import { EMPTY, BehaviorSubject, of } from 'rxjs';
+import { EMPTY, of } from 'rxjs';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { ConsoleShellComponent } from './console-shell.component';
 
@@ -27,19 +28,19 @@ function vmDefaults(
 }
 
 function createConnectionFacadeMock(initialConnected = false) {
-  const vmSubject = new BehaviorSubject(vmDefaults({ isConnected: initialConnected }));
+  const vmSignal = signal(vmDefaults({ isConnected: initialConnected }));
   const connect = vi.fn();
   const disconnect = vi.fn();
   const sendCommand = vi.fn();
 
   const facade = {
-    vm$: vmSubject.asObservable(),
+    vm: computed(() => vmSignal()),
     connect,
     disconnect,
     sendCommand,
   };
 
-  return { facade, vmSubject };
+  return { facade, vmSignal };
 }
 
 describe('ConsoleShellComponent', () => {
@@ -48,7 +49,7 @@ describe('ConsoleShellComponent', () => {
   let connect: ReturnType<typeof vi.fn>;
   let disconnect: ReturnType<typeof vi.fn>;
   let sendCommand: ReturnType<typeof vi.fn>;
-  let vmSubject: BehaviorSubject<SerialConnectionViewModel>;
+  let vmSignal: ReturnType<typeof signal<SerialConnectionViewModel>>;
   let openDialog: ReturnType<typeof vi.fn>;
   let closeAllDialog: ReturnType<typeof vi.fn>;
   let setActivePanel: ReturnType<typeof vi.fn>;
@@ -65,8 +66,8 @@ describe('ConsoleShellComponent', () => {
       firstChild: { snapshot: { url: [{ path: 'terminal' }] } },
     } as unknown as ActivatedRoute;
 
-    const { facade, vmSubject: vm } = createConnectionFacadeMock(false);
-    vmSubject = vm;
+    const { facade, vmSignal: vm } = createConnectionFacadeMock(false);
+    vmSignal = vm;
     connect = facade.connect;
     disconnect = facade.disconnect;
     sendCommand = facade.sendCommand;
@@ -180,7 +181,8 @@ describe('ConsoleShellComponent', () => {
   it('should apply connected layout when isConnected becomes true', () => {
     navigateSpy.mockClear();
     applyConnectedLayout.mockClear();
-    vmSubject.next(vmDefaults({ isConnected: true }));
+    vmSignal.set(vmDefaults({ isConnected: true }));
+    TestBed.flushEffects();
     expect(applyConnectedLayout).toHaveBeenCalledTimes(1);
     expect(navigateSpy).toHaveBeenCalledWith(['terminal'], {
       relativeTo: activatedRouteMock,
@@ -188,10 +190,12 @@ describe('ConsoleShellComponent', () => {
   });
 
   it('should reset layout when isConnected becomes false after connected', () => {
-    vmSubject.next(vmDefaults({ isConnected: true }));
+    vmSignal.set(vmDefaults({ isConnected: true }));
+    TestBed.flushEffects();
     navigateSpy.mockClear();
     resetLayoutAfterDisconnect.mockClear();
-    vmSubject.next(vmDefaults({ isConnected: false }));
+    vmSignal.set(vmDefaults({ isConnected: false }));
+    TestBed.flushEffects();
     expect(resetLayoutAfterDisconnect).toHaveBeenCalledTimes(1);
     expect(navigateSpy).toHaveBeenCalledWith(['terminal'], {
       relativeTo: activatedRouteMock,
@@ -257,7 +261,7 @@ describe('ConsoleShellComponent gridTemplateColumns when right nav closed', () =
 
 describe('ConsoleShellComponent layout DOM (connected vs disconnected)', () => {
   let fixture: ComponentFixture<ConsoleShellComponent>;
-  let vmSubject: BehaviorSubject<SerialConnectionViewModel>;
+  let vmSignal: ReturnType<typeof signal<SerialConnectionViewModel>>;
   let activatedRouteMock: ActivatedRoute;
 
   beforeEach(async () => {
@@ -265,8 +269,8 @@ describe('ConsoleShellComponent layout DOM (connected vs disconnected)', () => {
       firstChild: { snapshot: { url: [{ path: 'terminal' }] } },
     } as unknown as ActivatedRoute;
 
-    const { facade, vmSubject: vm } = createConnectionFacadeMock(false);
-    vmSubject = vm;
+    const { facade, vmSignal: vm } = createConnectionFacadeMock(false);
+    vmSignal = vm;
 
     await TestBed.configureTestingModule({
       imports: [ConsoleShellComponent],
@@ -303,7 +307,7 @@ describe('ConsoleShellComponent layout DOM (connected vs disconnected)', () => {
   });
 
   it('shows toolbar, breadcrumb, three panes, and router outlet after connect', () => {
-    vmSubject.next(vmDefaults({ isConnected: true }));
+    vmSignal.set(vmDefaults({ isConnected: true }));
     fixture.detectChanges();
 
     const root = fixture.nativeElement as HTMLElement;
@@ -317,7 +321,7 @@ describe('ConsoleShellComponent layout DOM (connected vs disconnected)', () => {
   });
 
   it('keeps right sidebar mounted when right nav is collapsed after connect', () => {
-    vmSubject.next(vmDefaults({ isConnected: true }));
+    vmSignal.set(vmDefaults({ isConnected: true }));
     fixture.detectChanges();
 
     const shellStore = TestBed.inject(ConsoleShellStore);
@@ -333,7 +337,7 @@ describe('ConsoleShellComponent layout DOM (connected vs disconnected)', () => {
     const shellStore = TestBed.inject(ConsoleShellStore);
     shellStore.setActivePanel('editor');
 
-    vmSubject.next(vmDefaults({ isConnected: true }));
+    vmSignal.set(vmDefaults({ isConnected: true }));
     fixture.detectChanges();
 
     expect(shellStore.activePanel()).toBe('terminal');

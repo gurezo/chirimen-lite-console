@@ -1,11 +1,12 @@
-import { AsyncPipe } from '@angular/common';
 import {
   Component,
   computed,
+  effect,
   inject,
   OnDestroy,
   OnInit,
   Type,
+  untracked,
 } from '@angular/core';
 import {
   ActivatedRoute,
@@ -26,14 +27,7 @@ import { SetupPageComponent } from '@libs-chirimen-setup';
 import { RemotePageComponent } from '@libs-remote';
 import { SerialConnectionViewModelFacade } from '@libs-web-serial';
 import { DialogService } from '@libs-dialogs';
-import {
-  distinctUntilChanged,
-  filter,
-  map,
-  pairwise,
-  startWith,
-  Subscription,
-} from 'rxjs';
+import { filter, Subscription } from 'rxjs';
 import { buildConsoleShellBreadcrumbSegments } from '../../functions';
 import { ConsoleShellStore } from '../../service';
 
@@ -41,7 +35,6 @@ import { ConsoleShellStore } from '../../service';
   selector: 'lib-console-shell',
   imports: [
     ActionToolBarComponent,
-    AsyncPipe,
     BreadcrumbComponent,
     ConnectPageComponent,
     HeaderToolbarComponent,
@@ -73,11 +66,8 @@ export class ConsoleShellComponent implements OnInit, OnDestroy {
   private router = inject(Router);
   private route = inject(ActivatedRoute);
 
-  /** Web Serial の接続可否（単一ビューモデル {@link SerialConnectionViewModelFacade#vm$} を参照）。 */
-  connected$ = this.connectionVm.vm$.pipe(
-    map((v) => v.isConnected),
-    distinctUntilChanged(),
-  );
+  /** Web Serial の接続可否（単一ビューモデル {@link SerialConnectionViewModelFacade#vm} を参照）。 */
+  readonly connected = computed(() => this.connectionVm.vm().isConnected);
 
   readonly activePanel = this.shellStore.activePanel;
   readonly leftNavOpen = this.shellStore.leftNavOpen;
@@ -108,6 +98,27 @@ export class ConsoleShellComponent implements OnInit, OnDestroy {
   });
 
   private subscriptions = new Subscription();
+  private lastConnected = false;
+
+  constructor() {
+    effect(() => {
+      const next = this.connectionVm.vm().isConnected;
+      const prev = this.lastConnected;
+      if (prev === next) {
+        return;
+      }
+      this.lastConnected = next;
+      untracked(() => {
+        if (!prev && next) {
+          this.shellStore.applyConnectedLayout();
+          void this.router.navigate(['terminal'], { relativeTo: this.route });
+        } else if (prev && !next) {
+          this.shellStore.resetLayoutAfterDisconnect();
+          void this.router.navigate(['terminal'], { relativeTo: this.route });
+        }
+      });
+    });
+  }
 
   ngOnInit() {
     this.subscriptions.add(
@@ -116,25 +127,6 @@ export class ConsoleShellComponent implements OnInit, OnDestroy {
           filter((e): e is NavigationEnd => e instanceof NavigationEnd),
         )
         .subscribe(() => this.syncActivePanelFromRouter()),
-    );
-
-    this.subscriptions.add(
-      this.connectionVm.vm$
-        .pipe(
-          map((v) => v.isConnected),
-          startWith(false),
-          pairwise(),
-          filter(([prev, next]) => prev !== next),
-        )
-        .subscribe(([prev, next]) => {
-          if (!prev && next) {
-            this.shellStore.applyConnectedLayout();
-            void this.router.navigate(['terminal'], { relativeTo: this.route });
-          } else if (prev && !next) {
-            this.shellStore.resetLayoutAfterDisconnect();
-            void this.router.navigate(['terminal'], { relativeTo: this.route });
-          }
-        }),
     );
   }
 

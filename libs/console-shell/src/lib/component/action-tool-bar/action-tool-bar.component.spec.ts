@@ -1,7 +1,6 @@
 /// <reference types="vitest/globals" />
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
-import { of } from 'rxjs';
 import { ActionToolBarComponent } from './action-tool-bar.component';
 
 describe('ActionToolBarComponent', () => {
@@ -16,7 +15,7 @@ describe('ActionToolBarComponent', () => {
 
     fixture = TestBed.createComponent(ActionToolBarComponent);
     component = fixture.componentInstance;
-    fixture.componentRef.setInput('connected$', of(false));
+    fixture.componentRef.setInput('connected', false);
     fixture.detectChanges();
   });
 
@@ -31,7 +30,7 @@ describe('ActionToolBarComponent', () => {
   });
 
   it('should emit toolbarAction when action icon is clicked', () => {
-    fixture.componentRef.setInput('connected$', of(true));
+    fixture.componentRef.setInput('connected', true);
     fixture.detectChanges();
 
     const emitSpy = vi.spyOn(component.toolbarAction, 'emit');

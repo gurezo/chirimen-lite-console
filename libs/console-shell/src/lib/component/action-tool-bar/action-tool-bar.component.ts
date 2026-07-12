@@ -1,8 +1,6 @@
-import { AsyncPipe } from '@angular/common';
 import { Component, input, output } from '@angular/core';
 import { MatIconButton } from '@angular/material/button';
 import { MatIcon } from '@angular/material/icon';
-import { Observable, of } from 'rxjs';
 
 export type ToolbarAction =
   | 'editor'
@@ -15,11 +13,11 @@ export type ToolbarAction =
 
 @Component({
   selector: 'lib-action-tool-bar',
-  imports: [AsyncPipe, MatIconButton, MatIcon],
+  imports: [MatIconButton, MatIcon],
   templateUrl: './action-tool-bar.component.html',
 })
 export class ActionToolBarComponent {
-  connected$ = input<Observable<boolean>>(of(false));
+  connected = input(false);
   toolbarAction = output<ToolbarAction>();
 
   readonly toolbarActions = [
