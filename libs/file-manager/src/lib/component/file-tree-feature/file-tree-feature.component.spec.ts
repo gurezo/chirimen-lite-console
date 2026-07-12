@@ -3,8 +3,8 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { FileTreeFeatureComponent } from './file-tree-feature.component';
 import { FileTreeNode } from '../../models';
 import { FileService } from '../../service';
-import { PiZeroShellReadinessService } from '@libs-web-serial';
-import { BehaviorSubject } from 'rxjs';
+import { PiZeroShellReadinessService, SerialConnectionViewModelFacade } from '@libs-web-serial';
+import { BehaviorSubject, of } from 'rxjs';
 
 describe('FileTreeFeatureComponent', () => {
   const listTreeMock = vi.fn<() => Promise<FileTreeNode[]>>();
@@ -40,6 +40,20 @@ describe('FileTreeFeatureComponent', () => {
           provide: PiZeroShellReadinessService,
           useValue: shellReadiness,
         },
+        {
+          provide: SerialConnectionViewModelFacade,
+          useValue: {
+            vm$: of({
+              isBrowserSupported: true,
+              isConnected: true,
+              isConnecting: false,
+              isLoggedIn: initialReady,
+              isInitializing: false,
+              setupStatus: 'idle',
+              errorMessage: null,
+            }),
+          },
+        },
       ],
     }).compileComponents();
 
@@ -71,17 +85,19 @@ describe('FileTreeFeatureComponent', () => {
     ).toBeTruthy();
 
     readySubject.next(true);
+    await vi.waitFor(() => {
+      expect(listTreeMock).toHaveBeenCalledWith('.');
+    });
     await fixture.whenStable();
-
-    expect(listTreeMock).toHaveBeenCalledWith('.');
     expect(fixture.componentInstance.nodes.length).toBe(2);
   });
 
   it('loads nodes on init when shell is already ready', async () => {
     const fixture = await compileAndCreate(true);
+    await vi.waitFor(() => {
+      expect(listTreeMock).toHaveBeenCalledWith('.');
+    });
     await fixture.whenStable();
-
-    expect(listTreeMock).toHaveBeenCalledWith('.');
     expect(fixture.componentInstance.nodes.length).toBe(2);
   });
 });
