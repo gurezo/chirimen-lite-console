@@ -23,7 +23,7 @@ describe('SerialConnectionOrchestrationService', () => {
       stopReadLoop: vi.fn(),
       cancelAllCommands: vi.fn(),
     };
-    connectMock = vi.fn(() => of({ port: {} as SerialPort }));
+    connectMock = vi.fn(() => of({ ok: true as const }));
     disconnectMock = vi.fn(() => of(undefined));
     transport = {
       isConnected$: isConnectedSubj.asObservable(),

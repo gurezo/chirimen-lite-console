@@ -107,11 +107,11 @@ export class SerialTransportService {
 
   /**
    * {@link SerialSession.connect$} を呼び出し、Pi Zero フィルタでポートを開く。
-   * 戻り値だけアプリ向けに `{ port } | { error }` に整形する。
+   * 戻り値だけアプリ向けに `{ ok: true } | { error }` に整形する。
    */
   connect$(
     baudRate = 115200,
-  ): Observable<{ port: SerialPort } | { error: string }> {
+  ): Observable<{ ok: true } | { error: string }> {
     return defer(() => {
       this.detachSession();
       const session = createSerialSession({
@@ -127,8 +127,7 @@ export class SerialTransportService {
       this.activeSession$.next(session);
       return session.connect$().pipe(
         switchMap(() => {
-          const port = session.getCurrentPort();
-          if (!port) {
+          if (!session.getPortInfo()) {
             this.detachSession();
             return of({
               error: getConnectionErrorMessage(
@@ -136,7 +135,7 @@ export class SerialTransportService {
               ),
             });
           }
-          return of({ port });
+          return of({ ok: true as const });
         }),
         catchError((error) => {
           this.detachSession();
@@ -168,31 +167,14 @@ export class SerialTransportService {
     });
   }
 
-  getPort(): SerialPort | undefined {
-    return this.active?.getCurrentPort() ?? undefined;
-  }
-
   /**
    * 現在接続中のポートが Raspberry Pi Zero 互換か判定する（Pi Zero 判定の集約先。[#674](https://github.com/gurezo/chirimen-lite-console/issues/674)）。
    *
-   * 同期 `getPortInfo()` → NG なら `getPort()?.getInfo()` の順に評価する。
+   * v3.1 以降は {@link SerialSession.getPortInfo}（接続時は `state.portInfo` と同等）のみを参照する。
    * Feature 層からは {@link SerialFacadeService#isRaspberryPiZero} 経由でのみ参照する。
    */
   async isRaspberryPiZero(): Promise<boolean> {
-    if (this.isPiZeroPortInfo(this.getPortInfo())) {
-      return true;
-    }
-    const port = this.getPort();
-    if (!port) {
-      return false;
-    }
-    try {
-      const info = await port.getInfo();
-      return this.isPiZeroPortInfo(info);
-    } catch (error) {
-      console.error('Failed to get port info:', error);
-      return false;
-    }
+    return this.isPiZeroPortInfo(this.getPortInfo());
   }
 
   private isPiZeroPortInfo(info: SerialPortInfo | null | undefined): boolean {

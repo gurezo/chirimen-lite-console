@@ -32,7 +32,7 @@ vi.mock('@gurezo/web-serial-rxjs', async (importOriginal) => {
 });
 
 function buildMockSession(
-  port: SerialPort | null,
+  portInfo: SerialPortInfo | null,
   lines$?: Observable<string>,
   terminalText$?: Observable<string>,
   receive$?: Observable<string>,
@@ -41,31 +41,30 @@ function buildMockSession(
     status: SerialSessionStatus.Connecting,
   });
   const isConnected$ = new BehaviorSubject(false);
-  const getCurrentPort = vi.fn((): SerialPort | null => port);
+  const getPortInfo = vi.fn((): SerialPortInfo | null => portInfo);
   return {
     isBrowserSupported: () => true,
     connect$: vi.fn(() => {
       state$.next({
         status: SerialSessionStatus.Connected,
-        portInfo: {} as SerialPortInfo,
+        portInfo: portInfo ?? ({} as SerialPortInfo),
       });
       isConnected$.next(true);
-      if (port) {
-        getCurrentPort.mockReturnValue(port);
+      if (portInfo) {
+        getPortInfo.mockReturnValue(portInfo);
       }
       return of(undefined);
     }),
     disconnect$: vi.fn(() => {
       state$.next({ status: SerialSessionStatus.Idle });
       isConnected$.next(false);
-      getCurrentPort.mockReturnValue(null);
+      getPortInfo.mockReturnValue(null);
       return of(undefined);
     }),
     state$: state$.asObservable(),
     isConnected$: isConnected$.asObservable(),
     portInfo$: of(null),
-    getPortInfo: vi.fn(() => null),
-    getCurrentPort,
+    getPortInfo,
     errors$: EMPTY,
     receive$: receive$ ?? EMPTY,
     receiveReplay$: EMPTY,
@@ -88,13 +87,15 @@ describe('SerialTransportService', () => {
     expect(state.status).toBe(SerialSessionStatus.Idle);
     const connectedFlag = await firstValueFrom(service.isConnected$);
     expect(connectedFlag).toBe(false);
-    expect(service.getPort()).toBeUndefined();
     expect(service.getPortInfo()).toBeNull();
   });
 
   it('should delegate state$ and isConnected$ to SerialSession after connect', async () => {
-    const mockPort = {} as SerialPort;
-    const session = buildMockSession(mockPort);
+    const portInfo: SerialPortInfo = {
+      usbVendorId: 0x0525,
+      usbProductId: 0xa4a7,
+    };
+    const session = buildMockSession(portInfo);
     mockCreateSerialSession.mockReturnValue(session);
 
     await firstValueFrom(service.connect$());
@@ -103,13 +104,16 @@ describe('SerialTransportService', () => {
     expect(state.status).toBe(SerialSessionStatus.Connected);
     const connectedFlag = await firstValueFrom(service.isConnected$);
     expect(connectedFlag).toBe(true);
-    expect(service.getPort()).toBe(mockPort);
+    expect(service.getPortInfo()).toEqual(portInfo);
     expect(session.connect$).toHaveBeenCalledTimes(1);
   });
 
   it('should clear session and return to idle after disconnect', async () => {
-    const mockPort = {} as SerialPort;
-    mockCreateSerialSession.mockReturnValue(buildMockSession(mockPort));
+    const portInfo: SerialPortInfo = {
+      usbVendorId: 0x0525,
+      usbProductId: 0xa4a7,
+    };
+    mockCreateSerialSession.mockReturnValue(buildMockSession(portInfo));
 
     await firstValueFrom(service.connect$());
     expect(
@@ -123,14 +127,13 @@ describe('SerialTransportService', () => {
     expect(
       await firstValueFrom(service.isConnected$.pipe(take(1))),
     ).toBe(false);
-    expect(service.getPort()).toBeUndefined();
+    expect(service.getPortInfo()).toBeNull();
   });
 
   it('should expose errors$ from the active session when connected', async () => {
-    const mockPort = {} as SerialPort;
     const err = new SerialError(SerialErrorCode.READ_FAILED, 'read');
     const errSubj = new BehaviorSubject(err);
-    const session = buildMockSession(mockPort);
+    const session = buildMockSession({} as SerialPortInfo);
     (
       session as unknown as { errors$: Observable<SerialError> }
     ).errors$ = errSubj.asObservable();
@@ -142,8 +145,7 @@ describe('SerialTransportService', () => {
   });
 
   it('should emit from lines$ when session is active', async () => {
-    const mockPort = {} as SerialPort;
-    mockCreateSerialSession.mockReturnValue(buildMockSession(mockPort));
+    mockCreateSerialSession.mockReturnValue(buildMockSession({} as SerialPortInfo));
 
     await firstValueFrom(service.connect$());
     const line = await firstValueFrom(service.lines$.pipe(take(1)));
@@ -151,10 +153,9 @@ describe('SerialTransportService', () => {
   });
 
   it('lines$ should emit line strings from session lines$', async () => {
-    const mockPort = {} as SerialPort;
     const lineSubject = new Subject<string>();
     mockCreateSerialSession.mockReturnValue(
-      buildMockSession(mockPort, lineSubject.asObservable()),
+      buildMockSession({} as SerialPortInfo, lineSubject.asObservable()),
     );
 
     await firstValueFrom(service.connect$());
@@ -164,10 +165,9 @@ describe('SerialTransportService', () => {
   });
 
   it('lines$ should share source lines$ for multiple subscribers', async () => {
-    const mockPort = {} as SerialPort;
     const lineSubject = new Subject<string>();
     mockCreateSerialSession.mockReturnValue(
-      buildMockSession(mockPort, lineSubject.asObservable()),
+      buildMockSession({} as SerialPortInfo, lineSubject.asObservable()),
     );
 
     await firstValueFrom(service.connect$());
@@ -180,11 +180,10 @@ describe('SerialTransportService', () => {
   });
 
   it('should emit receive$ from session receive$', async () => {
-    const mockPort = {} as SerialPort;
     const chunkSubject = new Subject<string>();
     mockCreateSerialSession.mockReturnValue(
       buildMockSession(
-        mockPort,
+        {} as SerialPortInfo,
         undefined,
         undefined,
         chunkSubject.asObservable(),
@@ -198,10 +197,9 @@ describe('SerialTransportService', () => {
   });
 
   it('should emit terminalText$ from session terminalText$', async () => {
-    const mockPort = {} as SerialPort;
     const chunkSubject = new Subject<string>();
     mockCreateSerialSession.mockReturnValue(
-      buildMockSession(mockPort, undefined, chunkSubject.asObservable()),
+      buildMockSession({} as SerialPortInfo, undefined, chunkSubject.asObservable()),
     );
 
     await firstValueFrom(service.connect$());
@@ -211,8 +209,7 @@ describe('SerialTransportService', () => {
   });
 
   it('send$ should delegate to session send$', async () => {
-    const mockPort = {} as SerialPort;
-    const session = buildMockSession(mockPort);
+    const session = buildMockSession({} as SerialPortInfo);
     mockCreateSerialSession.mockReturnValue(session);
 
     await firstValueFrom(service.connect$());
@@ -228,63 +225,22 @@ describe('SerialTransportService', () => {
     };
 
     it('returns true when the current port info matches Pi Zero', async () => {
-      const mockPort = {} as SerialPort;
-      const session = buildMockSession(mockPort);
-      (
-        session as unknown as { getPortInfo: () => SerialPortInfo | null }
-      ).getPortInfo = () => PI_ZERO_INFO;
+      const session = buildMockSession(PI_ZERO_INFO);
       mockCreateSerialSession.mockReturnValue(session);
 
       await firstValueFrom(service.connect$());
       expect(await service.isRaspberryPiZero()).toBe(true);
-    });
-
-    it('falls back to port.getInfo() and returns true on match', async () => {
-      const mockPort = {
-        getInfo: vi.fn(() => Promise.resolve(PI_ZERO_INFO)),
-      } as unknown as SerialPort;
-      const session = buildMockSession(mockPort);
-      mockCreateSerialSession.mockReturnValue(session);
-
-      await firstValueFrom(service.connect$());
-      expect(await service.isRaspberryPiZero()).toBe(true);
-      expect(mockPort.getInfo).toHaveBeenCalledTimes(1);
     });
 
     it('returns false when VID/PID do not match Pi Zero', async () => {
-      const mockPort = {
-        getInfo: vi.fn(() =>
-          Promise.resolve({
-            usbVendorId: 0x1234,
-            usbProductId: 0x5678,
-          } satisfies SerialPortInfo),
-        ),
-      } as unknown as SerialPort;
-      const session = buildMockSession(mockPort);
+      const session = buildMockSession({
+        usbVendorId: 0x1234,
+        usbProductId: 0x5678,
+      });
       mockCreateSerialSession.mockReturnValue(session);
 
       await firstValueFrom(service.connect$());
       expect(await service.isRaspberryPiZero()).toBe(false);
-    });
-
-    it('returns false and logs when port.getInfo() rejects', async () => {
-      const consoleErrorSpy = vi
-        .spyOn(console, 'error')
-        .mockImplementation(() => undefined);
-      const rejection = new Error('getInfo failed');
-      const mockPort = {
-        getInfo: vi.fn(() => Promise.reject(rejection)),
-      } as unknown as SerialPort;
-      const session = buildMockSession(mockPort);
-      mockCreateSerialSession.mockReturnValue(session);
-
-      await firstValueFrom(service.connect$());
-      expect(await service.isRaspberryPiZero()).toBe(false);
-      expect(consoleErrorSpy).toHaveBeenCalledWith(
-        'Failed to get port info:',
-        rejection,
-      );
-      consoleErrorSpy.mockRestore();
     });
 
     it('returns false when no session is active', async () => {
