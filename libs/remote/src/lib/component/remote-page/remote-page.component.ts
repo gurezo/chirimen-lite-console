@@ -9,6 +9,7 @@ import {
   sanitizeSerialStdout,
   SerialFacadeService,
 } from '@libs-web-serial';
+import { firstValueFrom } from 'rxjs';
 import { parseForeverListPlain } from '../../functions';
 import {
   RemoteRunService,

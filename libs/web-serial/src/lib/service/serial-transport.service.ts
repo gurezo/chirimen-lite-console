@@ -4,7 +4,6 @@ import { computed, Injectable } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
 import {
   createSerialSession,
-  SerialError,
   SerialSessionStatus,
   type SerialSession,
   type SerialSessionState,
@@ -109,9 +108,7 @@ export class SerialTransportService {
     initialValue: '',
   });
 
-  readonly errors = toSignal(this.errorsSource$, {
-    initialValue: undefined as SerialError | undefined,
-  });
+  readonly errors = toSignal(this.errorsSource$);
 
   readonly portInfo = toSignal(this.portInfoSource$, {
     initialValue: null as SerialPortInfo | null,

@@ -35,18 +35,29 @@ export class FileTreeFeatureComponent {
   private loadedForLogin = false;
   private lastVmKey = '';
 
+  /** ログイン完了後・環境設定前の窓で初回 ls を走らせる（issue #717）。 */
+  private canLoadTree(vm: {
+    isLoggedIn: boolean;
+    setupStatus: string;
+  }): boolean {
+    return (
+      vm.isLoggedIn &&
+      (vm.setupStatus === 'setting-timezone' || vm.setupStatus === 'ready')
+    );
+  }
+
   constructor() {
     effect(() => {
       const vm = this.connectionVm.vm();
-      const vmKey = `${vm.isConnected}:${vm.isLoggedIn}:${vm.setupStatus}`;
+      const setupFailed = vm.setupStatus === 'failed' && !vm.isLoggedIn;
+      const treeReady = this.canLoadTree(vm);
+      const vmKey = `${vm.isConnected}:${treeReady}:${setupFailed}`;
       if (vmKey === this.lastVmKey) {
         return;
       }
       this.lastVmKey = vmKey;
 
       untracked(() => {
-        const setupFailed = vm.setupStatus === 'failed' && !vm.isLoggedIn;
-
         if (!vm.isConnected) {
           this.loading = false;
           this.errorMessage = null;
@@ -64,7 +75,7 @@ export class FileTreeFeatureComponent {
           return;
         }
 
-        if (!vm.isLoggedIn) {
+        if (!treeReady) {
           this.loading = true;
           this.errorMessage = null;
           this.loadedForLogin = false;
@@ -76,7 +87,7 @@ export class FileTreeFeatureComponent {
           return;
         }
         this.loadedForLogin = true;
-        void this.loadCurrentPath();
+        queueMicrotask(() => void this.loadCurrentPath());
       });
     });
   }

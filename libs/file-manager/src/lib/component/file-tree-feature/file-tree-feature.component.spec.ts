@@ -63,7 +63,7 @@ describe('FileTreeFeatureComponent', () => {
     await fixture.whenStable();
   });
 
-  it('defers listTree until vm reports logged in', async () => {
+  it('defers listTree until bootstrap reaches setting-timezone', async () => {
     const fixture = await compileAndCreate();
     fixture.detectChanges();
 
@@ -79,6 +79,16 @@ describe('FileTreeFeatureComponent', () => {
     expect(
       fixture.nativeElement.querySelector('mat-progress-spinner'),
     ).toBeTruthy();
+
+    vmSignal.set({
+      ...baseVm,
+      isConnected: true,
+      isLoggedIn: true,
+      setupStatus: 'waiting-login',
+    });
+    TestBed.flushEffects();
+    await fixture.whenStable();
+    expect(listTreeMock).not.toHaveBeenCalled();
 
     vmSignal.set({
       ...baseVm,
@@ -107,6 +117,34 @@ describe('FileTreeFeatureComponent', () => {
       expect(listTreeMock).toHaveBeenCalledWith('.');
     });
     await fixture.whenStable();
+    expect(fixture.componentInstance.nodes.length).toBe(2);
+  });
+
+  it('does not skip initial load when setupStatus advances to ready', async () => {
+    const fixture = await compileAndCreate();
+    fixture.detectChanges();
+
+    vmSignal.set({
+      ...baseVm,
+      isConnected: true,
+      isLoggedIn: true,
+      setupStatus: 'setting-timezone',
+    });
+    await vi.waitFor(() => {
+      expect(listTreeMock).toHaveBeenCalledTimes(1);
+    });
+
+    listTreeMock.mockClear();
+    vmSignal.set({
+      ...baseVm,
+      isConnected: true,
+      isLoggedIn: true,
+      setupStatus: 'ready',
+    });
+    TestBed.flushEffects();
+    await fixture.whenStable();
+
+    expect(listTreeMock).not.toHaveBeenCalled();
     expect(fixture.componentInstance.nodes.length).toBe(2);
   });
 });
