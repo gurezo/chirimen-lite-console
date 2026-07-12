@@ -1,7 +1,7 @@
 <div
   class="flex min-w-0 flex-wrap items-center justify-start gap-2 border-b border-gray-200 px-4 py-2"
 >
-  @if (connected$() | async) {
+  @if (connected()) {
     @for (action of toolbarActions; track action.name) {
       <button
         mat-icon-button
