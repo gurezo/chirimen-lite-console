@@ -1,6 +1,6 @@
 import '@angular/compiler';
 import { Injector } from '@angular/core';
-import { BehaviorSubject, firstValueFrom, of, take } from 'rxjs';
+import { BehaviorSubject, firstValueFrom, of } from 'rxjs';
 import { type Mock, beforeEach, describe, expect, it, vi } from 'vitest';
 import { PiZeroSessionService } from './pi-zero-session.service';
 import { PiZeroPromptDetectorService } from './pi-zero-prompt-detector.service';

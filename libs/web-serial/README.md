@@ -1,6 +1,6 @@
 # web-serial-data-access
 
-Angular 向けのシリアル（Web Serial + `@gurezo/web-serial-rxjs` v2.3.1）データアクセス層。
+Angular 向けのシリアル（Web Serial + `@gurezo/web-serial-rxjs` v3.1.0）データアクセス層。読み取り状態は Angular Signal、コマンド実行は RxJS Observable を基本とする（[#719](https://github.com/gurezo/chirimen-lite-console/issues/719)）。
 
 **リポジトリ間の責務分界**（ライブラリ一般と本アプリの対応、`SerialSession` を正とする方針など）: [docs/serial-architecture.md](../../../docs/serial-architecture.md)（[#568](https://github.com/gurezo/chirimen-lite-console/issues/568)）。**`index.ts` の export とワークスペース import の棚卸し・三層分類**は同ドキュメントの「公開面の棚卸し（Issue [#672](https://github.com/gurezo/chirimen-lite-console/issues/672)）」節を参照（親 [#671](https://github.com/gurezo/chirimen-lite-console/issues/671)）。
 
@@ -48,18 +48,18 @@ PiZeroSerialBootstrapService
 
 - Feature 側から `SerialTransportService` を直接参照しない（入口は `SerialFacadeService` のみ）。
 - `@libs-web-serial` の公開境界では **`SerialCommandPipelineService` クラスを export しない**。`exec$` 系の戻り値型など必要な **型**（`CommandResult` 等）のみ barrel から再エクスポートする（[#664](https://github.com/gurezo/chirimen-lite-console/issues/664)）。
-- ターミナル表示には `terminalText$` を使う。
+- ターミナル表示には `terminalText` Signal を参照する。
 - 生の `receive$` は原則 **data-access internal**（Feature から購読しない。プロンプト照合は `SerialCommandPipelineService` が `receive$` からバッファを構築）。
 - コマンド実行（stdout キャプチャ付き）には `exec$` / `execRaw$` を使う。
 - prompt 待ちには `readUntilPrompt$` を使う。
 - Pi Zero 固有の login / 環境初期化 / 接続後オーケストレーションは **`PiZeroSerialBootstrapService` / `PiZeroSessionService` に集約**し、Feature 側に散らさない。
 
-### 受信ストリーム（`terminalText$` / `receive$` / `lines$`）の一行要約
+### 受信ストリーム（`terminalText` / `receive$` / `lines`）の一行要約
 
-| Stream / 経路 | 役割（誰が使うか） |
+| Signal / 経路 | 役割（誰が使うか） |
 | --- | --- |
-| `terminalText$` | **ターミナル UI のライブ表示**（`\r` 再描画を含む）。Feature は Facade 経由で購読。プロンプト判定には使わない。 |
-| `lines$` | **行境界が確まった行**の購読（単発 1 行は `take(1)` 等）。コマンドランナーの唯一の入力ではない（[#593](https://github.com/gurezo/chirimen-lite-console/issues/593) 参照）。 |
+| `terminalText` | **ターミナル UI のライブ表示**（`\r` 再描画を含む）。Feature は Facade 経由で参照。プロンプト判定には使わない。 |
+| `lines` | **行境界が確まった行**の参照。コマンドランナーの唯一の入力ではない（[#593](https://github.com/gurezo/chirimen-lite-console/issues/593) 参照）。 |
 | `receive$`（Transport） | **UTF-8 デコード済みの生チャンク**。Facade では露出しない。プロンプト同期・`exec$` の stdout 照合は **`SerialCommandPipelineService` が `receive$` を購読**してバッファする。 |
 
 詳細な使い分け表・根拠は下記「受信ストリームの使い分け」節を参照する。
@@ -71,7 +71,7 @@ PiZeroSerialBootstrapService
 ### Feature 向け推奨導線（[#646](https://github.com/gurezo/chirimen-lite-console/issues/646)）
 
 - **入口**: `SerialFacadeService` のみ（他サービスに `SerialTransportService` を直接注入しない）。
-- **ターミナル表示**: `terminalText$` を購読する。
+- **ターミナル表示**: `terminalText` Signal を参照する。
 - **ユーザー入力の送信**: `send$()`。
 - **コマンド実行（stdout キャプチャ付き）**: `exec$()` / `execRaw$()`。
 - **送信なしでプロンプト出現まで待つ**: `readUntilPrompt$()`。
@@ -120,7 +120,7 @@ PiZeroSerialBootstrapService
 
 ## 接続状態の単一ビューモデル（[#564](https://github.com/gurezo/chirimen-lite-console/issues/564)）
 
-コンポーネント向けには **`SerialConnectionViewModelFacade`** が `vm$: Observable<SerialConnectionViewModel>` を提供する。接続・切断・送信（ツールバーと同様に `TerminalCommandRequestService.requestCommand` 経由）および `clearError()` を前置し、ブラウザ対応フラグ、`SerialFacadeService.state$` に基づく接続試行状態、`PiZeroShellReadinessService.ready$`（問題文での「ログイン済み」と同義：`isLoggedIn`）、`PiZeroSessionService.initializing$` での初期化フラグ、`errorMessage` をまとめる。
+コンポーネント向けには **`SerialConnectionViewModelFacade`** が `vm: Signal<SerialConnectionViewModel>` を提供する。接続・切断・送信（ツールバーと同様に `TerminalCommandRequestService.requestCommand` 経由）および `clearError()` を前置し、ブラウザ対応フラグ、`SerialFacadeService.state` に基づく接続試行状態、`PiZeroShellReadinessService.ready`（問題文での「ログイン済み」と同義：`isLoggedIn`）、`PiZeroSessionService.initializing` での初期化フラグ、`errorMessage` をまとめる。
 
 ## 接続 epoch と bootstrap 済み epoch（[#647](https://github.com/gurezo/chirimen-lite-console/issues/647)）
 
@@ -137,8 +137,9 @@ PiZeroSerialBootstrapService
 - UI / Feature / 他ライブラリからの Serial 利用は **`SerialFacadeService` のみ**を参照する。
 - `SerialTransportService` は data-access 内部の thin adapter 実装として扱い、外部公開 API として依存しない。
 - **`SerialFacadeService` の公開 API（Feature が参照してよい契約）**は次のとおり:
-  - **Observable**: `terminalText$`, `lines$`, `state$`, `isConnected$`, `errors$`, `portInfo$`, `connectionEstablished$`（接続成功直後 1 回・接続後 bootstrap のトリガ用）
-  - **メソッド**: `connect$()`, `disconnect$()`, `send$()`, `exec$()`, `execRaw$()`, `readUntilPrompt$()`, `isBrowserSupported()`, `isRaspberryPiZero()`
+  - **Signal（読み取り）**: `state`, `isConnected`, `terminalText`, `lines`, `errors`, `portInfo`, `connectionEpoch`
+  - **Observable（アクション）**: `connect$()`, `disconnect$()`, `send$()`, `exec$()`, `execRaw$()`, `readUntilPrompt$()`
+  - **メソッド**: `isBrowserSupported()`, `isRaspberryPiZero()`
 - **Facade では露出しない**（data-access 内部のみ）: 生チャンクの `receive$`（`SerialTransportService` 経由で `SerialCommandPipelineService` がプロンプト照合・`exec$` stdout 用に購読。[#601](https://github.com/gurezo/chirimen-lite-console/issues/601)、[#646](https://github.com/gurezo/chirimen-lite-console/issues/646)）、接続エポック整数（`SerialConnectionOrchestrationService#getConnectionEpoch` — `PiZeroSessionService` が bootstrap 突き合わせに利用）、`read$` / `getPort` / キュー診断 API。
 - ライブラリの `receiveReplay$` は本 data-access の Facade では橋渡ししない。ライブ表示の `\r` 再描画は `terminalText$` に委譲する。
 

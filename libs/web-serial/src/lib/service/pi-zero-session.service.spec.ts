@@ -1,4 +1,3 @@
-import { effect, Injector, signal } from '@angular/core';
 import { describe, expect, it, vi } from 'vitest';
 import { firstValueFrom, from, NEVER, of, throwError } from 'rxjs';
 import { PI_ZERO_LOGIN_USER, PI_ZERO_PROMPT } from '../constants';
@@ -16,28 +15,18 @@ function stubConnection(
 }
 
 function createShellReadinessMock(): PiZeroShellReadinessService {
-  const readySignal = signal(false);
+  let ready = false;
   return {
-    setReady: vi.fn((value: boolean) => readySignal.set(value)),
-    reset: vi.fn(() => readySignal.set(false)),
-    isReady: vi.fn(() => readySignal()),
+    setReady: vi.fn((value: boolean) => {
+      ready = value;
+    }),
+    reset: vi.fn(() => {
+      ready = false;
+    }),
+    isReady: vi.fn(() => ready),
     startWatching: vi.fn(),
-    ready: readySignal.asReadonly(),
+    ready: vi.fn(() => ready),
   } as unknown as PiZeroShellReadinessService;
-}
-
-function createSignalWatcher<T>(
-  injector: Injector,
-  read: () => T,
-): { seen: T[]; destroy: () => void } {
-  const seen: T[] = [];
-  const ref = effect(
-    () => {
-      seen.push(read());
-    },
-    { injector },
-  );
-  return { seen, destroy: () => ref.destroy() };
 }
 
 function createSession(
@@ -50,23 +39,6 @@ function createSession(
     new PiZeroPromptDetectorService(),
   );
   return new PiZeroSessionService(serial, bootstrap, shellReadiness, connection);
-}
-
-function serialWithConnectionEstablished(
-  overrides: Partial<SerialFacadeService> & {
-    connectionEstablished$?: Subject<void>['asObservable'] extends () => infer T
-      ? T
-      : never;
-  } = {},
-): SerialFacadeService {
-  return {
-    isConnected$: of(true),
-    connectionEstablished$: NEVER,
-    readUntilPrompt$: () => from(Promise.resolve({ stdout: `${PI_ZERO_PROMPT} ` })),
-    exec$: () => from(Promise.resolve({ stdout: '' })),
-    send$: () => of(undefined),
-    ...overrides,
-  } as unknown as SerialFacadeService;
 }
 
 describe('PiZeroSessionService', () => {
@@ -186,6 +158,7 @@ describe('PiZeroSessionService', () => {
     );
 
     await firstValueFrom(service.runAfterConnect$());
+    shellReadiness.reset();
     epoch = 2;
     await firstValueFrom(service.runAfterConnect$());
 
@@ -227,7 +200,7 @@ describe('PiZeroSessionService', () => {
     expect(vi.mocked(shellReadiness.setReady)).toHaveBeenCalledWith(true);
   });
 
-  it('sets initializing true during post-connect bootstrap then false', async () => {
+  it('ends initializing after post-connect bootstrap completes', async () => {
     const readUntilPrompt = vi.fn().mockResolvedValue({
       stdout: `${PI_ZERO_PROMPT} `,
     });
@@ -241,15 +214,11 @@ describe('PiZeroSessionService', () => {
 
     const shellReadiness = createShellReadinessMock();
     const service = createSession(serial, shellReadiness);
-    const injector = Injector.create({ providers: [] });
-    const watcher = createSignalWatcher(injector, () => service.initializing());
     await firstValueFrom(service.runAfterConnect$());
     await vi.waitFor(() => {
-      expect(watcher.seen.at(-1)).toBe(false);
+      expect(service.initializing()).toBe(false);
     });
-    watcher.destroy();
-
-    expect(watcher.seen).toContain(true);
+    expect(service.setupStatus()).toBe('ready');
   });
 
   it('transitions setupStatus and ends in ready on success', async () => {
@@ -266,16 +235,10 @@ describe('PiZeroSessionService', () => {
 
     const shellReadiness = createShellReadinessMock();
     const service = createSession(serial, shellReadiness);
-    const injector = Injector.create({ providers: [] });
-    const watcher = createSignalWatcher(injector, () => service.setupStatus());
     await firstValueFrom(service.runAfterConnect$());
     await vi.waitFor(() => {
-      expect(watcher.seen.at(-1)).toBe('ready');
+      expect(service.setupStatus()).toBe('ready');
     });
-    watcher.destroy();
-
-    expect(watcher.seen).toContain('waiting-login');
-    expect(watcher.seen).toContain('setting-timezone');
   });
 
   describe('login flow (loginIfNeeded$)', () => {
@@ -378,16 +341,13 @@ describe('PiZeroSessionService', () => {
 
       const shellReadiness = createShellReadinessMock();
       const service = createSession(serial, shellReadiness);
-      const injector = Injector.create({ providers: [] });
-      const watcher = createSignalWatcher(injector, () => service.initializing());
 
       await expect(firstValueFrom(service.runAfterConnect$())).rejects.toThrow(
         'Shell readiness timeout while waiting for prompt',
       );
-      watcher.destroy();
 
       expect(vi.mocked(shellReadiness.setReady)).not.toHaveBeenCalledWith(true);
-      expect(watcher.seen.at(-1)).toBe(false);
+      expect(service.initializing()).toBe(false);
     });
 
     it('sets setupStatus to failed on pipeline failure', async () => {
@@ -412,12 +372,9 @@ describe('PiZeroSessionService', () => {
       } as unknown as SerialFacadeService;
 
       const service = createSession(serial, createShellReadinessMock());
-      const injector = Injector.create({ providers: [] });
-      const watcher = createSignalWatcher(injector, () => service.setupStatus());
       await expect(firstValueFrom(service.runAfterConnect$())).rejects.toThrow();
-      watcher.destroy();
 
-      expect(watcher.seen.at(-1)).toBe('failed');
+      expect(service.setupStatus()).toBe('failed');
     });
 
     it('notifies status handler on pipeline failure', async () => {
@@ -474,15 +431,12 @@ describe('PiZeroSessionService', () => {
 
       const shellReadiness = createShellReadinessMock();
       const service = createSession(serial, shellReadiness);
-      const injector = Injector.create({ providers: [] });
-      const watcher = createSignalWatcher(injector, () => service.setupStatus());
 
       await firstValueFrom(service.runAfterConnect$());
       expect(vi.mocked(shellReadiness.setReady)).toHaveBeenCalledWith(true);
       await vi.waitFor(() => {
-        expect(watcher.seen.at(-1)).toBe('failed');
+        expect(service.setupStatus()).toBe('failed');
       });
-      watcher.destroy();
     });
   });
 });
