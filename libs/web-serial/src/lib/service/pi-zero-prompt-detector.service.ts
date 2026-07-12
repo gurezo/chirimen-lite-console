@@ -128,9 +128,20 @@ export class PiZeroPromptDetectorService {
   }
 
   /**
-   * シリアル上のコマンド完了はシェルプロンプトへの復帰で判定する。
+   * シリアル上のコマンド完了は末尾の対話シェルプロンプトで判定する。
+   * `pi@host:~$ ls ...` のようなコマンドエコー行では一致させない（issue #717）。
    */
   isCommandCompleted(text: string): boolean {
-    return this.isLikelyLoggedInShellPrompt(text);
+    const line = this.trailingNonEmptyLine(text);
+    if (!line) {
+      return false;
+    }
+    if (this.lineLooksLikeSerialAuthPrompt(line)) {
+      return false;
+    }
+    if (!/^[^\s]+@[^:]+:.*[$#]/.test(line)) {
+      return false;
+    }
+    return !/[$#]\s+\S/.test(line);
   }
 }

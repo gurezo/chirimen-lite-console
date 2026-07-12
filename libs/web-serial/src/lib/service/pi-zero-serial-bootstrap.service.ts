@@ -342,7 +342,7 @@ export class PiZeroSerialBootstrapService {
           .exec$(step.command, {
             prompt: '',
             promptMatch: (buf) =>
-              this.promptDetector.isLikelyLoggedInShellPrompt(buf),
+              this.promptDetector.isCommandCompleted(buf),
             timeout: SERIAL_TIMEOUT.SHORT,
           })
           .pipe(

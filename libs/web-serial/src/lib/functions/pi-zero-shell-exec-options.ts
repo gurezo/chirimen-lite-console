@@ -13,7 +13,7 @@ export function createPiZeroShellExecOptions(
 ): SerialExecOptions {
   return mergeSerialExecOptions({
     prompt: '',
-    promptMatch: (buf) => detector.isLikelyLoggedInShellPrompt(buf),
+    promptMatch: (buf) => detector.isCommandCompleted(buf),
     ...overrides,
   });
 }

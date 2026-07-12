@@ -6,12 +6,15 @@ import { SERIAL_TIMEOUT } from './serial-timeout';
 describe('createPiZeroShellExecOptions', () => {
   const detector = new PiZeroPromptDetectorService();
 
-  it('uses promptMatch based on isLikelyLoggedInShellPrompt', () => {
+  it('uses promptMatch based on isCommandCompleted', () => {
     const options = createPiZeroShellExecOptions(detector);
     expect(options.prompt).toBe('');
     expect(options.promptMatch).toBeTypeOf('function');
     expect(options.promptMatch?.('pi@custom-host:~$ ')).toBe(true);
     expect(options.promptMatch?.('login: ')).toBe(false);
+    expect(
+      options.promptMatch?.('pi@raspberrypi:~$ ls -al'),
+    ).toBe(false);
   });
 
   it('merges timeout and other overrides', () => {

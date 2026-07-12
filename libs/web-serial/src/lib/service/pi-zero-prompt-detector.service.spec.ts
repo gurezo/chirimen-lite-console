@@ -56,6 +56,17 @@ describe('PiZeroPromptDetectorService', () => {
     expect(detector.isCommandCompleted('running…')).toBe(false);
   });
 
+  it('isCommandCompleted rejects command echo lines', () => {
+    expect(
+      detector.isCommandCompleted('pi@raspberrypi:~$ ls -al --quoting-style=c'),
+    ).toBe(false);
+    expect(
+      detector.isCommandCompleted(
+        '合計 36\ndrwx------ 1 pi pi 4096 "myApp"\npi@raspberrypi:~$ ',
+      ),
+    ).toBe(true);
+  });
+
   it('isAwaitingLoginName uses trailing line only', () => {
     expect(detector.isAwaitingLoginName('boot\nfoo login: ')).toBe(true);
     expect(
