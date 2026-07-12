@@ -1,9 +1,16 @@
 /// <reference types="@types/w3c-web-serial" />
 
-import { computed, Injectable, inject, signal } from '@angular/core';
+import {
+  computed,
+  effect,
+  Injectable,
+  inject,
+  signal,
+  untracked,
+} from '@angular/core';
 import { SerialSessionStatus } from '@gurezo/web-serial-rxjs';
 import { TerminalCommandRequestService } from './terminal-command-request.service';
-import { take, tap } from 'rxjs';
+import { firstValueFrom } from 'rxjs';
 import { PiZeroSessionService } from './pi-zero-session.service';
 import { PiZeroShellReadinessService } from './pi-zero-shell-readiness.service';
 import type { SerialSetupStatus } from '../models';
@@ -44,6 +51,41 @@ export class SerialConnectionViewModelFacade {
   );
 
   private readonly errorMessageSignal = signal<string | null>(null);
+  private readonly connectRequestSignal = signal<{ baudRate: number } | null>(
+    null,
+  );
+  private readonly connectRequestIdSignal = signal(0);
+  private readonly disconnectRequestIdSignal = signal(0);
+  private connectRequestCounter = 0;
+  private disconnectRequestCounter = 0;
+  private lastConnectRequestId = 0;
+  private lastDisconnectRequestId = 0;
+
+  constructor() {
+    effect(() => {
+      const request = this.connectRequestSignal();
+      const requestId = this.connectRequestIdSignal();
+      if (!request || requestId === this.lastConnectRequestId) {
+        return;
+      }
+      this.lastConnectRequestId = requestId;
+      const { baudRate } = request;
+      untracked(() => {
+        void this.runConnect(baudRate);
+      });
+    });
+
+    effect(() => {
+      const requestId = this.disconnectRequestIdSignal();
+      if (requestId === 0 || requestId === this.lastDisconnectRequestId) {
+        return;
+      }
+      this.lastDisconnectRequestId = requestId;
+      untracked(() => {
+        void this.runDisconnect();
+      });
+    });
+  }
 
   readonly vm = computed<SerialConnectionViewModel>(() => {
     const state = this.serial.state();
@@ -61,37 +103,40 @@ export class SerialConnectionViewModelFacade {
 
   /** @param baudRate 既定 115200 */
   connect(baudRate = 115200): void {
-    this.serial
-      .connect$(baudRate)
-      .pipe(
-        take(1),
-        tap((result) => {
-          if (result.ok) {
-            this.errorMessageSignal.set(null);
-            this.notifications.notifyConnectionSuccess();
-          } else {
-            this.errorMessageSignal.set(result.errorMessage);
-            this.notifications.notifyConnectionError(result.errorMessage);
-          }
-        }),
-      )
-      .subscribe();
+    this.connectRequestCounter += 1;
+    this.connectRequestIdSignal.set(this.connectRequestCounter);
+    this.connectRequestSignal.set({ baudRate });
   }
 
   disconnect(): void {
-    this.serial
-      .disconnect$()
-      .pipe(
-        take(1),
-        tap(() => this.errorMessageSignal.set(null)),
-      )
-      .subscribe({
-        error: (err: unknown) => {
-          const message =
-            err instanceof Error ? err.message : String(err);
-          this.errorMessageSignal.set(message);
-        },
-      });
+    this.disconnectRequestCounter += 1;
+    this.disconnectRequestIdSignal.set(this.disconnectRequestCounter);
+  }
+
+  private async runConnect(baudRate: number): Promise<void> {
+    try {
+      const result = await firstValueFrom(this.serial.connect$(baudRate));
+      if (result.ok) {
+        this.errorMessageSignal.set(null);
+        this.notifications.notifyConnectionSuccess();
+      } else {
+        this.errorMessageSignal.set(result.errorMessage);
+        this.notifications.notifyConnectionError(result.errorMessage);
+      }
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : String(err);
+      this.errorMessageSignal.set(message);
+    }
+  }
+
+  private async runDisconnect(): Promise<void> {
+    try {
+      await firstValueFrom(this.serial.disconnect$());
+      this.errorMessageSignal.set(null);
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : String(err);
+      this.errorMessageSignal.set(message);
+    }
   }
 
   /** ツールバーと同じキュー経路でコンソール向けコマンドを送信する（#615: send$ 経路）。 */
