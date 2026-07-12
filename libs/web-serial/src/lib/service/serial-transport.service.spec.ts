@@ -82,15 +82,13 @@ describe('SerialTransportService', () => {
     service = new SerialTransportService();
   });
 
-  it('should expose idle / not connected before any session is created', async () => {
-    const state = await firstValueFrom(service.state$);
-    expect(state.status).toBe(SerialSessionStatus.Idle);
-    const connectedFlag = await firstValueFrom(service.isConnected$);
-    expect(connectedFlag).toBe(false);
+  it('should expose idle / not connected before any session is created', () => {
+    expect(service.state().status).toBe(SerialSessionStatus.Idle);
+    expect(service.isConnected()).toBe(false);
     expect(service.getPortInfo()).toBeNull();
   });
 
-  it('should delegate state$ and isConnected$ to SerialSession after connect', async () => {
+  it('should delegate state and isConnected to SerialSession after connect', async () => {
     const portInfo: SerialPortInfo = {
       usbVendorId: 0x0525,
       usbProductId: 0xa4a7,
@@ -100,10 +98,8 @@ describe('SerialTransportService', () => {
 
     await firstValueFrom(service.connect$());
 
-    const state = await firstValueFrom(service.state$);
-    expect(state.status).toBe(SerialSessionStatus.Connected);
-    const connectedFlag = await firstValueFrom(service.isConnected$);
-    expect(connectedFlag).toBe(true);
+    expect(service.state().status).toBe(SerialSessionStatus.Connected);
+    expect(service.isConnected()).toBe(true);
     expect(service.getPortInfo()).toEqual(portInfo);
     expect(session.connect$).toHaveBeenCalledTimes(1);
   });
@@ -116,21 +112,16 @@ describe('SerialTransportService', () => {
     mockCreateSerialSession.mockReturnValue(buildMockSession(portInfo));
 
     await firstValueFrom(service.connect$());
-    expect(
-      await firstValueFrom(service.isConnected$.pipe(take(1))),
-    ).toBe(true);
+    expect(service.isConnected()).toBe(true);
 
     await firstValueFrom(service.disconnect$());
 
-    const state = await firstValueFrom(service.state$);
-    expect(state.status).toBe(SerialSessionStatus.Idle);
-    expect(
-      await firstValueFrom(service.isConnected$.pipe(take(1))),
-    ).toBe(false);
+    expect(service.state().status).toBe(SerialSessionStatus.Idle);
+    expect(service.isConnected()).toBe(false);
     expect(service.getPortInfo()).toBeNull();
   });
 
-  it('should expose errors$ from the active session when connected', async () => {
+  it('should expose errors from the active session when connected', async () => {
     const err = new SerialError(SerialErrorCode.READ_FAILED, 'read');
     const errSubj = new BehaviorSubject(err);
     const session = buildMockSession({} as SerialPortInfo);
@@ -140,43 +131,29 @@ describe('SerialTransportService', () => {
     mockCreateSerialSession.mockReturnValue(session);
 
     await firstValueFrom(service.connect$());
-    const emitted = await firstValueFrom(service.errors$);
-    expect(emitted).toBe(err);
+    expect(service.errors()).toBe(err);
   });
 
-  it('should emit from lines$ when session is active', async () => {
+  it('should update lines when session is active', async () => {
     mockCreateSerialSession.mockReturnValue(buildMockSession({} as SerialPortInfo));
 
     await firstValueFrom(service.connect$());
-    const line = await firstValueFrom(service.lines$.pipe(take(1)));
-    expect(line).toBe('line1');
+    await vi.waitFor(() => {
+      expect(service.lines()).toBe('line1');
+    });
   });
 
-  it('lines$ should emit line strings from session lines$', async () => {
+  it('lines should reflect session lines$ emissions', async () => {
     const lineSubject = new Subject<string>();
     mockCreateSerialSession.mockReturnValue(
       buildMockSession({} as SerialPortInfo, lineSubject.asObservable()),
     );
 
     await firstValueFrom(service.connect$());
-    const readPromise = firstValueFrom(service.lines$.pipe(take(1)));
     queueMicrotask(() => lineSubject.next('expected-line'));
-    expect(await readPromise).toBe('expected-line');
-  });
-
-  it('lines$ should share source lines$ for multiple subscribers', async () => {
-    const lineSubject = new Subject<string>();
-    mockCreateSerialSession.mockReturnValue(
-      buildMockSession({} as SerialPortInfo, lineSubject.asObservable()),
-    );
-
-    await firstValueFrom(service.connect$());
-    const p1 = firstValueFrom(service.lines$.pipe(take(1)));
-    const p2 = firstValueFrom(service.lines$.pipe(take(1)));
-    queueMicrotask(() => lineSubject.next('shared-line'));
-    const [a, b] = await Promise.all([p1, p2]);
-    expect(a).toBe('shared-line');
-    expect(b).toBe('shared-line');
+    await vi.waitFor(() => {
+      expect(service.lines()).toBe('expected-line');
+    });
   });
 
   it('should emit receive$ from session receive$', async () => {
@@ -196,16 +173,17 @@ describe('SerialTransportService', () => {
     expect(await textPromise).toBe('raw-chunk');
   });
 
-  it('should emit terminalText$ from session terminalText$', async () => {
+  it('should update terminalText from session terminalText$', async () => {
     const chunkSubject = new Subject<string>();
     mockCreateSerialSession.mockReturnValue(
       buildMockSession({} as SerialPortInfo, undefined, chunkSubject.asObservable()),
     );
 
     await firstValueFrom(service.connect$());
-    const textPromise = firstValueFrom(service.terminalText$.pipe(take(1)));
     queueMicrotask(() => chunkSubject.next('terminal-text'));
-    expect(await textPromise).toBe('terminal-text');
+    await vi.waitFor(() => {
+      expect(service.terminalText()).toBe('terminal-text');
+    });
   });
 
   it('send$ should delegate to session send$', async () => {

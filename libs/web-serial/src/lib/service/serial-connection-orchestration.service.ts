@@ -48,8 +48,7 @@ export class SerialConnectionOrchestrationService {
 
   connect$(baudRate = 115200): Observable<SerialConnectResult> {
     return defer(() =>
-      this.transport.isConnected$.pipe(
-        take(1),
+      of(this.transport.isConnected()).pipe(
         switchMap((connected) =>
           connected ? this.disconnect$() : of(undefined),
         ),

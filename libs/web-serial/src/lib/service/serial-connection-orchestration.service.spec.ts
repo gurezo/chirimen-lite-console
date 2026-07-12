@@ -29,7 +29,7 @@ describe('SerialConnectionOrchestrationService', () => {
     connectMock = vi.fn(() => of({ ok: true as const }));
     disconnectMock = vi.fn(() => of(undefined));
     transport = {
-      isConnected$: isConnectedSubj.asObservable(),
+      isConnected: () => isConnectedSubj.value,
       connect$: connectMock,
       disconnect$: disconnectMock,
     };
