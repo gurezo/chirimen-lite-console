@@ -5,6 +5,7 @@ import {
   type SerialSession,
   type SerialSessionState,
 } from '@gurezo/web-serial-rxjs';
+import { Injector } from '@angular/core';
 import {
   BehaviorSubject,
   EMPTY,
@@ -79,7 +80,9 @@ describe('SerialTransportService', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
-    service = new SerialTransportService();
+    service = Injector.create({
+      providers: [SerialTransportService],
+    }).get(SerialTransportService);
   });
 
   it('should expose idle / not connected before any session is created', () => {
