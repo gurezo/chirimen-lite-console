@@ -2,6 +2,8 @@ import '@angular/compiler';
 import { Injector } from '@angular/core';
 import { BehaviorSubject, firstValueFrom, of, take } from 'rxjs';
 import { type Mock, beforeEach, describe, expect, it, vi } from 'vitest';
+import { PiZeroSessionService } from './pi-zero-session.service';
+import { PiZeroPromptDetectorService } from './pi-zero-prompt-detector.service';
 import { PiZeroShellReadinessService } from './pi-zero-shell-readiness.service';
 import { SerialCommandPipelineService } from './serial-command/serial-command-pipeline.service';
 import { SerialConnectionOrchestrationService } from './serial-connection-orchestration.service';
@@ -15,6 +17,7 @@ describe('SerialConnectionOrchestrationService', () => {
   let disconnectMock: Mock;
   let command: Partial<SerialCommandPipelineService>;
   let shellReadiness: PiZeroShellReadinessService;
+  let runAfterConnect$: Mock;
 
   beforeEach(() => {
     isConnectedSubj = new BehaviorSubject(false);
@@ -30,7 +33,21 @@ describe('SerialConnectionOrchestrationService', () => {
       connect$: connectMock,
       disconnect$: disconnectMock,
     };
-    shellReadiness = new PiZeroShellReadinessService();
+    shellReadiness = Injector.create({
+      providers: [
+        PiZeroShellReadinessService,
+        PiZeroPromptDetectorService,
+        {
+          provide: SerialTransportService,
+          useValue: { receive$: new BehaviorSubject('').asObservable() },
+        },
+        {
+          provide: SerialCommandPipelineService,
+          useValue: { inspectReadBuffer: () => '' },
+        },
+      ],
+    }).get(PiZeroShellReadinessService);
+    runAfterConnect$ = vi.fn(() => of(undefined));
 
     const injector = Injector.create({
       providers: [
@@ -38,6 +55,10 @@ describe('SerialConnectionOrchestrationService', () => {
         { provide: SerialTransportService, useValue: transport },
         { provide: SerialCommandPipelineService, useValue: command },
         { provide: PiZeroShellReadinessService, useValue: shellReadiness },
+        {
+          provide: PiZeroSessionService,
+          useValue: { runAfterConnect$ },
+        },
       ],
     });
     service = injector.get(SerialConnectionOrchestrationService);
@@ -48,6 +69,7 @@ describe('SerialConnectionOrchestrationService', () => {
   });
 
   it('on successful connect increments epoch, starts read loop, resets shell readiness, emits connectionEstablished$', async () => {
+    const startWatching = vi.spyOn(shellReadiness, 'startWatching');
     const establishedOnce = firstValueFrom(
       service.connectionEstablished$.pipe(take(1)),
     );
@@ -60,7 +82,15 @@ describe('SerialConnectionOrchestrationService', () => {
     expect(service.getConnectionEpoch()).toBe(1);
     expect(command.startReadLoop).toHaveBeenCalledTimes(1);
     expect(shellReadiness.isReady()).toBe(false);
+    expect(startWatching).toHaveBeenCalledTimes(1);
     expect(connectMock).toHaveBeenCalledWith(115200);
+  });
+
+  it('schedules post-connect bootstrap after successful connect', async () => {
+    await firstValueFrom(service.connect$(115200));
+    await vi.waitFor(() => {
+      expect(runAfterConnect$).toHaveBeenCalledTimes(1);
+    });
   });
 
   it('when already connected, orchestration disconnect runs before transport connect', async () => {
