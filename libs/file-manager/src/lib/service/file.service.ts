@@ -16,7 +16,7 @@ export class FileService {
   private fileContent = inject(FileContentService);
   private promptDetector = inject(PiZeroPromptDetectorService);
 
-  private shellExecOptions(timeout = SERIAL_TIMEOUT.DEFAULT) {
+  private shellExecOptions(timeout: number = SERIAL_TIMEOUT.DEFAULT) {
     return createPiZeroShellExecOptions(this.promptDetector, { timeout });
   }
 
