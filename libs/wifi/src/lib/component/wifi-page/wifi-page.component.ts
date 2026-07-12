@@ -5,6 +5,7 @@ import { ConfirmDialogComponent } from '@libs-dialogs';
 import type { WiFiInfo } from '@libs-shared';
 import { ButtonComponent, NotificationService } from '@libs-shared';
 import { SerialFacadeService } from '@libs-web-serial';
+import { firstValueFrom } from 'rxjs';
 import type { WifiConnectDialogData } from '../../models';
 import { WifiRebootFlowService, WifiScanService } from '../../service';
 import { WifiConnectDialogComponent } from '../wifi-connect-dialog/wifi-connect-dialog.component';
