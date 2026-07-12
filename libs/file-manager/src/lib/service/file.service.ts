@@ -3,6 +3,7 @@ import { FileContentService, FileUtils } from '@libs-wifi';
 import {
   createPiZeroShellExecOptions,
   PiZeroPromptDetectorService,
+  sanitizeSerialStdout,
   SERIAL_TIMEOUT,
   SerialFacadeService,
 } from '@libs-web-serial';
@@ -26,20 +27,28 @@ export class FileService {
   async listLines(directoryPath: string): Promise<string[]> {
     const dir = directoryPath || '.';
     const escaped = FileUtils.escapePath(dir);
+    const command = `ls -al --quoting-style=c -- ${escaped}`;
 
     const stdout = (
       await firstValueFrom(
         this.serial.exec$(
-          `ls -al --quoting-style=c -- ${escaped}`,
+          command,
           this.shellExecOptions(SERIAL_TIMEOUT.LONG),
         ),
       )
     ).stdout;
 
-    return stdout
+    const cleaned = sanitizeSerialStdout(
+      typeof stdout === 'string' ? stdout : '',
+      command,
+      '',
+    );
+
+    return cleaned
       .split('\n')
       .map((line) => line.trim())
-      .filter(Boolean);
+      .filter(Boolean)
+      .filter((line) => !this.promptDetector.isCommandCompleted(line));
   }
 
   /**

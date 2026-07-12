@@ -1,15 +1,19 @@
-import { Component, DestroyRef, inject, OnInit, output } from '@angular/core';
+import {
+  ChangeDetectorRef,
+  Component,
+  DestroyRef,
+  inject,
+  OnInit,
+  output,
+} from '@angular/core';
 import { MatProgressSpinner } from '@angular/material/progress-spinner';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { joinPath } from '../../functions';
 import { FileTreeNode } from '../../models';
 import { FileService } from '../../service';
 import { FileTreeComponent } from '../file-tree/file-tree.component';
-import {
-  PiZeroShellReadinessService,
-  SerialConnectionViewModelFacade,
-} from '@libs-web-serial';
-import { filter, startWith, take } from 'rxjs/operators';
+import { SerialConnectionViewModelFacade } from '@libs-web-serial';
+import { distinctUntilChanged, map } from 'rxjs/operators';
 
 @Component({
   selector: 'lib-file-tree-feature',
@@ -21,9 +25,9 @@ import { filter, startWith, take } from 'rxjs/operators';
 })
 export class FileTreeFeatureComponent implements OnInit {
   private file = inject(FileService);
-  private shellReadiness = inject(PiZeroShellReadinessService);
   private connectionVm = inject(SerialConnectionViewModelFacade);
   private destroyRef = inject(DestroyRef);
+  private cdr = inject(ChangeDetectorRef);
   readonly fileSelected = output<string>();
 
   nodes: FileTreeNode[] = [];
@@ -31,46 +35,64 @@ export class FileTreeFeatureComponent implements OnInit {
   loading = false;
   errorMessage: string | null = null;
 
-  ngOnInit(): void {
-    this.loading = true;
+  private loadedForLogin = false;
 
+  ngOnInit(): void {
     this.connectionVm.vm$
       .pipe(
-        filter((vm) => vm.setupStatus === 'failed' && !vm.isLoggedIn),
-        take(1),
+        map((vm) => ({
+          isConnected: vm.isConnected,
+          isLoggedIn: vm.isLoggedIn,
+          setupFailed: vm.setupStatus === 'failed' && !vm.isLoggedIn,
+        })),
+        distinctUntilChanged(
+          (a, b) =>
+            a.isConnected === b.isConnected &&
+            a.isLoggedIn === b.isLoggedIn &&
+            a.setupFailed === b.setupFailed,
+        ),
         takeUntilDestroyed(this.destroyRef),
       )
-      .subscribe(() => {
-        this.loading = false;
-        this.errorMessage =
-          'シェルの初期化に失敗しました。ターミナルを確認してください。';
-      });
+      .subscribe((vm) => {
+        if (!vm.isConnected) {
+          this.loading = false;
+          this.errorMessage = null;
+          this.nodes = [];
+          this.loadedForLogin = false;
+          this.cdr.markForCheck();
+          return;
+        }
 
-    if (this.shellReadiness.isReady()) {
-      queueMicrotask(() => void this.loadCurrentPath());
-      return;
-    }
-    this.shellReadiness.ready$
-      .pipe(
-        startWith(this.shellReadiness.isReady()),
-        filter(Boolean),
-        take(1),
-        takeUntilDestroyed(this.destroyRef),
-      )
-      .subscribe(() => queueMicrotask(() => void this.loadCurrentPath()));
+        if (vm.setupFailed) {
+          this.loading = false;
+          this.errorMessage =
+            'シェルの初期化に失敗しました。ターミナルを確認してください。';
+          this.cdr.markForCheck();
+          return;
+        }
+
+        if (!vm.isLoggedIn) {
+          this.loading = true;
+          this.errorMessage = null;
+          this.loadedForLogin = false;
+          this.cdr.markForCheck();
+          return;
+        }
+
+        if (this.loadedForLogin) {
+          return;
+        }
+        this.loadedForLogin = true;
+        void this.loadCurrentPath();
+      });
   }
 
   async reload(): Promise<void> {
-    if (!this.shellReadiness.isReady()) {
-      return;
-    }
+    this.loadedForLogin = false;
     await this.loadCurrentPath();
   }
 
   async onDirectorySelected(node: FileTreeNode): Promise<void> {
-    if (!this.shellReadiness.isReady()) {
-      return;
-    }
     this.currentPath = node.path;
     await this.loadCurrentPath();
   }
@@ -80,9 +102,6 @@ export class FileTreeFeatureComponent implements OnInit {
   }
 
   async goParent(): Promise<void> {
-    if (!this.shellReadiness.isReady()) {
-      return;
-    }
     if (this.currentPath === '.') {
       return;
     }
@@ -99,13 +118,16 @@ export class FileTreeFeatureComponent implements OnInit {
   private async loadCurrentPath(): Promise<void> {
     this.loading = true;
     this.errorMessage = null;
+    this.cdr.markForCheck();
     try {
       this.nodes = await this.file.listTree(this.currentPath);
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : String(error);
       this.errorMessage = message;
+      this.loadedForLogin = false;
     } finally {
       this.loading = false;
+      this.cdr.markForCheck();
     }
   }
 }

@@ -21,6 +21,7 @@ function expectShellExecOptions(
   const promptMatch = options.promptMatch as (buf: string) => boolean;
   expect(promptMatch('pi@custom-host:~$ ')).toBe(true);
   expect(promptMatch('pi@raspberrypi:~$ ')).toBe(true);
+  expect(promptMatch('pi@raspberrypi:~$ ls -al')).toBe(false);
 }
 
 describe('FileService', () => {
@@ -80,6 +81,16 @@ describe('FileService', () => {
         expect.objectContaining({ timeout: SERIAL_TIMEOUT.LONG }),
       );
       expectShellExecOptions(exec.mock.calls[0]?.[1], SERIAL_TIMEOUT.LONG);
+    });
+
+    it('strips echoed command and trailing prompt from ls stdout', async () => {
+      const command = `ls -al --quoting-style=c -- ${FileUtils.escapePath('.')}`;
+      exec.mockResolvedValue({
+        stdout: `${command}\ntotal 36\ndrwxr-xr-x 2 pi pi 4096 "docs"\npi@raspberrypi:~$ `,
+      });
+
+      const lines = await svc.listLines('.');
+      expect(lines).toEqual(['total 36', 'drwxr-xr-x 2 pi pi 4096 "docs"']);
     });
 
     it('uses flexible shell prompt match for non-default hostnames', async () => {
