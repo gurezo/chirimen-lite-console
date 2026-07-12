@@ -1,9 +1,10 @@
 import '@angular/compiler';
-import { computed, Injector, signal } from '@angular/core';
+import { computed, Provider, signal } from '@angular/core';
+import { TestBed } from '@angular/core/testing';
 import { SerialSessionStatus, type SerialSessionState } from '@gurezo/web-serial-rxjs';
 import { TerminalCommandRequestService } from './terminal-command-request.service';
 import { of } from 'rxjs';
-import { describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { PiZeroSessionService } from './pi-zero-session.service';
 import { PiZeroShellReadinessService } from './pi-zero-shell-readiness.service';
 import { SerialFacadeService } from './serial-facade.service';
@@ -36,7 +37,18 @@ function createPiZeroMock(
   };
 }
 
+function configureFacade(providers: Provider[]): SerialConnectionViewModelFacade {
+  TestBed.configureTestingModule({
+    providers: [SerialConnectionViewModelFacade, ...providers],
+  });
+  return TestBed.inject(SerialConnectionViewModelFacade);
+}
+
 describe('SerialConnectionViewModelFacade', () => {
+  beforeEach(() => {
+    TestBed.resetTestingModule();
+  });
+
   it('combines state into vm', () => {
     const stateSignal = signal<SerialSessionState>({
       status: SerialSessionStatus.Idle,
@@ -50,39 +62,34 @@ describe('SerialConnectionViewModelFacade', () => {
       () => connectedSignal(),
     );
 
-    const injector = Injector.create({
-      providers: [
-        SerialConnectionViewModelFacade,
-        { provide: SerialFacadeService, useValue: serial },
-        {
-          provide: PiZeroSessionService,
-          useValue: createPiZeroMock(
-            () => setupStatusSignal(),
-            () =>
-              setupStatusSignal() !== 'idle' &&
-              setupStatusSignal() !== 'ready' &&
-              setupStatusSignal() !== 'failed',
-          ),
+    const facade = configureFacade([
+      { provide: SerialFacadeService, useValue: serial },
+      {
+        provide: PiZeroSessionService,
+        useValue: createPiZeroMock(
+          () => setupStatusSignal(),
+          () =>
+            setupStatusSignal() !== 'idle' &&
+            setupStatusSignal() !== 'ready' &&
+            setupStatusSignal() !== 'failed',
+        ),
+      },
+      {
+        provide: PiZeroShellReadinessService,
+        useValue: { ready: readySignal.asReadonly() },
+      },
+      {
+        provide: SerialNotificationService,
+        useValue: {
+          notifyConnectionSuccess: vi.fn(),
+          notifyConnectionError: vi.fn(),
         },
-        {
-          provide: PiZeroShellReadinessService,
-          useValue: { ready: readySignal.asReadonly() },
-        },
-        {
-          provide: SerialNotificationService,
-          useValue: {
-            notifyConnectionSuccess: vi.fn(),
-            notifyConnectionError: vi.fn(),
-          },
-        },
-        {
-          provide: TerminalCommandRequestService,
-          useValue: { requestCommand: vi.fn() },
-        },
-      ],
-    });
-
-    const facade = injector.get(SerialConnectionViewModelFacade);
+      },
+      {
+        provide: TerminalCommandRequestService,
+        useValue: { requestCommand: vi.fn() },
+      },
+    ]);
 
     connectedSignal.set(true);
     stateSignal.set({ status: SerialSessionStatus.Connecting });
@@ -120,34 +127,31 @@ describe('SerialConnectionViewModelFacade', () => {
       },
     );
 
-    const injector = Injector.create({
-      providers: [
-        SerialConnectionViewModelFacade,
-        { provide: SerialFacadeService, useValue: serial },
-        {
-          provide: PiZeroSessionService,
-          useValue: createPiZeroMock(() => 'idle', () => false),
+    const facade = configureFacade([
+      { provide: SerialFacadeService, useValue: serial },
+      {
+        provide: PiZeroSessionService,
+        useValue: createPiZeroMock(() => 'idle', () => false),
+      },
+      {
+        provide: PiZeroShellReadinessService,
+        useValue: { ready: signal(false).asReadonly() },
+      },
+      {
+        provide: SerialNotificationService,
+        useValue: {
+          notifyConnectionSuccess: vi.fn(),
+          notifyConnectionError,
         },
-        {
-          provide: PiZeroShellReadinessService,
-          useValue: { ready: signal(false).asReadonly() },
-        },
-        {
-          provide: SerialNotificationService,
-          useValue: {
-            notifyConnectionSuccess: vi.fn(),
-            notifyConnectionError,
-          },
-        },
-        {
-          provide: TerminalCommandRequestService,
-          useValue: { requestCommand: vi.fn() },
-        },
-      ],
-    });
+      },
+      {
+        provide: TerminalCommandRequestService,
+        useValue: { requestCommand: vi.fn() },
+      },
+    ]);
 
-    const facade = injector.get(SerialConnectionViewModelFacade);
     facade.connect();
+    TestBed.flushEffects();
 
     await vi.waitFor(() => {
       expect(facade.vm().errorMessage).toBe('port busy');
@@ -164,35 +168,31 @@ describe('SerialConnectionViewModelFacade', () => {
       },
     );
 
-    const injector = Injector.create({
-      providers: [
-        SerialConnectionViewModelFacade,
-        { provide: SerialFacadeService, useValue: serial },
-        {
-          provide: PiZeroSessionService,
-          useValue: createPiZeroMock(() => 'idle', () => false),
+    const facade = configureFacade([
+      { provide: SerialFacadeService, useValue: serial },
+      {
+        provide: PiZeroSessionService,
+        useValue: createPiZeroMock(() => 'idle', () => false),
+      },
+      {
+        provide: PiZeroShellReadinessService,
+        useValue: { ready: signal(false).asReadonly() },
+      },
+      {
+        provide: SerialNotificationService,
+        useValue: {
+          notifyConnectionSuccess: vi.fn(),
+          notifyConnectionError: vi.fn(),
         },
-        {
-          provide: PiZeroShellReadinessService,
-          useValue: { ready: signal(false).asReadonly() },
-        },
-        {
-          provide: SerialNotificationService,
-          useValue: {
-            notifyConnectionSuccess: vi.fn(),
-            notifyConnectionError: vi.fn(),
-          },
-        },
-        {
-          provide: TerminalCommandRequestService,
-          useValue: { requestCommand: vi.fn() },
-        },
-      ],
-    });
-
-    const facade = injector.get(SerialConnectionViewModelFacade);
+      },
+      {
+        provide: TerminalCommandRequestService,
+        useValue: { requestCommand: vi.fn() },
+      },
+    ]);
 
     facade.connect();
+    TestBed.flushEffects();
 
     await vi.waitFor(() => {
       expect(facade.vm().errorMessage).toBe('fail');
@@ -205,39 +205,35 @@ describe('SerialConnectionViewModelFacade', () => {
 
   it('sendCommand forwards to TerminalCommandRequestService', () => {
     const requestCommand = vi.fn();
-    const injector = Injector.create({
-      providers: [
-        SerialConnectionViewModelFacade,
-        {
-          provide: SerialFacadeService,
-          useValue: createSerialMock(
-            () => ({ status: SerialSessionStatus.Idle }),
-            () => false,
-          ),
+    const facade = configureFacade([
+      {
+        provide: SerialFacadeService,
+        useValue: createSerialMock(
+          () => ({ status: SerialSessionStatus.Idle }),
+          () => false,
+        ),
+      },
+      {
+        provide: PiZeroSessionService,
+        useValue: createPiZeroMock(() => 'idle', () => false),
+      },
+      {
+        provide: PiZeroShellReadinessService,
+        useValue: { ready: signal(false).asReadonly() },
+      },
+      {
+        provide: SerialNotificationService,
+        useValue: {
+          notifyConnectionSuccess: vi.fn(),
+          notifyConnectionError: vi.fn(),
         },
-        {
-          provide: PiZeroSessionService,
-          useValue: createPiZeroMock(() => 'idle', () => false),
-        },
-        {
-          provide: PiZeroShellReadinessService,
-          useValue: { ready: signal(false).asReadonly() },
-        },
-        {
-          provide: SerialNotificationService,
-          useValue: {
-            notifyConnectionSuccess: vi.fn(),
-            notifyConnectionError: vi.fn(),
-          },
-        },
-        {
-          provide: TerminalCommandRequestService,
-          useValue: { requestCommand },
-        },
-      ],
-    });
+      },
+      {
+        provide: TerminalCommandRequestService,
+        useValue: { requestCommand },
+      },
+    ]);
 
-    const facade = injector.get(SerialConnectionViewModelFacade);
     facade.sendCommand('ls');
 
     expect(requestCommand).toHaveBeenCalledWith('ls');
