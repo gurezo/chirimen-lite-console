@@ -1,5 +1,6 @@
+import { effect, Injector, signal } from '@angular/core';
 import { describe, expect, it, vi } from 'vitest';
-import { firstValueFrom, from, NEVER, of, Subject, throwError } from 'rxjs';
+import { firstValueFrom, from, NEVER, of, throwError } from 'rxjs';
 import { PI_ZERO_LOGIN_USER, PI_ZERO_PROMPT } from '../constants';
 import { PiZeroPromptDetectorService } from './pi-zero-prompt-detector.service';
 import { PiZeroSerialBootstrapService } from './pi-zero-serial-bootstrap.service';
@@ -15,13 +16,28 @@ function stubConnection(
 }
 
 function createShellReadinessMock(): PiZeroShellReadinessService {
+  const readySignal = signal(false);
   return {
-    setReady: vi.fn(),
-    reset: vi.fn(),
-    isReady: vi.fn(() => false),
+    setReady: vi.fn((value: boolean) => readySignal.set(value)),
+    reset: vi.fn(() => readySignal.set(false)),
+    isReady: vi.fn(() => readySignal()),
     startWatching: vi.fn(),
-    ready$: vi.fn() as unknown as PiZeroShellReadinessService['ready$'],
+    ready: readySignal.asReadonly(),
   } as unknown as PiZeroShellReadinessService;
+}
+
+function createSignalWatcher<T>(
+  injector: Injector,
+  read: () => T,
+): { seen: T[]; destroy: () => void } {
+  const seen: T[] = [];
+  const ref = effect(
+    () => {
+      seen.push(read());
+    },
+    { injector },
+  );
+  return { seen, destroy: () => ref.destroy() };
 }
 
 function createSession(
@@ -211,7 +227,7 @@ describe('PiZeroSessionService', () => {
     expect(vi.mocked(shellReadiness.setReady)).toHaveBeenCalledWith(true);
   });
 
-  it('emits initializing$ true during post-connect bootstrap then false', async () => {
+  it('sets initializing true during post-connect bootstrap then false', async () => {
     const readUntilPrompt = vi.fn().mockResolvedValue({
       stdout: `${PI_ZERO_PROMPT} `,
     });
@@ -225,18 +241,18 @@ describe('PiZeroSessionService', () => {
 
     const shellReadiness = createShellReadinessMock();
     const service = createSession(serial, shellReadiness);
-    const seen: boolean[] = [];
-    const sub = service.initializing$.subscribe((v) => seen.push(v));
+    const injector = Injector.create({ providers: [] });
+    const watcher = createSignalWatcher(injector, () => service.initializing());
     await firstValueFrom(service.runAfterConnect$());
     await vi.waitFor(() => {
-      expect(seen.at(-1)).toBe(false);
+      expect(watcher.seen.at(-1)).toBe(false);
     });
-    sub.unsubscribe();
+    watcher.destroy();
 
-    expect(seen).toContain(true);
+    expect(watcher.seen).toContain(true);
   });
 
-  it('emits setupStatus$ transitions and ends in ready on success', async () => {
+  it('transitions setupStatus and ends in ready on success', async () => {
     const readUntilPrompt = vi.fn().mockResolvedValue({
       stdout: `${PI_ZERO_PROMPT} `,
     });
@@ -250,16 +266,16 @@ describe('PiZeroSessionService', () => {
 
     const shellReadiness = createShellReadinessMock();
     const service = createSession(serial, shellReadiness);
-    const seen: string[] = [];
-    const sub = service.setupStatus$.subscribe((v) => seen.push(v));
+    const injector = Injector.create({ providers: [] });
+    const watcher = createSignalWatcher(injector, () => service.setupStatus());
     await firstValueFrom(service.runAfterConnect$());
     await vi.waitFor(() => {
-      expect(seen.at(-1)).toBe('ready');
+      expect(watcher.seen.at(-1)).toBe('ready');
     });
-    sub.unsubscribe();
+    watcher.destroy();
 
-    expect(seen).toContain('waiting-login');
-    expect(seen).toContain('setting-timezone');
+    expect(watcher.seen).toContain('waiting-login');
+    expect(watcher.seen).toContain('setting-timezone');
   });
 
   describe('login flow (loginIfNeeded$)', () => {
@@ -336,7 +352,7 @@ describe('PiZeroSessionService', () => {
   });
 
   describe('error flow (runAfterConnect$)', () => {
-    it('propagates errors, skips setReady(true), and ends initializing$', async () => {
+    it('propagates errors, skips setReady(true), and ends initializing', async () => {
       const readUntilPrompt = vi
         .fn()
         .mockImplementationOnce(() =>
@@ -362,19 +378,19 @@ describe('PiZeroSessionService', () => {
 
       const shellReadiness = createShellReadinessMock();
       const service = createSession(serial, shellReadiness);
-      const seen: boolean[] = [];
-      const sub = service.initializing$.subscribe((v) => seen.push(v));
+      const injector = Injector.create({ providers: [] });
+      const watcher = createSignalWatcher(injector, () => service.initializing());
 
       await expect(firstValueFrom(service.runAfterConnect$())).rejects.toThrow(
         'Shell readiness timeout while waiting for prompt',
       );
-      sub.unsubscribe();
+      watcher.destroy();
 
       expect(vi.mocked(shellReadiness.setReady)).not.toHaveBeenCalledWith(true);
-      expect(seen.at(-1)).toBe(false);
+      expect(watcher.seen.at(-1)).toBe(false);
     });
 
-    it('sets setupStatus$ to failed on pipeline failure', async () => {
+    it('sets setupStatus to failed on pipeline failure', async () => {
       const readUntilPrompt = vi
         .fn()
         .mockImplementationOnce(() =>
@@ -396,12 +412,12 @@ describe('PiZeroSessionService', () => {
       } as unknown as SerialFacadeService;
 
       const service = createSession(serial, createShellReadinessMock());
-      const seen: string[] = [];
-      const sub = service.setupStatus$.subscribe((v) => seen.push(v));
+      const injector = Injector.create({ providers: [] });
+      const watcher = createSignalWatcher(injector, () => service.setupStatus());
       await expect(firstValueFrom(service.runAfterConnect$())).rejects.toThrow();
-      sub.unsubscribe();
+      watcher.destroy();
 
-      expect(seen.at(-1)).toBe('failed');
+      expect(watcher.seen.at(-1)).toBe('failed');
     });
 
     it('notifies status handler on pipeline failure', async () => {
@@ -458,15 +474,15 @@ describe('PiZeroSessionService', () => {
 
       const shellReadiness = createShellReadinessMock();
       const service = createSession(serial, shellReadiness);
-      const seen: string[] = [];
-      const sub = service.setupStatus$.subscribe((v) => seen.push(v));
+      const injector = Injector.create({ providers: [] });
+      const watcher = createSignalWatcher(injector, () => service.setupStatus());
 
       await firstValueFrom(service.runAfterConnect$());
       expect(vi.mocked(shellReadiness.setReady)).toHaveBeenCalledWith(true);
       await vi.waitFor(() => {
-        expect(seen.at(-1)).toBe('failed');
+        expect(watcher.seen.at(-1)).toBe('failed');
       });
-      sub.unsubscribe();
+      watcher.destroy();
     });
   });
 });

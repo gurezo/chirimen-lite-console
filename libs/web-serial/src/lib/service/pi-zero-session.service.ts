@@ -1,10 +1,8 @@
 /** Full rewrite (#606). Pi Zero session orchestration via {@link SerialFacadeService}. */
-import { Injectable } from '@angular/core';
+import { computed, Injectable, signal } from '@angular/core';
 import {
-  BehaviorSubject,
   catchError,
   defer,
-  distinctUntilChanged,
   EMPTY,
   finalize,
   map,
@@ -43,28 +41,27 @@ export class PiZeroSessionService {
   /** `activeBootstrap$` が属する接続 epoch。finalize で当該 epoch のみクリーンアップする。 */
   private activeBootstrapEpoch: number | null = null;
 
-  private readonly initializingSubject = new BehaviorSubject(false);
-  private readonly setupStatusSubject =
-    new BehaviorSubject<SerialSetupStatus>('idle');
+  private readonly setupStatusSignal = signal<SerialSetupStatus>('idle');
+
+  /**
+   * 接続後の Pi Zero 初期化パイプライン（ログイン・環境セットアップ等）の進捗状態。
+   */
+  readonly setupStatus = this.setupStatusSignal.asReadonly();
 
   /**
    * 接続後の Pi Zero 初期化パイプライン（ログイン・環境セットアップ等）実行中。
    */
-  readonly initializing$ = this.initializingSubject.pipe(distinctUntilChanged());
-  readonly setupStatus$ = this.setupStatusSubject.pipe(distinctUntilChanged());
+  readonly initializing = computed(() => {
+    const status = this.setupStatusSignal();
+    return status !== 'idle' && status !== 'ready' && status !== 'failed';
+  });
 
   constructor(
     private readonly serial: SerialFacadeService,
     private readonly bootstrap: PiZeroSerialBootstrapService,
     readonly shellReadiness: PiZeroShellReadinessService,
     private readonly connection: SerialConnectionOrchestrationService,
-  ) {
-    this.setupStatus$.subscribe((status) => {
-      const isInitializing =
-        status !== 'idle' && status !== 'ready' && status !== 'failed';
-      this.initializingSubject.next(isInitializing);
-    });
-  }
+  ) {}
 
   connect$(baudRate = 115200): Observable<SerialFacadeConnectResult> {
     return this.serial.connect$(baudRate);
@@ -88,7 +85,7 @@ export class PiZeroSessionService {
 
   /**
    * 接続セッションごとに 1 回、初期化パイプラインを走らせるか。
-   * `connectionEstablished$` 直後は `isConnected$` の反映が遅れることがあるため、
+   * 接続確立直後は `isConnected` の反映が遅れることがあるため、
    * 接続 epoch のみで判定する（issue #717）。
    */
   shouldRunAfterConnect$(): Observable<boolean> {
@@ -125,14 +122,14 @@ export class PiZeroSessionService {
         .pipe(
           tap(() => {
             if (this.connection.getConnectionEpoch() === epoch) {
-              this.setupStatusSubject.next('ready');
+              this.setupStatusSignal.set('ready');
             }
           }),
           catchError((error: unknown) => {
             const message =
               error instanceof Error ? error.message : String(error);
             if (this.connection.getConnectionEpoch() === epoch) {
-              this.setupStatusSubject.next('failed');
+              this.setupStatusSignal.set('failed');
             }
             log(`[コンソール] 環境設定に失敗しました: ${message}`);
             return EMPTY;
@@ -157,9 +154,9 @@ export class PiZeroSessionService {
     const log = onStatus ?? (() => undefined);
     const onBootstrapStatus = (line: string): void => {
       if (line.includes('ログインユーザー')) {
-        this.setupStatusSubject.next('sending-username');
+        this.setupStatusSignal.set('sending-username');
       } else if (line.includes('パスワードを送信中')) {
-        this.setupStatusSubject.next('sending-password');
+        this.setupStatusSignal.set('sending-password');
       }
       log(line);
     };
@@ -181,7 +178,7 @@ export class PiZeroSessionService {
         this.activeBootstrapEpoch = epoch;
 
         this.activeBootstrap$ = defer(() => {
-          this.setupStatusSubject.next('waiting-login');
+          this.setupStatusSignal.set('waiting-login');
           return of(undefined);
         }).pipe(
           switchMap(() =>
@@ -194,14 +191,14 @@ export class PiZeroSessionService {
               this.markShellReadyIfActive(epoch);
             }
             this.bootstrappedEpoch = epoch;
-            this.setupStatusSubject.next('setting-timezone');
+            this.setupStatusSignal.set('setting-timezone');
             this.runEnvironmentSetupInBackground(epoch, onBootstrapStatus, log);
           }),
           map(() => undefined),
           catchError((error: unknown) => {
             const message =
               error instanceof Error ? error.message : String(error);
-            this.setupStatusSubject.next('failed');
+            this.setupStatusSignal.set('failed');
             log(`[コンソール] 接続後の初期化に失敗しました: ${message}`);
             return throwError(() => error);
           }),
