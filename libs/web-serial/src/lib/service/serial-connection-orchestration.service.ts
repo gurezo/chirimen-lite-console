@@ -1,10 +1,11 @@
 /// <reference types="@types/w3c-web-serial" />
 
 /** Full rewrite (#606). Connect lifecycle around {@link SerialTransportService}. */
-import { Injectable, inject } from '@angular/core';
+import { Injectable, inject, Injector } from '@angular/core';
 import {
   catchError,
   defer,
+  EMPTY,
   of,
   type Observable,
   Subject,
@@ -13,6 +14,7 @@ import {
   throwError,
 } from 'rxjs';
 import { getConnectionErrorMessage } from '../functions';
+import { PiZeroSessionService } from './pi-zero-session.service';
 import { PiZeroShellReadinessService } from './pi-zero-shell-readiness.service';
 import { SerialCommandPipelineService } from './serial-command/serial-command-pipeline.service';
 import { SerialTransportService } from './serial-transport.service';
@@ -33,6 +35,7 @@ export class SerialConnectionOrchestrationService {
   private readonly transport = inject(SerialTransportService);
   private readonly command = inject(SerialCommandPipelineService);
   private readonly shellReadiness = inject(PiZeroShellReadinessService);
+  private readonly injector = inject(Injector);
 
   /**
    * 成功したシリアル接続ごとに単調増加するセッション識別子。
@@ -62,7 +65,9 @@ export class SerialConnectionOrchestrationService {
           this.command.startReadLoop();
           this.connectionEpoch += 1;
           this.shellReadiness.reset();
+          this.shellReadiness.startWatching();
           this.connectionEstablished.next();
+          this.schedulePostConnectBootstrap();
           return of<SerialConnectResult>({ ok: true });
         }),
         catchError((error: unknown) => {
@@ -94,5 +99,29 @@ export class SerialConnectionOrchestrationService {
    */
   getConnectionEpoch(): number {
     return this.connectionEpoch;
+  }
+
+  /**
+   * 接続確立直後に Pi Zero bootstrap を起動する（issue #717）。
+   * `Injector` 経由で遅延解決し、オーケストレーションとの循環 DI を避ける。
+   */
+  private schedulePostConnectBootstrap(): void {
+    queueMicrotask(() => {
+      this.injector
+        .get(PiZeroSessionService)
+        .runAfterConnect$()
+        .pipe(
+          catchError((error: unknown) => {
+            const message =
+              error instanceof Error ? error.message : String(error);
+            console.error(
+              '[SerialConnection] post-connect bootstrap failed:',
+              message,
+            );
+            return EMPTY;
+          }),
+        )
+        .subscribe();
+    });
   }
 }
