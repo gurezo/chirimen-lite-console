@@ -75,6 +75,55 @@ describe('PiZeroSessionService', () => {
     expect(readUntilPrompt).toHaveBeenCalledTimes(1);
   });
 
+  it('runs bootstrap when isConnected$ is still false but epoch advanced', async () => {
+    const readUntilPrompt = vi.fn().mockResolvedValue({
+      stdout: `${PI_ZERO_PROMPT} `,
+    });
+    const exec = vi.fn().mockResolvedValue({ stdout: '' });
+    const serial = {
+      isConnected$: of(false),
+      connectionEstablished$: NEVER,
+      readUntilPrompt$: (o: unknown) => from(readUntilPrompt(o)),
+      exec$: (c: string, o: unknown) => from(exec(c, o)),
+    } as unknown as SerialFacadeService;
+
+    const shellReadiness = createShellReadinessMock();
+    const service = createSession(serial, shellReadiness, stubConnection(() => 1));
+    await firstValueFrom(service.runAfterConnect$());
+
+    expect(vi.mocked(shellReadiness.setReady)).toHaveBeenCalledWith(true);
+    expect(readUntilPrompt).toHaveBeenCalledTimes(1);
+  });
+
+  it('marks shell ready after login before environment setup exec', async () => {
+    const readUntilPrompt = vi.fn().mockResolvedValue({
+      stdout: `${PI_ZERO_PROMPT} `,
+    });
+    const events: string[] = [];
+    const exec = vi.fn().mockImplementation(async (cmd: string) => {
+      events.push(`exec:${cmd.slice(0, 12)}`);
+      return { stdout: '' };
+    });
+    const serial = {
+      isConnected$: of(true),
+      connectionEstablished$: NEVER,
+      readUntilPrompt$: (o: unknown) => from(readUntilPrompt(o)),
+      exec$: (c: string, o: unknown) => from(exec(c, o)),
+    } as unknown as SerialFacadeService;
+
+    const shellReadiness = createShellReadinessMock();
+    vi.mocked(shellReadiness.setReady).mockImplementation((value: boolean) => {
+      if (value) {
+        events.push('ready');
+      }
+    });
+    const service = createSession(serial, shellReadiness, stubConnection(() => 1));
+    await firstValueFrom(service.runAfterConnect$());
+
+    expect(events[0]).toBe('ready');
+    expect(events[1]).toMatch(/^exec:/);
+  });
+
   it('runs at most one post-connect pipeline per connection epoch', async () => {
     const readUntilPrompt = vi.fn().mockResolvedValue({
       stdout: `${PI_ZERO_PROMPT} `,
@@ -406,7 +455,7 @@ describe('PiZeroSessionService', () => {
       await expect(firstValueFrom(service.runAfterConnect$())).rejects.toThrow(
         'Environment setup failed',
       );
-      expect(vi.mocked(shellReadiness.setReady)).not.toHaveBeenCalledWith(true);
+      expect(vi.mocked(shellReadiness.setReady)).toHaveBeenCalledWith(true);
     });
   });
 });
