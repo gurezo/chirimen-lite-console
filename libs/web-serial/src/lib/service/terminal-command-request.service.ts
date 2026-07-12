@@ -1,5 +1,4 @@
-import { Injectable } from '@angular/core';
-import { Observable, Subject } from 'rxjs';
+import { Injectable, signal } from '@angular/core';
 
 /**
  * Lets other features (e.g. toolbar) ask the terminal to run a shell command
@@ -9,12 +8,18 @@ import { Observable, Subject } from 'rxjs';
   providedIn: 'root',
 })
 export class TerminalCommandRequestService {
-  private readonly requestsSubject = new Subject<string>();
+  private readonly commandRequestSignal = signal<string | null>(null);
+  private requestCounter = 0;
 
-  readonly commandRequests$: Observable<string> =
-    this.requestsSubject.asObservable();
+  /**
+   * 直近のコマンド要求。`requestId` で同一コマンドの連続要求も検知できる。
+   */
+  readonly commandRequest = this.commandRequestSignal.asReadonly();
+  readonly requestId = signal(0);
 
   requestCommand(command: string): void {
-    this.requestsSubject.next(command);
+    this.requestCounter += 1;
+    this.requestId.set(this.requestCounter);
+    this.commandRequestSignal.set(command);
   }
 }
