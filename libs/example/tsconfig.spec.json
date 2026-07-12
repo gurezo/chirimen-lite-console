@@ -2,7 +2,12 @@
   "extends": "./tsconfig.json",
   "compilerOptions": {
     "outDir": "../../dist/out-tsc",
-    "types": ["vitest/globals", "vite/client", "node"]
+    "rootDir": ".",
+    "types": [
+      "vitest/globals",
+      "vite/client",
+      "node"
+    ]
   },
   "include": [
     "vite.config.ts",
@@ -19,5 +24,7 @@
     "src/**/*.spec.jsx",
     "src/**/*.d.ts"
   ],
-  "files": ["src/test-setup.ts"]
+  "files": [
+    "src/test-setup.ts"
+  ]
 }
