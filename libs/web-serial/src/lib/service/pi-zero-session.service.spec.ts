@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { firstValueFrom, from, of, throwError } from 'rxjs';
+import { firstValueFrom, from, NEVER, of, Subject, throwError } from 'rxjs';
 import { PI_ZERO_LOGIN_USER, PI_ZERO_PROMPT } from '../constants';
 import { PiZeroPromptDetectorService } from './pi-zero-prompt-detector.service';
 import { PiZeroSerialBootstrapService } from './pi-zero-serial-bootstrap.service';
@@ -35,7 +35,46 @@ function createSession(
   return new PiZeroSessionService(serial, bootstrap, shellReadiness, connection);
 }
 
+function serialWithConnectionEstablished(
+  overrides: Partial<SerialFacadeService> & {
+    connectionEstablished$?: Subject<void>['asObservable'] extends () => infer T
+      ? T
+      : never;
+  } = {},
+): SerialFacadeService {
+  return {
+    isConnected$: of(true),
+    connectionEstablished$: NEVER,
+    readUntilPrompt$: () => from(Promise.resolve({ stdout: `${PI_ZERO_PROMPT} ` })),
+    exec$: () => from(Promise.resolve({ stdout: '' })),
+    send$: () => of(undefined),
+    ...overrides,
+  } as unknown as SerialFacadeService;
+}
+
 describe('PiZeroSessionService', () => {
+  it('auto-starts bootstrap when connectionEstablished$ emits', async () => {
+    const connectionEstablished = new Subject<void>();
+    const readUntilPrompt = vi.fn().mockResolvedValue({
+      stdout: `${PI_ZERO_PROMPT} `,
+    });
+    const exec = vi.fn().mockResolvedValue({ stdout: '' });
+    const serial = serialWithConnectionEstablished({
+      connectionEstablished$: connectionEstablished.asObservable(),
+      readUntilPrompt$: (o: unknown) => from(readUntilPrompt(o)),
+      exec$: (c: string, o: unknown) => from(exec(c, o)),
+    });
+
+    const shellReadiness = createShellReadinessMock();
+    createSession(serial, shellReadiness, stubConnection(() => 1));
+
+    connectionEstablished.next();
+    await vi.waitFor(() => {
+      expect(vi.mocked(shellReadiness.setReady)).toHaveBeenCalledWith(true);
+    });
+    expect(readUntilPrompt).toHaveBeenCalledTimes(1);
+  });
+
   it('runs at most one post-connect pipeline per connection epoch', async () => {
     const readUntilPrompt = vi.fn().mockResolvedValue({
       stdout: `${PI_ZERO_PROMPT} `,
@@ -43,6 +82,7 @@ describe('PiZeroSessionService', () => {
     const exec = vi.fn().mockResolvedValue({ stdout: '' });
     const serial = {
       isConnected$: of(true),
+      connectionEstablished$: NEVER,
       readUntilPrompt$: (o: unknown) => from(readUntilPrompt(o)),
       exec$: (c: string, o: unknown) => from(exec(c, o)),
     } as unknown as SerialFacadeService;
@@ -65,6 +105,7 @@ describe('PiZeroSessionService', () => {
     const exec = vi.fn().mockResolvedValue({ stdout: '' });
     const serial = {
       isConnected$: of(true),
+      connectionEstablished$: NEVER,
       readUntilPrompt$: (o: unknown) => from(readUntilPrompt(o)),
       exec$: (c: string, o: unknown) => from(exec(c, o)),
     } as unknown as SerialFacadeService;
@@ -97,6 +138,7 @@ describe('PiZeroSessionService', () => {
     const exec = vi.fn().mockResolvedValue({ stdout: '' });
     const serial = {
       isConnected$: of(true),
+      connectionEstablished$: NEVER,
       readUntilPrompt$: (o: unknown) => from(readUntilPrompt(o)),
       exec$: (c: string, o: unknown) => from(exec(c, o)),
     } as unknown as SerialFacadeService;
@@ -124,6 +166,7 @@ describe('PiZeroSessionService', () => {
     const exec = vi.fn().mockResolvedValue({ stdout: '' });
     const serial = {
       isConnected$: of(true),
+      connectionEstablished$: NEVER,
       readUntilPrompt$: (o: unknown) => from(readUntilPrompt(o)),
       exec$: (c: string, o: unknown) => from(exec(c, o)),
     } as unknown as SerialFacadeService;
@@ -146,6 +189,7 @@ describe('PiZeroSessionService', () => {
     const exec = vi.fn().mockResolvedValue({ stdout: '' });
     const serial = {
       isConnected$: of(true),
+      connectionEstablished$: NEVER,
       readUntilPrompt$: (o: unknown) => from(readUntilPrompt(o)),
       exec$: (c: string, o: unknown) => from(exec(c, o)),
     } as unknown as SerialFacadeService;
@@ -169,6 +213,7 @@ describe('PiZeroSessionService', () => {
       );
       const exec = vi.fn();
       const serial = {
+        connectionEstablished$: NEVER,
         readUntilPrompt$: (o: unknown) => readUntilPrompt(o),
         exec$: (c: string, o: unknown) => from(exec(c, o)),
       } as unknown as SerialFacadeService;
@@ -200,6 +245,7 @@ describe('PiZeroSessionService', () => {
       const send$ = vi.fn().mockReturnValue(of(undefined));
 
       const serial = {
+        connectionEstablished$: NEVER,
         readUntilPrompt$: (o: unknown) => readUntilPrompt(o),
         exec$: (c: string, o: unknown) => exec(c, o),
         send$,
@@ -218,6 +264,7 @@ describe('PiZeroSessionService', () => {
     it('runs each environment init command over serial exec$', async () => {
       const exec = vi.fn().mockReturnValue(of({ stdout: `${PI_ZERO_PROMPT} ` }));
       const serial = {
+        connectionEstablished$: NEVER,
         exec$: (c: string, o: unknown) => exec(c, o),
       } as unknown as SerialFacadeService;
 
@@ -251,6 +298,7 @@ describe('PiZeroSessionService', () => {
       const exec = vi.fn();
       const serial = {
         isConnected$: of(true),
+        connectionEstablished$: NEVER,
         readUntilPrompt$: (o: unknown) => readUntilPrompt(o),
         exec$: (c: string, o: unknown) => from(exec(c, o)),
         send$: () => of(undefined),
@@ -285,6 +333,7 @@ describe('PiZeroSessionService', () => {
         );
       const serial = {
         isConnected$: of(true),
+        connectionEstablished$: NEVER,
         readUntilPrompt$: (o: unknown) => readUntilPrompt(o),
         exec$: () => from(Promise.resolve({ stdout: '' })),
         send$: () => of(undefined),
@@ -317,6 +366,7 @@ describe('PiZeroSessionService', () => {
       const onStatus = vi.fn();
       const serial = {
         isConnected$: of(true),
+        connectionEstablished$: NEVER,
         readUntilPrompt$: (o: unknown) => readUntilPrompt(o),
         exec$: () => from(Promise.resolve({ stdout: '' })),
         send$: () => of(undefined),
@@ -345,6 +395,7 @@ describe('PiZeroSessionService', () => {
         );
       const serial = {
         isConnected$: of(true),
+        connectionEstablished$: NEVER,
         readUntilPrompt$: (o: unknown) => readUntilPrompt(o),
         exec$: (c: string, o: unknown) => exec(c, o),
       } as unknown as SerialFacadeService;
