@@ -104,21 +104,29 @@ export class PiZeroSessionService {
 
   /**
    * 接続セッションごとに 1 回、初期化パイプラインを走らせるか。
+   * `connectionEstablished$` 直後は `isConnected$` の反映が遅れることがあるため、
+   * 接続 epoch のみで判定する（issue #717）。
    */
   shouldRunAfterConnect$(): Observable<boolean> {
-    return this.serial.isConnected$.pipe(
-      take(1),
-      map((connected) => {
-        if (!connected) {
-          return false;
-        }
-        const epoch = this.connection.getConnectionEpoch();
-        if (epoch === this.bootstrappedEpoch) {
-          return false;
-        }
-        return true;
-      }),
-    );
+    return of(this.shouldRunAfterConnect());
+  }
+
+  private shouldRunAfterConnect(): boolean {
+    const epoch = this.connection.getConnectionEpoch();
+    if (epoch <= 0) {
+      return false;
+    }
+    return epoch !== this.bootstrappedEpoch;
+  }
+
+  private markShellReadyIfActive(epoch: number): void {
+    const currentEpoch = this.connection.getConnectionEpoch();
+    if (
+      this.activeBootstrapEpoch === epoch &&
+      currentEpoch === epoch
+    ) {
+      this.shellReadiness.setReady(true);
+    }
   }
 
   /**
@@ -158,7 +166,10 @@ export class PiZeroSessionService {
           return of(undefined);
         }).pipe(
           switchMap(() => this.bootstrap.loginIfNeeded$(onBootstrapStatus)),
-          tap(() => this.setupStatusSubject.next('waiting-shell')),
+          tap(() => {
+            this.markShellReadyIfActive(epoch);
+            this.setupStatusSubject.next('waiting-shell');
+          }),
           tap(() => this.setupStatusSubject.next('setting-timezone')),
           switchMap(() => this.bootstrap.setupEnvironment$(onBootstrapStatus)),
           switchMap(() =>
@@ -172,7 +183,6 @@ export class PiZeroSessionService {
                   this.activeBootstrapEpoch === epoch
                 ) {
                   this.bootstrappedEpoch = epoch;
-                  this.shellReadiness.setReady(true);
                   this.setupStatusSubject.next('ready');
                 } else if (connected && currentEpoch !== epoch) {
                   // 再接続などで接続 epoch が進んだあとに遅延完了したパイプラインは成功扱いにしない

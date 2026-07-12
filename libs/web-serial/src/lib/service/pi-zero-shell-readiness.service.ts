@@ -3,8 +3,9 @@ import { Injectable } from '@angular/core';
 import { BehaviorSubject, type Observable } from 'rxjs';
 
 /**
- * Pi Zero シリアル接続後のブートストラップ（ログイン・タイムゾーン等）完了を共有する。
- * ファイルツリーなど、シェルプロンプト到達後にのみシリアル exec すべき箇所が購読する。
+ * Pi Zero シリアル接続後のシェル到達（ログイン完了）を共有する。
+ * ファイルツリーなど、シェルプロンプト到達後にシリアル exec すべき箇所が購読する。
+ * 環境初期化コマンドはバックグラウンドで継続し得る（issue #717）。
  */
 @Injectable({
   providedIn: 'root',
