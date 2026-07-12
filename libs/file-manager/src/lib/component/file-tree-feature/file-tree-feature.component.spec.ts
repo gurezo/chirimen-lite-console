@@ -3,31 +3,33 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { FileTreeFeatureComponent } from './file-tree-feature.component';
 import { FileTreeNode } from '../../models';
 import { FileService } from '../../service';
-import { PiZeroShellReadinessService, SerialConnectionViewModelFacade } from '@libs-web-serial';
-import { BehaviorSubject, of } from 'rxjs';
+import { SerialConnectionViewModelFacade } from '@libs-web-serial';
+import { BehaviorSubject } from 'rxjs';
+import type { SerialConnectionViewModel } from '@libs-web-serial';
 
 describe('FileTreeFeatureComponent', () => {
   const listTreeMock = vi.fn<() => Promise<FileTreeNode[]>>();
-  let readySubject: BehaviorSubject<boolean>;
+  let vmSubject: BehaviorSubject<SerialConnectionViewModel>;
 
   const treeNodes: FileTreeNode[] = [
     { name: 'docs', path: './docs', isDirectory: true },
     { name: 'main.ts', path: './main.ts', isDirectory: false },
   ];
 
-  async function compileAndCreate(
-    initialReady: boolean,
-  ): Promise<ComponentFixture<FileTreeFeatureComponent>> {
-    readySubject = new BehaviorSubject(initialReady);
-    const shellReadiness: Pick<
-      PiZeroShellReadinessService,
-      'ready$' | 'isReady' | 'setReady' | 'reset'
-    > = {
-      ready$: readySubject.asObservable(),
-      isReady: () => readySubject.value,
-      setReady: (v: boolean) => readySubject.next(v),
-      reset: () => readySubject.next(false),
-    };
+  const baseVm: SerialConnectionViewModel = {
+    isBrowserSupported: true,
+    isConnected: false,
+    isConnecting: false,
+    isLoggedIn: false,
+    isInitializing: false,
+    setupStatus: 'idle',
+    errorMessage: null,
+  };
+
+  async function compileAndCreate(): Promise<
+    ComponentFixture<FileTreeFeatureComponent>
+  > {
+    vmSubject = new BehaviorSubject<SerialConnectionViewModel>({ ...baseVm });
 
     await TestBed.configureTestingModule({
       imports: [FileTreeFeatureComponent],
@@ -37,22 +39,8 @@ describe('FileTreeFeatureComponent', () => {
           useValue: { listTree: listTreeMock },
         },
         {
-          provide: PiZeroShellReadinessService,
-          useValue: shellReadiness,
-        },
-        {
           provide: SerialConnectionViewModelFacade,
-          useValue: {
-            vm$: of({
-              isBrowserSupported: true,
-              isConnected: true,
-              isConnecting: false,
-              isLoggedIn: initialReady,
-              isInitializing: false,
-              setupStatus: 'idle',
-              errorMessage: null,
-            }),
-          },
+          useValue: { vm$: vmSubject.asObservable() },
         },
       ],
     }).compileComponents();
@@ -70,13 +58,21 @@ describe('FileTreeFeatureComponent', () => {
   });
 
   it('should create', async () => {
-    const fixture = await compileAndCreate(false);
+    const fixture = await compileAndCreate();
     expect(fixture.componentInstance).toBeTruthy();
     await fixture.whenStable();
   });
 
-  it('defers listTree until shell becomes ready', async () => {
-    const fixture = await compileAndCreate(false);
+  it('defers listTree until vm reports logged in', async () => {
+    const fixture = await compileAndCreate();
+    fixture.detectChanges();
+
+    vmSubject.next({
+      ...baseVm,
+      isConnected: true,
+      isLoggedIn: false,
+      setupStatus: 'waiting-login',
+    });
     await fixture.whenStable();
 
     expect(listTreeMock).not.toHaveBeenCalled();
@@ -84,7 +80,12 @@ describe('FileTreeFeatureComponent', () => {
       fixture.nativeElement.querySelector('mat-progress-spinner'),
     ).toBeTruthy();
 
-    readySubject.next(true);
+    vmSubject.next({
+      ...baseVm,
+      isConnected: true,
+      isLoggedIn: true,
+      setupStatus: 'setting-timezone',
+    });
     await vi.waitFor(() => {
       expect(listTreeMock).toHaveBeenCalledWith('.');
     });
@@ -92,8 +93,16 @@ describe('FileTreeFeatureComponent', () => {
     expect(fixture.componentInstance.nodes.length).toBe(2);
   });
 
-  it('loads nodes on init when shell is already ready', async () => {
-    const fixture = await compileAndCreate(true);
+  it('loads nodes when already logged in on connect', async () => {
+    const fixture = await compileAndCreate();
+    fixture.detectChanges();
+
+    vmSubject.next({
+      ...baseVm,
+      isConnected: true,
+      isLoggedIn: true,
+      setupStatus: 'ready',
+    });
     await vi.waitFor(() => {
       expect(listTreeMock).toHaveBeenCalledWith('.');
     });
