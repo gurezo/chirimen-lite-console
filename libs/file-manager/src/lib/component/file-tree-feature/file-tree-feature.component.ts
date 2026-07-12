@@ -5,7 +5,10 @@ import { joinPath } from '../../functions';
 import { FileTreeNode } from '../../models';
 import { FileService } from '../../service';
 import { FileTreeComponent } from '../file-tree/file-tree.component';
-import { PiZeroShellReadinessService } from '@libs-web-serial';
+import {
+  PiZeroShellReadinessService,
+  SerialConnectionViewModelFacade,
+} from '@libs-web-serial';
 import { filter, take } from 'rxjs/operators';
 
 @Component({
@@ -19,6 +22,7 @@ import { filter, take } from 'rxjs/operators';
 export class FileTreeFeatureComponent implements OnInit {
   private file = inject(FileService);
   private shellReadiness = inject(PiZeroShellReadinessService);
+  private connectionVm = inject(SerialConnectionViewModelFacade);
   private destroyRef = inject(DestroyRef);
   readonly fileSelected = output<string>();
 
@@ -29,8 +33,21 @@ export class FileTreeFeatureComponent implements OnInit {
 
   ngOnInit(): void {
     this.loading = true;
+
+    this.connectionVm.vm$
+      .pipe(
+        filter((vm) => vm.setupStatus === 'failed' && !vm.isLoggedIn),
+        take(1),
+        takeUntilDestroyed(this.destroyRef),
+      )
+      .subscribe(() => {
+        this.loading = false;
+        this.errorMessage =
+          'シェルの初期化に失敗しました。ターミナルを確認してください。';
+      });
+
     if (this.shellReadiness.isReady()) {
-      void this.loadCurrentPath();
+      queueMicrotask(() => void this.loadCurrentPath());
       return;
     }
     this.shellReadiness.ready$
@@ -39,7 +56,7 @@ export class FileTreeFeatureComponent implements OnInit {
         take(1),
         takeUntilDestroyed(this.destroyRef),
       )
-      .subscribe(() => void this.loadCurrentPath());
+      .subscribe(() => queueMicrotask(() => void this.loadCurrentPath()));
   }
 
   async reload(): Promise<void> {
