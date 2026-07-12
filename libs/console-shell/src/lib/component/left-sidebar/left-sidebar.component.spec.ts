@@ -2,8 +2,23 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { ActivatedRoute, Router } from '@angular/router';
 import { provideMockStore } from '@ngrx/store/testing';
-import { EMPTY } from 'rxjs';
+import { FileService } from '@libs-file-manager';
+import {
+  SerialConnectionViewModelFacade,
+  type SerialConnectionViewModel,
+} from '@libs-web-serial';
+import { BehaviorSubject, EMPTY } from 'rxjs';
 import { LeftSidebarComponent } from './left-sidebar.component';
+
+const baseVm: SerialConnectionViewModel = {
+  isBrowserSupported: true,
+  isConnected: false,
+  isConnecting: false,
+  isLoggedIn: false,
+  isInitializing: false,
+  setupStatus: 'idle',
+  errorMessage: null,
+};
 
 describe('LeftSidebarComponent', () => {
   let component: LeftSidebarComponent;
@@ -24,6 +39,20 @@ describe('LeftSidebarComponent', () => {
           useValue: { navigate: vi.fn().mockResolvedValue(true), events: EMPTY },
         },
         { provide: ActivatedRoute, useValue: activatedRoute },
+        {
+          provide: SerialConnectionViewModelFacade,
+          useValue: {
+            vm$: new BehaviorSubject<SerialConnectionViewModel>(baseVm).asObservable(),
+            connect: vi.fn(),
+            disconnect: vi.fn(),
+            sendCommand: vi.fn(),
+            clearError: vi.fn(),
+          },
+        },
+        {
+          provide: FileService,
+          useValue: { listTree: vi.fn().mockResolvedValue([]) },
+        },
       ],
     }).compileComponents();
 
