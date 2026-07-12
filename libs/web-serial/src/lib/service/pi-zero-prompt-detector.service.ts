@@ -128,20 +128,32 @@ export class PiZeroPromptDetectorService {
   }
 
   /**
-   * シリアル上のコマンド完了は末尾の対話シェルプロンプトで判定する。
+   * シリアル上のコマンド完了は末尾付近の対話シェルプロンプトで判定する。
    * `pi@host:~$ ls ...` のようなコマンドエコー行では一致させない（issue #717）。
    */
   isCommandCompleted(text: string): boolean {
-    const line = this.trailingNonEmptyLine(text);
-    if (!line) {
+    const normalized = text.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
+    const lines = normalized.split('\n');
+    const windowSize = Math.min(lines.length, 12);
+    for (let j = lines.length - 1; j >= lines.length - windowSize; j--) {
+      const line = (lines[j] ?? '').trim();
+      if (!line.length) {
+        continue;
+      }
+      if (this.lineLooksLikeSerialAuthPrompt(line)) {
+        return false;
+      }
+      if (this.lineLooksLikeShellPromptOnly(line)) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  private lineLooksLikeShellPromptOnly(line: string): boolean {
+    if (!/^[^\s]+@[^:]+:.*(?:\$|#)/.test(line)) {
       return false;
     }
-    if (this.lineLooksLikeSerialAuthPrompt(line)) {
-      return false;
-    }
-    if (!/^[^\s]+@[^:]+:.*[$#]/.test(line)) {
-      return false;
-    }
-    return !/[$#]\s+\S/.test(line);
+    return !/(?:\$|#)\s+\S/.test(line);
   }
 }

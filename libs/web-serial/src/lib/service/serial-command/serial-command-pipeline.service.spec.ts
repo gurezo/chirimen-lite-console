@@ -12,6 +12,7 @@ import {
   timer,
 } from 'rxjs';
 import { PI_ZERO_PROMPT } from '../../constants';
+import { createPiZeroShellExecOptions } from '../../functions';
 import { PiZeroPromptDetectorService } from '../pi-zero-prompt-detector.service';
 import type { SerialTransportService } from '../serial-transport.service';
 import { SerialCommandPipelineService } from './serial-command-pipeline.service';
@@ -474,6 +475,38 @@ describe('SerialCommandPipelineService', () => {
     const result = await execPromise;
     expect(result.stdout).toContain('yyy zzz');
     expect(result.stdout).toContain(PI_ZERO_PROMPT);
+  });
+
+  it('exec with isCommandCompleted waits for ls output before completing', async () => {
+    const { service, linesSubject, transport } = createService();
+    const detector = new PiZeroPromptDetectorService();
+    const options = createPiZeroShellExecOptions(detector, {
+      timeout: 2000,
+      retry: 0,
+    });
+    let releaseWrite: (() => void) | undefined;
+    transport.send$ = vi.fn(
+      () =>
+        new Observable<void>((subscriber) => {
+          releaseWrite = () => {
+            subscriber.next();
+            subscriber.complete();
+          };
+        }),
+    );
+    const execPromise = firstValueFrom(
+      service.exec$('ls -al --quoting-style=c -- $\'.\'', options),
+    );
+    releaseWrite?.();
+    emitIncomingChunks(linesSubject, [
+      'pi@raspberrypi:~$ ls -al --quoting-style=c -- $\'.\'',
+      'total 36',
+      'drwxr-xr-x 3 pi   pi   4096 Jun  4 13:19 "myApp"',
+      'pi@raspberrypi:~$ ',
+    ]);
+    const result = await execPromise;
+    expect(result.stdout).toContain('myApp');
+    expect(result.stdout).toContain('pi@raspberrypi:~$');
   });
 });
 
