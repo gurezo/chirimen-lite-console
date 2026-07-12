@@ -68,18 +68,15 @@ describe('SerialConnectionOrchestrationService', () => {
     expect(service.getConnectionEpoch()).toBe(0);
   });
 
-  it('on successful connect increments epoch, starts read loop, resets shell readiness, emits connectionEstablished$', async () => {
+  it('on successful connect increments epoch, starts read loop, resets shell readiness', async () => {
     const startWatching = vi.spyOn(shellReadiness, 'startWatching');
-    const establishedOnce = firstValueFrom(
-      service.connectionEstablished$.pipe(take(1)),
-    );
 
     shellReadiness.setReady(true);
     const result = await firstValueFrom(service.connect$(115200));
-    await establishedOnce;
 
     expect(result).toEqual({ ok: true });
     expect(service.getConnectionEpoch()).toBe(1);
+    expect(service.connectionEpoch()).toBe(1);
     expect(command.startReadLoop).toHaveBeenCalledTimes(1);
     expect(shellReadiness.isReady()).toBe(false);
     expect(startWatching).toHaveBeenCalledTimes(1);
@@ -131,19 +128,14 @@ describe('SerialConnectionOrchestrationService', () => {
   it('does not increment epoch or start read loop when transport returns error', async () => {
     connectMock.mockReturnValue(of({ error: 'permission denied' }));
 
-    let establishedFired = false;
-    const sub = service.connectionEstablished$.subscribe(() => {
-      establishedFired = true;
-    });
     const result = await firstValueFrom(service.connect$(115200));
-    sub.unsubscribe();
 
     expect(result).toEqual({
       ok: false,
       errorMessage: 'permission denied',
     });
     expect(service.getConnectionEpoch()).toBe(0);
+    expect(service.connectionEpoch()).toBe(0);
     expect(command.startReadLoop).not.toHaveBeenCalled();
-    expect(establishedFired).toBe(false);
   });
 });

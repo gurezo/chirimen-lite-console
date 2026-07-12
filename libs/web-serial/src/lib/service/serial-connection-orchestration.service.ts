@@ -1,16 +1,14 @@
 /// <reference types="@types/w3c-web-serial" />
 
 /** Full rewrite (#606). Connect lifecycle around {@link SerialTransportService}. */
-import { Injectable, inject, Injector } from '@angular/core';
+import { Injectable, inject, Injector, signal } from '@angular/core';
 import {
   catchError,
   defer,
   EMPTY,
   of,
   type Observable,
-  Subject,
   switchMap,
-  take,
   throwError,
 } from 'rxjs';
 import { getConnectionErrorMessage } from '../functions';
@@ -41,10 +39,9 @@ export class SerialConnectionOrchestrationService {
    * 成功したシリアル接続ごとに単調増加するセッション識別子。
    * 接続ライフサイクルのみ本サービスがインクリメントし、bootstrap 済み判定は `PiZeroSessionService` 側の責務。
    */
-  private connectionEpoch = 0;
+  private readonly connectionEpochSignal = signal(0);
 
-  private readonly connectionEstablished = new Subject<void>();
-  readonly connectionEstablished$ = this.connectionEstablished.asObservable();
+  readonly connectionEpoch = this.connectionEpochSignal.asReadonly();
 
   connect$(baudRate = 115200): Observable<SerialConnectResult> {
     return defer(() =>
@@ -62,10 +59,9 @@ export class SerialConnectionOrchestrationService {
             });
           }
           this.command.startReadLoop();
-          this.connectionEpoch += 1;
+          this.connectionEpochSignal.update((epoch) => epoch + 1);
           this.shellReadiness.reset();
           this.shellReadiness.startWatching();
-          this.connectionEstablished.next();
           this.schedulePostConnectBootstrap();
           return of<SerialConnectResult>({ ok: true });
         }),
@@ -94,10 +90,9 @@ export class SerialConnectionOrchestrationService {
 
   /**
    * data-access 内部で接続セッションと bootstrap 状態を突き合わせるための API。
-   * Feature / Facade には露出しない（[#647](https://github.com/gurezo/chirimen-lite-console/issues/647)）。
    */
   getConnectionEpoch(): number {
-    return this.connectionEpoch;
+    return this.connectionEpochSignal();
   }
 
   /**
