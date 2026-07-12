@@ -3,12 +3,13 @@ import {
   Component,
   DestroyRef,
   ElementRef,
+  effect,
   OnDestroy,
+  untracked,
   ViewChild,
   inject,
 } from '@angular/core';
-import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
-import { Subscription, filter, merge, switchMap, take } from 'rxjs';
+import { firstValueFrom } from 'rxjs';
 import { FitAddon } from '@xterm/addon-fit';
 import { Terminal } from '@xterm/xterm';
 import { SerialFacadeService } from '@libs-web-serial';
@@ -21,9 +22,8 @@ import {
 import { attachTerminalInput } from '../terminal-input';
 
 /**
- * ターミナル表示専用コンポーネント。ライブ表示は {@link SerialFacadeService#terminalText$}
+ * ターミナル表示専用コンポーネント。ライブ表示は {@link SerialFacadeService#terminalText}
  * の累積テキストを差分だけ xterm に書き込む（issue #610）。
- * **stdout の整形**（`sanitizeSerialStdout` 等）は本コンポーネントでは行わない（issue #613）。
  */
 @Component({
   selector: 'choh-terminal-view',
@@ -45,18 +45,74 @@ export class TerminalViewComponent implements AfterViewInit, OnDestroy {
 
   private readonly fitAddon = new FitAddon();
 
-  private commandRequestSub?: Subscription;
   private resizeObserver?: ResizeObserver;
 
-  /** キー入力可否（{@link TerminalConsoleOrchestrationService#isConnected$} のミラー） */
+  /** キー入力可否（{@link TerminalConsoleOrchestrationService#isConnected} のミラー） */
   private serialInputEnabled = false;
 
   /**
-   * 直前に terminalText$ から受け取った累積全文。差分書き込みの基準として使う（issue #610）。
-   * `terminalText$` はライブラリが `\r` 再描画を畳んで累積で emit するため、
-   * 末尾差分のみを xterm に流し、prefix が一致しない場合は reset + 全文書き込みでフォールバックする。
+   * 直前に terminalText から受け取った累積全文。差分書き込みの基準として使う（issue #610）。
    */
   private lastTerminalText = '';
+  private bootstrappedEpoch = 0;
+  private lastCommandRequestId = 0;
+
+  constructor() {
+    effect(() => {
+      const connected = this.serial.isConnected();
+      this.serialInputEnabled = connected;
+      if (!connected) {
+        this.lastTerminalText = '';
+      }
+    });
+
+    effect(() => {
+      const text = this.serial.terminalText();
+      untracked(() => this.writeTerminalDelta(text));
+    });
+
+    effect(() => {
+      const epoch = this.serial.connectionEpoch();
+      if (epoch <= 0 || epoch === this.bootstrappedEpoch) {
+        return;
+      }
+      this.bootstrappedEpoch = epoch;
+      untracked(() => {
+        void firstValueFrom(this.runPostConnectInitialization$()).catch(
+          (err: unknown) => {
+            const message = err instanceof Error ? err.message : String(err);
+            this.xterminal.writeln(
+              `[コンソール] 接続後の初期化に失敗しました: ${message}`,
+            );
+          },
+        );
+      });
+    });
+
+    effect(() => {
+      const cmd = this.commandRequests.commandRequest();
+      const requestId = this.commandRequests.requestId();
+      if (!cmd || requestId === this.lastCommandRequestId) {
+        return;
+      }
+      this.lastCommandRequestId = requestId;
+      untracked(() => {
+        void this.console.runToolbarCommand(cmd).then((result) => {
+          if (result.status === 'not_connected') {
+            this.xterminal.writeln(
+              `Command failed: Serial port not connected (${cmd})`,
+            );
+            return;
+          }
+          if (result.status === 'error') {
+            this.xterminal.writeln(
+              `Command failed: ${result.message} (${cmd})`,
+            );
+          }
+        });
+      });
+    });
+  }
 
   ngAfterViewInit(): void {
     this.configTerminal();
@@ -64,7 +120,6 @@ export class TerminalViewComponent implements AfterViewInit, OnDestroy {
 
   ngOnDestroy(): void {
     this.resizeObserver?.disconnect();
-    this.commandRequestSub?.unsubscribe();
     this.xterminal.dispose();
   }
 
@@ -85,38 +140,7 @@ export class TerminalViewComponent implements AfterViewInit, OnDestroy {
     this.resizeObserver = new ResizeObserver(() => this.fitTerminal());
     this.resizeObserver.observe(el);
 
-    this.console.isConnected$
-      .pipe(takeUntilDestroyed(this.destroyRef))
-      .subscribe((c) => {
-        this.serialInputEnabled = c;
-        if (!c) {
-          this.lastTerminalText = '';
-        }
-      });
-
     this.xterminal.reset();
-
-    this.serial.terminalText$
-      .pipe(takeUntilDestroyed(this.destroyRef))
-      .subscribe((text) => this.writeTerminalDelta(text));
-
-    merge(
-      this.console.connectionEstablished$,
-      this.console.isConnected$.pipe(filter(Boolean), take(1)),
-    )
-      .pipe(
-        take(1),
-        switchMap(() => this.runPostConnectInitialization$()),
-        takeUntilDestroyed(this.destroyRef),
-      )
-      .subscribe({
-        error: (err: unknown) => {
-          const message = err instanceof Error ? err.message : String(err);
-          this.xterminal.writeln(
-            `[コンソール] 接続後の初期化に失敗しました: ${message}`,
-          );
-        },
-      });
 
     attachTerminalInput(
       this.xterminal,
@@ -124,28 +148,6 @@ export class TerminalViewComponent implements AfterViewInit, OnDestroy {
         return this.console.runInteractiveCommand(command);
       },
       () => this.serialInputEnabled,
-    );
-
-    this.commandRequestSub = this.commandRequests.commandRequests$.subscribe(
-      (cmd) => {
-        void this.console.runToolbarCommand(cmd).then(
-          (result) => {
-            if (result.status === 'not_connected') {
-              this.xterminal.writeln(
-                `Command failed: Serial port not connected (${cmd})`,
-              );
-              return;
-            }
-            if (result.status === 'error') {
-              this.xterminal.writeln(
-                `Command failed: ${result.message} (${cmd})`,
-              );
-              return;
-            }
-            // success: シェル出力とプロンプトは terminalText$ 差分描画に任せる（#612 / #613）
-          },
-        );
-      },
     );
   }
 
@@ -157,9 +159,6 @@ export class TerminalViewComponent implements AfterViewInit, OnDestroy {
     }
   }
 
-  /**
-   * 接続後の初期化実行は orchestration service に委譲し、UI は結果表示のみ行う。
-   */
   private runPostConnectInitialization$() {
     return this.console.bootstrapAfterConnect$(
       '[コンソール] シリアル接続済み。',
@@ -167,11 +166,6 @@ export class TerminalViewComponent implements AfterViewInit, OnDestroy {
     );
   }
 
-  /**
-   * `terminalText$` の累積全文を xterm に流す（issue #610）。
-   * 通常は前回 emission の末尾に追加された差分のみを `write` し、
-   * prefix が変化した場合は安全側に寄せて `reset` してから全文を書き戻す。
-   */
   private writeTerminalDelta(text: string): void {
     if (text === this.lastTerminalText) {
       return;
@@ -190,10 +184,6 @@ export class TerminalViewComponent implements AfterViewInit, OnDestroy {
     this.lastTerminalText = text;
   }
 
-  /**
-   * xterm へは LF を CRLF に揃えて渡す。LF のみだと同じカラム位置で改行され、
-   * 行頭が右へずれて見えるため。
-   */
   private normalizeNewlinesForXterm(chunk: string): string {
     return chunk.replace(/\r?\n/g, '\r\n');
   }

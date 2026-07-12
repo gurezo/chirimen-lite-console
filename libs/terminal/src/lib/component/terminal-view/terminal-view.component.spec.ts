@@ -1,5 +1,6 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { BehaviorSubject, NEVER, Subject, of, throwError } from 'rxjs';
+import { computed, signal } from '@angular/core';
+import { NEVER, of, throwError } from 'rxjs';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 vi.mock('@xterm/xterm', () => {
@@ -33,13 +34,15 @@ describe('TerminalViewComponent', () => {
   let sendMock: ReturnType<typeof vi.fn>;
   let shouldRunAfterConnectMock: ReturnType<typeof vi.fn>;
   let runAfterConnectMock: ReturnType<typeof vi.fn>;
-  let terminalTextSubject: Subject<string>;
-  let isConnectedSubject: BehaviorSubject<boolean>;
+  let terminalTextSignal: ReturnType<typeof signal<string>>;
+  let isConnectedSignal: ReturnType<typeof signal<boolean>>;
+  let connectionEpochSignal: ReturnType<typeof signal<number>>;
 
   beforeEach(async () => {
     sendMock = vi.fn().mockReturnValue(of(undefined));
-    terminalTextSubject = new Subject<string>();
-    isConnectedSubject = new BehaviorSubject<boolean>(true);
+    terminalTextSignal = signal('');
+    isConnectedSignal = signal(true);
+    connectionEpochSignal = signal(1);
     shouldRunAfterConnectMock = vi.fn(() => of(true));
     runAfterConnectMock = vi.fn(() => of(undefined));
     await TestBed.configureTestingModule({
@@ -47,11 +50,11 @@ describe('TerminalViewComponent', () => {
     })
       .overrideProvider(SerialFacadeService, {
         useValue: {
-          isConnected$: isConnectedSubject.asObservable(),
+          isConnected: computed(() => isConnectedSignal()),
           send$: (...args: unknown[]) =>
             sendMock(...(args as [string])),
-          connectionEstablished$: NEVER,
-          terminalText$: terminalTextSubject.asObservable(),
+          connectionEpoch: connectionEpochSignal.asReadonly(),
+          terminalText: terminalTextSignal.asReadonly(),
         },
       })
       .overrideProvider(PiZeroSessionService, {
@@ -138,12 +141,14 @@ describe('TerminalViewComponent', () => {
     });
   });
 
-  it('writes only the appended delta when terminalText$ grows by suffix', async () => {
+  it('writes only the appended delta when terminalText grows by suffix', async () => {
     const writeSpy = vi.spyOn(fixture.componentInstance.xterminal, 'write');
     writeSpy.mockClear();
 
-    terminalTextSubject.next('hello');
-    terminalTextSubject.next('hello world');
+    terminalTextSignal.set('hello');
+    TestBed.flushEffects();
+    terminalTextSignal.set('hello world');
+    TestBed.flushEffects();
 
     await vi.waitFor(() => {
       expect(writeSpy).toHaveBeenCalledWith('hello');
@@ -152,16 +157,18 @@ describe('TerminalViewComponent', () => {
     expect(writeSpy).not.toHaveBeenCalledWith('hello world');
   });
 
-  it('resets xterm and writes full text when terminalText$ prefix changes', async () => {
+  it('resets xterm and writes full text when terminalText prefix changes', async () => {
     const writeSpy = vi.spyOn(fixture.componentInstance.xterminal, 'write');
     const resetSpy = vi.spyOn(fixture.componentInstance.xterminal, 'reset');
     writeSpy.mockClear();
     resetSpy.mockClear();
 
-    terminalTextSubject.next('abc');
+    terminalTextSignal.set('abc');
+    TestBed.flushEffects();
     await vi.waitFor(() => expect(writeSpy).toHaveBeenCalledWith('abc'));
 
-    terminalTextSubject.next('x');
+    terminalTextSignal.set('x');
+    TestBed.flushEffects();
 
     await vi.waitFor(() => {
       expect(resetSpy).toHaveBeenCalled();
@@ -174,40 +181,47 @@ describe('TerminalViewComponent', () => {
     writeSpy.mockClear();
 
     const raw = '\u001b[2K\ra\tb\n$ ';
-    terminalTextSubject.next(raw);
+    terminalTextSignal.set(raw);
+    TestBed.flushEffects();
 
     await vi.waitFor(() =>
       expect(writeSpy).toHaveBeenCalledWith('\u001b[2K\ra\tb\r\n$ '),
     );
   });
 
-  it('skips re-emission when terminalText$ value is identical to previous', async () => {
+  it('skips re-emission when terminalText value is identical to previous', async () => {
     const writeSpy = vi.spyOn(fixture.componentInstance.xterminal, 'write');
     writeSpy.mockClear();
 
-    terminalTextSubject.next('hello');
+    terminalTextSignal.set('hello');
+    TestBed.flushEffects();
     await vi.waitFor(() => expect(writeSpy).toHaveBeenCalledWith('hello'));
 
     writeSpy.mockClear();
-    terminalTextSubject.next('hello');
+    terminalTextSignal.set('hello');
+    TestBed.flushEffects();
 
     await Promise.resolve();
     expect(writeSpy).not.toHaveBeenCalled();
   });
 
-  it('treats fresh terminalText$ as full write after disconnect resets cache', async () => {
+  it('treats fresh terminalText as full write after disconnect resets cache', async () => {
     const writeSpy = vi.spyOn(fixture.componentInstance.xterminal, 'write');
     writeSpy.mockClear();
 
-    terminalTextSubject.next('hello');
+    terminalTextSignal.set('hello');
+    TestBed.flushEffects();
     await vi.waitFor(() => expect(writeSpy).toHaveBeenCalledWith('hello'));
 
-    isConnectedSubject.next(false);
-    await Promise.resolve();
+    isConnectedSignal.set(false);
+    TestBed.flushEffects();
 
     writeSpy.mockClear();
-    isConnectedSubject.next(true);
-    terminalTextSubject.next('hello');
+    isConnectedSignal.set(true);
+    terminalTextSignal.set('');
+    TestBed.flushEffects();
+    terminalTextSignal.set('hello');
+    TestBed.flushEffects();
 
     await vi.waitFor(() => expect(writeSpy).toHaveBeenCalledWith('hello'));
   });
