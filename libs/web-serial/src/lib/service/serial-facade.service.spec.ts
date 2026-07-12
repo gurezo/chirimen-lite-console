@@ -1,8 +1,8 @@
 import '@angular/compiler';
-import { Injector } from '@angular/core';
+import { computed, Injector, signal } from '@angular/core';
 import { SerialSessionStatus } from '@gurezo/web-serial-rxjs';
 import { type SerialExecOptions } from '../functions';
-import { EMPTY, firstValueFrom, of } from 'rxjs';
+import { firstValueFrom, of } from 'rxjs';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { SerialCommandPipelineService } from './serial-command/serial-command-pipeline.service';
 import { SerialConnectionOrchestrationService } from './serial-connection-orchestration.service';
@@ -16,15 +16,16 @@ describe('SerialFacadeService', () => {
   let connection: Partial<SerialConnectionOrchestrationService>;
 
   beforeEach(async () => {
+    const terminalTextSignal = signal('');
     transport = {
-      state$: of({ status: SerialSessionStatus.Idle }),
-      isConnected$: of(false),
+      state: signal({ status: SerialSessionStatus.Idle }).asReadonly(),
+      isConnected: computed(() => false),
       isBrowserSupported: vi.fn(() => true),
-      errors$: EMPTY,
-      portInfo$: of(null),
-      lines$: of('line'),
-      receive$: EMPTY,
-      terminalText$: EMPTY,
+      errors: signal(undefined).asReadonly(),
+      portInfo: signal(null).asReadonly(),
+      lines: signal('line').asReadonly(),
+      receive$: of(),
+      terminalText: terminalTextSignal.asReadonly(),
       send$: vi.fn(() => of(undefined)),
       isRaspberryPiZero: vi.fn(() => Promise.resolve(false)),
     };
@@ -34,7 +35,7 @@ describe('SerialFacadeService', () => {
       readUntilPrompt$: vi.fn(() => of({ stdout: '' })),
     };
     connection = {
-      connectionEstablished$: EMPTY,
+      connectionEpoch: signal(0).asReadonly(),
       connect$: vi.fn(() => of({ ok: true } as const)),
       disconnect$: vi.fn(() => of(undefined)),
     };
@@ -91,8 +92,8 @@ describe('SerialFacadeService', () => {
     expect(transport.send$).toHaveBeenCalledWith('hello');
   });
 
-  it('terminalText$ is the same stream as transport.terminalText$', () => {
-    expect(facade.terminalText$).toBe(transport.terminalText$);
+  it('terminalText is the same signal as transport.terminalText', () => {
+    expect(facade.terminalText).toBe(transport.terminalText);
   });
 
   it('isRaspberryPiZero delegates to transport.isRaspberryPiZero', async () => {
