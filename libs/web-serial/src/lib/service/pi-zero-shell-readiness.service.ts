@@ -1,29 +1,93 @@
 /** Full rewrite (#606). Shell readiness flag for post-bootstrap consumers. */
-import { Injectable } from '@angular/core';
-import { BehaviorSubject, type Observable } from 'rxjs';
+import { Injectable, inject } from '@angular/core';
+import { BehaviorSubject, type Observable, Subscription } from 'rxjs';
+import { stripSerialAnsiForPrompt } from '../functions';
+import { PiZeroPromptDetectorService } from './pi-zero-prompt-detector.service';
+import { SerialCommandPipelineService } from './serial-command/serial-command-pipeline.service';
+import { SerialTransportService } from './serial-transport.service';
 
 /**
- * Pi Zero シリアル接続後のシェル到達（ログイン完了）を共有する。
- * ファイルツリーなど、シェルプロンプト到達後にシリアル exec すべき箇所が購読する。
- * 環境初期化コマンドはバックグラウンドで継続し得る（issue #717）。
+ * Pi Zero シリアル接続後のシェル到達（対話シェルプロンプト）を共有する。
+ *
+ * bootstrap のコマンドキュー完了を待たず、`receive$` の受信バッファから
+ * シェルプロンプトを検出して `ready` を立てる（issue #717）。
+ * ファイルツリーなど exec 向け Feature は本サービスを購読する。
  */
 @Injectable({
   providedIn: 'root',
 })
 export class PiZeroShellReadinessService {
+  private static readonly PROMPT_BUFFER_CAP = 96_000;
+
+  private readonly transport = inject(SerialTransportService);
+  private readonly command = inject(SerialCommandPipelineService);
+  private readonly detector = inject(PiZeroPromptDetectorService);
+
   private readonly readySubject = new BehaviorSubject(false);
+  private watchSubscription: Subscription | null = null;
+  private promptBuffer = '';
 
   readonly ready$: Observable<boolean> = this.readySubject.asObservable();
 
   setReady(value: boolean): void {
     this.readySubject.next(value);
+    if (value) {
+      this.stopWatching();
+    }
   }
 
   reset(): void {
+    this.stopWatching();
+    this.promptBuffer = '';
     this.readySubject.next(false);
   }
 
   isReady(): boolean {
     return this.readySubject.value;
+  }
+
+  /**
+   * read loop 開始後に呼び出し、受信チャンクからシェルプロンプト到達を検出する。
+   */
+  startWatching(): void {
+    this.stopWatching();
+    this.promptBuffer = '';
+    this.evaluatePromptBuffer(this.command.inspectReadBuffer());
+    if (this.isReady()) {
+      return;
+    }
+    this.watchSubscription = this.transport.receive$.subscribe({
+      next: (chunk) => {
+        this.appendPromptChunk(chunk ?? '');
+        this.evaluatePromptBuffer(this.promptBuffer);
+      },
+      error: (error: unknown) => {
+        console.error('PiZeroShellReadiness receive error:', error);
+      },
+    });
+  }
+
+  private stopWatching(): void {
+    this.watchSubscription?.unsubscribe();
+    this.watchSubscription = null;
+  }
+
+  private appendPromptChunk(chunk: string): void {
+    const piece = stripSerialAnsiForPrompt(chunk);
+    this.promptBuffer += piece;
+    if (this.promptBuffer.length > PiZeroShellReadinessService.PROMPT_BUFFER_CAP) {
+      this.promptBuffer = this.promptBuffer.slice(
+        -PiZeroShellReadinessService.PROMPT_BUFFER_CAP,
+      );
+    }
+  }
+
+  private evaluatePromptBuffer(buffer: string): void {
+    if (this.isReady() || !buffer.length) {
+      return;
+    }
+    if (this.detector.isLikelyLoggedInShellPrompt(buffer)) {
+      this.setReady(true);
+    }
   }
 }

@@ -121,6 +121,13 @@ export class SerialCommandPipelineService {
   }
 
   /**
+   * プロンプト監視用の受信バッファスナップショット（{@link PiZeroShellReadinessService} 向け）。
+   */
+  inspectReadBuffer(): string {
+    return this.readBuffer;
+  }
+
+  /**
    * キュー経由で exec パイプラインを実行する実装入口。
    *
    * 呼び出し側の方針・ターミナル UI での禁止事項は {@link import('../serial-facade.service').SerialFacadeService#exec$} の JSDoc を参照（#616）。
