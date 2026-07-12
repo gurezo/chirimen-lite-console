@@ -1,12 +1,27 @@
 import '@angular/compiler';
 import { Injector } from '@angular/core';
 import { FileContentService } from '@libs-wifi';
-import { SerialFacadeService } from '@libs-web-serial';
-import { PI_ZERO_PROMPT, SERIAL_TIMEOUT } from '@libs-web-serial';
+import {
+  PiZeroPromptDetectorService,
+  SerialFacadeService,
+  SERIAL_TIMEOUT,
+} from '@libs-web-serial';
 import { FileUtils } from '@libs-wifi';
 import { from } from 'rxjs';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { FileService } from './file.service';
+
+function expectShellExecOptions(
+  options: Record<string, unknown>,
+  timeout: number,
+): void {
+  expect(options.prompt).toBe('');
+  expect(options.promptMatch).toBeTypeOf('function');
+  expect(options.timeout).toBe(timeout);
+  const promptMatch = options.promptMatch as (buf: string) => boolean;
+  expect(promptMatch('pi@custom-host:~$ ')).toBe(true);
+  expect(promptMatch('pi@raspberrypi:~$ ')).toBe(true);
+}
 
 describe('FileService', () => {
   let exec: ReturnType<typeof vi.fn>;
@@ -21,6 +36,7 @@ describe('FileService', () => {
     const injector = Injector.create({
       providers: [
         FileService,
+        PiZeroPromptDetectorService,
         {
           provide: SerialFacadeService,
           useValue: {
@@ -51,11 +67,9 @@ describe('FileService', () => {
       await svc.listLines('');
       expect(exec).toHaveBeenCalledWith(
         `ls -al --quoting-style=c -- ${FileUtils.escapePath('.')}`,
-        {
-          prompt: PI_ZERO_PROMPT,
-          timeout: SERIAL_TIMEOUT.LONG,
-        },
+        expect.objectContaining({ timeout: SERIAL_TIMEOUT.LONG }),
       );
+      expectShellExecOptions(exec.mock.calls[0]?.[1], SERIAL_TIMEOUT.LONG);
     });
 
     it('passes escaped path to ls', async () => {
@@ -63,11 +77,19 @@ describe('FileService', () => {
       await svc.listLines('./my dir');
       expect(exec).toHaveBeenCalledWith(
         `ls -al --quoting-style=c -- ${FileUtils.escapePath('./my dir')}`,
-        {
-          prompt: PI_ZERO_PROMPT,
-          timeout: SERIAL_TIMEOUT.LONG,
-        },
+        expect.objectContaining({ timeout: SERIAL_TIMEOUT.LONG }),
       );
+      expectShellExecOptions(exec.mock.calls[0]?.[1], SERIAL_TIMEOUT.LONG);
+    });
+
+    it('uses flexible shell prompt match for non-default hostnames', async () => {
+      exec.mockResolvedValue({ stdout: 'file.txt\n' });
+      await svc.listLines('.');
+      const options = exec.mock.calls[0]?.[1] as {
+        promptMatch?: (buf: string) => boolean;
+      };
+      expect(options.promptMatch?.('pi@pizero-w:~$ ')).toBe(true);
+      expect(options.promptMatch?.('pi@raspberrypi:~$ ')).toBe(true);
     });
   });
 
@@ -92,11 +114,9 @@ describe('FileService', () => {
       await svc.mkdir('/tmp/a');
       expect(exec).toHaveBeenCalledWith(
         `mkdir -p -- ${FileUtils.escapePath('/tmp/a')}`,
-        {
-          prompt: PI_ZERO_PROMPT,
-          timeout: SERIAL_TIMEOUT.DEFAULT,
-        },
+        expect.objectContaining({ timeout: SERIAL_TIMEOUT.DEFAULT }),
       );
+      expectShellExecOptions(exec.mock.calls[0]?.[1], SERIAL_TIMEOUT.DEFAULT);
     });
   });
 
@@ -105,11 +125,9 @@ describe('FileService', () => {
       await svc.touch('./file.txt');
       expect(exec).toHaveBeenCalledWith(
         `touch -- ${FileUtils.escapePath('./file.txt')}`,
-        {
-          prompt: PI_ZERO_PROMPT,
-          timeout: SERIAL_TIMEOUT.DEFAULT,
-        },
+        expect.objectContaining({ timeout: SERIAL_TIMEOUT.DEFAULT }),
       );
+      expectShellExecOptions(exec.mock.calls[0]?.[1], SERIAL_TIMEOUT.DEFAULT);
     });
   });
 
@@ -118,11 +136,9 @@ describe('FileService', () => {
       await svc.remove('./old.txt');
       expect(exec).toHaveBeenCalledWith(
         `rm -- ${FileUtils.escapePath('./old.txt')}`,
-        {
-          prompt: PI_ZERO_PROMPT,
-          timeout: SERIAL_TIMEOUT.DEFAULT,
-        },
+        expect.objectContaining({ timeout: SERIAL_TIMEOUT.DEFAULT }),
       );
+      expectShellExecOptions(exec.mock.calls[0]?.[1], SERIAL_TIMEOUT.DEFAULT);
     });
   });
 
@@ -168,11 +184,9 @@ describe('FileService', () => {
       await svc.move('./a', './b');
       expect(exec).toHaveBeenCalledWith(
         `mv -- ${FileUtils.escapePath('./a')} ${FileUtils.escapePath('./b')}`,
-        {
-          prompt: PI_ZERO_PROMPT,
-          timeout: SERIAL_TIMEOUT.DEFAULT,
-        },
+        expect.objectContaining({ timeout: SERIAL_TIMEOUT.DEFAULT }),
       );
+      expectShellExecOptions(exec.mock.calls[0]?.[1], SERIAL_TIMEOUT.DEFAULT);
     });
   });
 
