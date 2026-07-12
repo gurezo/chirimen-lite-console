@@ -1,11 +1,13 @@
 /// <reference types="@types/w3c-web-serial" />
 
-import { Injectable } from '@angular/core';
+import { computed, Injectable } from '@angular/core';
+import { toSignal } from '@angular/core/rxjs-interop';
 import {
   createSerialSession,
   SerialError,
   SerialSessionStatus,
   type SerialSession,
+  type SerialSessionState,
 } from '@gurezo/web-serial-rxjs';
 import {
   BehaviorSubject,
@@ -28,16 +30,8 @@ import { getConnectionErrorMessage, getWriteErrorMessage } from '../functions';
 /**
  * Angular 向けの薄いアダプタ。実体は常に `@gurezo/web-serial-rxjs` の {@link SerialSession} 1 個。
  *
- * アプリは未接続時でも次をそのまま購読できる（接続後はライブラリの Observable に切り替わる）。
- * - {@link SerialSession.isBrowserSupported} … {@link #isBrowserSupported}
- * - {@link SerialSession.connect$} / {@link SerialSession.disconnect$} … {@link #connect$} / {@link #disconnect$}
- * - {@link SerialSession.isConnected$} … {@link #isConnected$}
- * - {@link SerialSession.terminalText$} … {@link #terminalText$}
- * - {@link SerialSession.lines$} … {@link #lines$}
- * - {@link SerialSession.receive$} … {@link #receive$}（`SerialCommandPipelineService` がプロンプト照合に利用）
- * - {@link SerialSession.errors$} … {@link #errors$}
- *
- * `state$` / `portInfo$` / `send$` は接続オーケストレーション・機種判定のため引き続き公開する。
+ * 読み取り状態は Signal（`state` / `isConnected` / `terminalText` 等）で公開する。
+ * 生の `receive$` は data-access 内部専用の Observable のまま維持する。
  */
 @Injectable({
   providedIn: 'root',
@@ -67,39 +61,61 @@ export class SerialTransportService {
     );
   }
 
-  readonly state$ = this.fromSession(
+  private readonly stateSource$ = this.fromSession(
     (s) => s.state$,
     concat(of({ status: SerialSessionStatus.Idle }), NEVER),
   ).pipe(distinctUntilChanged());
 
-  /** {@link SerialSession.isConnected$} */
-  readonly isConnected$ = this.fromSession(
-    (s) => s.isConnected$,
-    concat(of(false), NEVER),
-  ).pipe(distinctUntilChanged());
-
-  /** {@link SerialSession.lines$} */
-  readonly lines$ = this.fromSession((s) => s.lines$, NEVER);
+  private readonly linesSource$ = this.fromSession((s) => s.lines$, NEVER);
 
   /**
    * {@link SerialSession.receive$}（UTF-8 デコード済みの生チャンク）。
-   * getty が行末を lone `\r` のみにすると {@link #lines$} では行が emit されないことがあるため、
+   * getty が行末を lone `\r` のみにすると {@link #lines} では行が emit されないことがあるため、
    * プロンプト待ちは {@link import('./serial-command/serial-command-pipeline.service').SerialCommandPipelineService} がこちらを購読する。
    */
   readonly receive$ = this.fromSession((s) => s.receive$, NEVER);
 
+  private readonly terminalTextSource$ = this.fromSession(
+    (s) => s.terminalText$,
+    NEVER,
+  );
+
+  private readonly errorsSource$ = this.fromSession(
+    (s) => s.errors$ ?? EMPTY,
+    EMPTY,
+  );
+
+  private readonly portInfoSource$ = this.fromSession(
+    (s) => s.portInfo$ ?? of(null),
+    of(null),
+  );
+
+  readonly state = toSignal(this.stateSource$, {
+    initialValue: {
+      status: SerialSessionStatus.Idle,
+    } satisfies SerialSessionState,
+  });
+
+  readonly isConnected = computed(
+    () => this.state().status === SerialSessionStatus.Connected,
+  );
+
+  readonly lines = toSignal(this.linesSource$, { initialValue: '' });
+
   /**
    * {@link SerialSession.terminalText$}。ターミナル UI のライブ表示用（TTY 再描画の畳み込みはライブラリ側）。
-   * 利用境界は {@link SerialFacadeService#terminalText$} の JSDoc および data-access README（[#617](https://github.com/gurezo/chirimen-lite-console/issues/617)）を参照。
    */
-  readonly terminalText$ = this.fromSession((s) => s.terminalText$, NEVER);
+  readonly terminalText = toSignal(this.terminalTextSource$, {
+    initialValue: '',
+  });
 
-  /** {@link SerialSession.errors$} */
-  get errors$(): Observable<SerialError> {
-    return this.fromSession((s) => s.errors$ ?? EMPTY, EMPTY);
-  }
+  readonly errors = toSignal(this.errorsSource$, {
+    initialValue: undefined as SerialError | undefined,
+  });
 
-  readonly portInfo$ = this.fromSession((s) => s.portInfo$ ?? of(null), of(null));
+  readonly portInfo = toSignal(this.portInfoSource$, {
+    initialValue: null as SerialPortInfo | null,
+  });
 
   getPortInfo(): SerialPortInfo | null {
     return this.active?.getPortInfo() ?? null;
@@ -169,9 +185,6 @@ export class SerialTransportService {
 
   /**
    * 現在接続中のポートが Raspberry Pi Zero 互換か判定する（Pi Zero 判定の集約先。[#674](https://github.com/gurezo/chirimen-lite-console/issues/674)）。
-   *
-   * v3.1 以降は {@link SerialSession.getPortInfo}（接続時は `state.portInfo` と同等）のみを参照する。
-   * Feature 層からは {@link SerialFacadeService#isRaspberryPiZero} 経由でのみ参照する。
    */
   async isRaspberryPiZero(): Promise<boolean> {
     return this.isPiZeroPortInfo(this.getPortInfo());
