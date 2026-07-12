@@ -2,6 +2,7 @@
   "extends": "./tsconfig.json",
   "compilerOptions": {
     "outDir": "../../dist/out-tsc",
+    "rootDir": "./src",
     "declaration": true,
     "declarationMap": false,
     "inlineSources": true,
@@ -16,5 +17,7 @@
     "src/**/*.test.ts",
     "src/**/*.stories.ts"
   ],
-  "include": ["src/**/*.ts"]
+  "include": [
+    "src/**/*.ts"
+  ]
 }
