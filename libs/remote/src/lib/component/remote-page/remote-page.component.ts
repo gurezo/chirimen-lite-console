@@ -9,7 +9,6 @@ import {
   sanitizeSerialStdout,
   SerialFacadeService,
 } from '@libs-web-serial';
-import { firstValueFrom, take } from 'rxjs';
 import { parseForeverListPlain } from '../../functions';
 import {
   RemoteRunService,
@@ -54,7 +53,7 @@ export class RemotePageComponent {
   }
 
   private async ensureSerial(): Promise<boolean> {
-    const ok = await firstValueFrom(this.serial.isConnected$.pipe(take(1)));
+    const ok = this.serial.isConnected();
     if (!ok) {
       this.notify.warning('Remote', 'シリアル接続してください');
       return false;

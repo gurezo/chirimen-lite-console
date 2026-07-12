@@ -1,5 +1,6 @@
+import { computed, signal } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { BehaviorSubject, of } from 'rxjs';
+import { of } from 'rxjs';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { DialogService } from '@libs-dialogs';
 import { RemoteRunService } from '../../service';
@@ -15,10 +16,10 @@ const PLAIN_ROW =
 describe('RemotePageComponent', () => {
   let component: RemotePageComponent;
   let fixture: ComponentFixture<RemotePageComponent>;
-  let serialConnected: BehaviorSubject<boolean>;
+  let serialConnected: ReturnType<typeof signal<boolean>>;
 
   beforeEach(async () => {
-    serialConnected = new BehaviorSubject(true);
+    serialConnected = signal(true);
     const dialogRef = { closed: of(true) };
     await TestBed.configureTestingModule({
       imports: [RemotePageComponent],
@@ -41,11 +42,9 @@ describe('RemotePageComponent', () => {
         },
         {
           provide: SerialFacadeService,
-          useFactory: () => ({
-            get isConnected$() {
-              return serialConnected.asObservable();
-            },
-          }),
+          useValue: {
+            isConnected: computed(() => serialConnected()),
+          },
         },
         {
           provide: RemoteStatusService,
@@ -81,7 +80,7 @@ describe('RemotePageComponent', () => {
   });
 
   it('refreshList warns when serial disconnected', async () => {
-    serialConnected.next(false);
+    serialConnected.set(false);
     const notify = TestBed.inject(NotificationService) as unknown as {
       warning: ReturnType<typeof vi.fn>;
     };

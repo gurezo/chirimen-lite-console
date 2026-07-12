@@ -1,15 +1,15 @@
 /// <reference types="vitest/globals" />
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { computed, signal } from '@angular/core';
 import { FileTreeFeatureComponent } from './file-tree-feature.component';
 import { FileTreeNode } from '../../models';
 import { FileService } from '../../service';
 import { SerialConnectionViewModelFacade } from '@libs-web-serial';
-import { BehaviorSubject } from 'rxjs';
 import type { SerialConnectionViewModel } from '@libs-web-serial';
 
 describe('FileTreeFeatureComponent', () => {
   const listTreeMock = vi.fn<() => Promise<FileTreeNode[]>>();
-  let vmSubject: BehaviorSubject<SerialConnectionViewModel>;
+  let vmSignal: ReturnType<typeof signal<SerialConnectionViewModel>>;
 
   const treeNodes: FileTreeNode[] = [
     { name: 'docs', path: './docs', isDirectory: true },
@@ -29,7 +29,7 @@ describe('FileTreeFeatureComponent', () => {
   async function compileAndCreate(): Promise<
     ComponentFixture<FileTreeFeatureComponent>
   > {
-    vmSubject = new BehaviorSubject<SerialConnectionViewModel>({ ...baseVm });
+    vmSignal = signal<SerialConnectionViewModel>({ ...baseVm });
 
     await TestBed.configureTestingModule({
       imports: [FileTreeFeatureComponent],
@@ -40,7 +40,7 @@ describe('FileTreeFeatureComponent', () => {
         },
         {
           provide: SerialConnectionViewModelFacade,
-          useValue: { vm$: vmSubject.asObservable() },
+          useValue: { vm: computed(() => vmSignal()) },
         },
       ],
     }).compileComponents();
@@ -67,7 +67,7 @@ describe('FileTreeFeatureComponent', () => {
     const fixture = await compileAndCreate();
     fixture.detectChanges();
 
-    vmSubject.next({
+    vmSignal.set({
       ...baseVm,
       isConnected: true,
       isLoggedIn: false,
@@ -80,7 +80,7 @@ describe('FileTreeFeatureComponent', () => {
       fixture.nativeElement.querySelector('mat-progress-spinner'),
     ).toBeTruthy();
 
-    vmSubject.next({
+    vmSignal.set({
       ...baseVm,
       isConnected: true,
       isLoggedIn: true,
@@ -97,7 +97,7 @@ describe('FileTreeFeatureComponent', () => {
     const fixture = await compileAndCreate();
     fixture.detectChanges();
 
-    vmSubject.next({
+    vmSignal.set({
       ...baseVm,
       isConnected: true,
       isLoggedIn: true,

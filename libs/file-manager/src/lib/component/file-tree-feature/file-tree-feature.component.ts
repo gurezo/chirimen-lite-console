@@ -1,19 +1,17 @@
 import {
   ChangeDetectorRef,
   Component,
-  DestroyRef,
+  effect,
   inject,
-  OnInit,
   output,
+  untracked,
 } from '@angular/core';
 import { MatProgressSpinner } from '@angular/material/progress-spinner';
-import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { joinPath } from '../../functions';
 import { FileTreeNode } from '../../models';
 import { FileService } from '../../service';
 import { FileTreeComponent } from '../file-tree/file-tree.component';
 import { SerialConnectionViewModelFacade } from '@libs-web-serial';
-import { distinctUntilChanged, map } from 'rxjs/operators';
 
 @Component({
   selector: 'lib-file-tree-feature',
@@ -23,10 +21,9 @@ import { distinctUntilChanged, map } from 'rxjs/operators';
   },
   templateUrl: './file-tree-feature.component.html',
 })
-export class FileTreeFeatureComponent implements OnInit {
+export class FileTreeFeatureComponent {
   private file = inject(FileService);
   private connectionVm = inject(SerialConnectionViewModelFacade);
-  private destroyRef = inject(DestroyRef);
   private cdr = inject(ChangeDetectorRef);
   readonly fileSelected = output<string>();
 
@@ -36,24 +33,20 @@ export class FileTreeFeatureComponent implements OnInit {
   errorMessage: string | null = null;
 
   private loadedForLogin = false;
+  private lastVmKey = '';
 
-  ngOnInit(): void {
-    this.connectionVm.vm$
-      .pipe(
-        map((vm) => ({
-          isConnected: vm.isConnected,
-          isLoggedIn: vm.isLoggedIn,
-          setupFailed: vm.setupStatus === 'failed' && !vm.isLoggedIn,
-        })),
-        distinctUntilChanged(
-          (a, b) =>
-            a.isConnected === b.isConnected &&
-            a.isLoggedIn === b.isLoggedIn &&
-            a.setupFailed === b.setupFailed,
-        ),
-        takeUntilDestroyed(this.destroyRef),
-      )
-      .subscribe((vm) => {
+  constructor() {
+    effect(() => {
+      const vm = this.connectionVm.vm();
+      const vmKey = `${vm.isConnected}:${vm.isLoggedIn}:${vm.setupStatus}`;
+      if (vmKey === this.lastVmKey) {
+        return;
+      }
+      this.lastVmKey = vmKey;
+
+      untracked(() => {
+        const setupFailed = vm.setupStatus === 'failed' && !vm.isLoggedIn;
+
         if (!vm.isConnected) {
           this.loading = false;
           this.errorMessage = null;
@@ -63,7 +56,7 @@ export class FileTreeFeatureComponent implements OnInit {
           return;
         }
 
-        if (vm.setupFailed) {
+        if (setupFailed) {
           this.loading = false;
           this.errorMessage =
             'シェルの初期化に失敗しました。ターミナルを確認してください。';
@@ -85,6 +78,7 @@ export class FileTreeFeatureComponent implements OnInit {
         this.loadedForLogin = true;
         void this.loadCurrentPath();
       });
+    });
   }
 
   async reload(): Promise<void> {

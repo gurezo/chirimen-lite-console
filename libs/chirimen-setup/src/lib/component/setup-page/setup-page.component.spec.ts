@@ -1,5 +1,6 @@
 /// <reference types="vitest/globals" />
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { computed } from '@angular/core';
 import { SetupCommandService } from '../../service';
 import { DialogService } from '@libs-dialogs';
 import { NotificationService } from '@libs-shared';
@@ -21,7 +22,7 @@ describe('SetupPageComponent', () => {
         },
         {
           provide: SerialFacadeService,
-          useValue: { isConnected$: of(true) },
+          useValue: { isConnected: computed(() => true) },
         },
         { provide: DialogService, useValue: { close: vi.fn() } },
         {

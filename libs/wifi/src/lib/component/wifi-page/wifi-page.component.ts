@@ -5,7 +5,6 @@ import { ConfirmDialogComponent } from '@libs-dialogs';
 import type { WiFiInfo } from '@libs-shared';
 import { ButtonComponent, NotificationService } from '@libs-shared';
 import { SerialFacadeService } from '@libs-web-serial';
-import { firstValueFrom, take } from 'rxjs';
 import type { WifiConnectDialogData } from '../../models';
 import { WifiRebootFlowService, WifiScanService } from '../../service';
 import { WifiConnectDialogComponent } from '../wifi-connect-dialog/wifi-connect-dialog.component';
@@ -33,7 +32,7 @@ export class WifiPageComponent {
   private readonly wifiReboot = inject(WifiRebootFlowService);
 
   private async ensureSerial(): Promise<boolean> {
-    const ok = await firstValueFrom(this.serial.isConnected$.pipe(take(1)));
+    const ok = this.serial.isConnected();
     if (!ok) {
       this.notify.warning('WiFi', 'シリアル接続してください');
       return false;

@@ -1,6 +1,7 @@
+import { computed, signal } from '@angular/core';
 import { Dialog } from '@angular/cdk/dialog';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { BehaviorSubject, of } from 'rxjs';
+import { of } from 'rxjs';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { NotificationService } from '@libs-shared';
 import { WifiRebootFlowService } from '../../service';
@@ -41,7 +42,9 @@ describe('WifiPageComponent', () => {
         },
         {
           provide: SerialFacadeService,
-          useValue: { isConnected$: new BehaviorSubject(true) },
+          useValue: {
+            isConnected: computed(() => true),
+          },
         },
         {
           provide: WifiScanService,
