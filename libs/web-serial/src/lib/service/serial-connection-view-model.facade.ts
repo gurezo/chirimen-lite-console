@@ -1,17 +1,9 @@
 /// <reference types="@types/w3c-web-serial" />
 
-import { Injectable, inject } from '@angular/core';
+import { computed, Injectable, inject, signal } from '@angular/core';
 import { SerialSessionStatus } from '@gurezo/web-serial-rxjs';
 import { TerminalCommandRequestService } from './terminal-command-request.service';
-import {
-  BehaviorSubject,
-  combineLatest,
-  map,
-  type Observable,
-  shareReplay,
-  take,
-  tap,
-} from 'rxjs';
+import { take, tap } from 'rxjs';
 import { PiZeroSessionService } from './pi-zero-session.service';
 import { PiZeroShellReadinessService } from './pi-zero-shell-readiness.service';
 import type { SerialSetupStatus } from '../models';
@@ -22,7 +14,7 @@ import { SerialNotificationService } from './serial-notification.service';
  * UI から参照する単一オブジェクトへのシリアル接続状態 (#564)。
  *
  * **`isLoggedIn`**: OAuth ログインなどではなく、Pi Zero に対するシリアル経由ログイン済みおよび
- * ブートストラップ完了（シェルプロンプト到達、`PiZeroShellReadiness.ready$` と同義）を指す。
+ * ブートストラップ完了（シェルプロンプト到達、`PiZeroShellReadiness.ready` と同義）を指す。
  */
 export interface SerialConnectionViewModel {
   isBrowserSupported: boolean;
@@ -51,26 +43,21 @@ export class SerialConnectionViewModelFacade {
     TerminalCommandRequestService,
   );
 
-  private readonly errorSubject = new BehaviorSubject<string | null>(null);
+  private readonly errorMessageSignal = signal<string | null>(null);
 
-  readonly vm$: Observable<SerialConnectionViewModel> = combineLatest([
-    this.serial.state$,
-    this.serial.isConnected$,
-    this.piZero.setupStatus$,
-    this.shellReadiness.ready$,
-    this.errorSubject.asObservable(),
-  ]).pipe(
-    map(([state, connected, setupStatus, loggedInReady, errorMessage]) => ({
+  readonly vm = computed<SerialConnectionViewModel>(() => {
+    const state = this.serial.state();
+    const setupStatus = this.piZero.setupStatus();
+    return {
       isBrowserSupported: this.serial.isBrowserSupported(),
-      isConnected: connected,
+      isConnected: this.serial.isConnected(),
       isConnecting: state.status === SerialSessionStatus.Connecting,
-      isLoggedIn: loggedInReady,
-      isInitializing: !['idle', 'ready', 'failed'].includes(setupStatus),
+      isLoggedIn: this.shellReadiness.ready(),
+      isInitializing: this.piZero.initializing(),
       setupStatus,
-      errorMessage,
-    })),
-    shareReplay({ bufferSize: 1, refCount: true }),
-  );
+      errorMessage: this.errorMessageSignal(),
+    };
+  });
 
   /** @param baudRate 既定 115200 */
   connect(baudRate = 115200): void {
@@ -80,10 +67,10 @@ export class SerialConnectionViewModelFacade {
         take(1),
         tap((result) => {
           if (result.ok) {
-            this.errorSubject.next(null);
+            this.errorMessageSignal.set(null);
             this.notifications.notifyConnectionSuccess();
           } else {
-            this.errorSubject.next(result.errorMessage);
+            this.errorMessageSignal.set(result.errorMessage);
             this.notifications.notifyConnectionError(result.errorMessage);
           }
         }),
@@ -96,13 +83,13 @@ export class SerialConnectionViewModelFacade {
       .disconnect$()
       .pipe(
         take(1),
-        tap(() => this.errorSubject.next(null)),
+        tap(() => this.errorMessageSignal.set(null)),
       )
       .subscribe({
         error: (err: unknown) => {
           const message =
             err instanceof Error ? err.message : String(err);
-          this.errorSubject.next(message);
+          this.errorMessageSignal.set(message);
         },
       });
   }
@@ -113,6 +100,6 @@ export class SerialConnectionViewModelFacade {
   }
 
   clearError(): void {
-    this.errorSubject.next(null);
+    this.errorMessageSignal.set(null);
   }
 }
