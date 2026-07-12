@@ -19,6 +19,7 @@ function createShellReadinessMock(): PiZeroShellReadinessService {
     setReady: vi.fn(),
     reset: vi.fn(),
     isReady: vi.fn(() => false),
+    startWatching: vi.fn(),
     ready$: vi.fn() as unknown as PiZeroShellReadinessService['ready$'],
   } as unknown as PiZeroShellReadinessService;
 }
@@ -53,26 +54,26 @@ function serialWithConnectionEstablished(
 }
 
 describe('PiZeroSessionService', () => {
-  it('auto-starts bootstrap when connectionEstablished$ emits', async () => {
-    const connectionEstablished = new Subject<void>();
-    const readUntilPrompt = vi.fn().mockResolvedValue({
-      stdout: `${PI_ZERO_PROMPT} `,
-    });
+  it('skips login bootstrap when shell is already ready from serial watch', async () => {
+    const readUntilPrompt = vi.fn();
     const exec = vi.fn().mockResolvedValue({ stdout: '' });
-    const serial = serialWithConnectionEstablished({
-      connectionEstablished$: connectionEstablished.asObservable(),
+    const serial = {
+      isConnected$: of(true),
+      connectionEstablished$: NEVER,
       readUntilPrompt$: (o: unknown) => from(readUntilPrompt(o)),
       exec$: (c: string, o: unknown) => from(exec(c, o)),
-    });
+    } as unknown as SerialFacadeService;
 
     const shellReadiness = createShellReadinessMock();
-    createSession(serial, shellReadiness, stubConnection(() => 1));
+    vi.mocked(shellReadiness.isReady).mockReturnValue(true);
+    const service = createSession(serial, shellReadiness, stubConnection(() => 1));
+    await firstValueFrom(service.runAfterConnect$());
 
-    connectionEstablished.next();
+    expect(readUntilPrompt).not.toHaveBeenCalled();
+    expect(vi.mocked(shellReadiness.setReady)).not.toHaveBeenCalled();
     await vi.waitFor(() => {
-      expect(vi.mocked(shellReadiness.setReady)).toHaveBeenCalledWith(true);
+      expect(exec).toHaveBeenCalled();
     });
-    expect(readUntilPrompt).toHaveBeenCalledTimes(1);
   });
 
   it('runs bootstrap when isConnected$ is still false but epoch advanced', async () => {
@@ -121,7 +122,9 @@ describe('PiZeroSessionService', () => {
     await firstValueFrom(service.runAfterConnect$());
 
     expect(events[0]).toBe('ready');
-    expect(events[1]).toMatch(/^exec:/);
+    await vi.waitFor(() => {
+      expect(events.some((event) => event.startsWith('exec:'))).toBe(true);
+    });
   });
 
   it('runs at most one post-connect pipeline per connection epoch', async () => {
@@ -225,10 +228,12 @@ describe('PiZeroSessionService', () => {
     const seen: boolean[] = [];
     const sub = service.initializing$.subscribe((v) => seen.push(v));
     await firstValueFrom(service.runAfterConnect$());
+    await vi.waitFor(() => {
+      expect(seen.at(-1)).toBe(false);
+    });
     sub.unsubscribe();
 
     expect(seen).toContain(true);
-    expect(seen.at(-1)).toBe(false);
   });
 
   it('emits setupStatus$ transitions and ends in ready on success', async () => {
@@ -248,11 +253,13 @@ describe('PiZeroSessionService', () => {
     const seen: string[] = [];
     const sub = service.setupStatus$.subscribe((v) => seen.push(v));
     await firstValueFrom(service.runAfterConnect$());
+    await vi.waitFor(() => {
+      expect(seen.at(-1)).toBe('ready');
+    });
     sub.unsubscribe();
 
     expect(seen).toContain('waiting-login');
     expect(seen).toContain('setting-timezone');
-    expect(seen.at(-1)).toBe('ready');
   });
 
   describe('login flow (loginIfNeeded$)', () => {
@@ -431,7 +438,7 @@ describe('PiZeroSessionService', () => {
       );
     });
 
-    it('propagates environment setup failures to caller', async () => {
+    it('keeps shell ready when background environment setup fails', async () => {
       const readUntilPrompt = vi.fn().mockImplementation(() =>
         of({
           stdout: `${PI_ZERO_PROMPT} `,
@@ -451,11 +458,15 @@ describe('PiZeroSessionService', () => {
 
       const shellReadiness = createShellReadinessMock();
       const service = createSession(serial, shellReadiness);
+      const seen: string[] = [];
+      const sub = service.setupStatus$.subscribe((v) => seen.push(v));
 
-      await expect(firstValueFrom(service.runAfterConnect$())).rejects.toThrow(
-        'Environment setup failed',
-      );
+      await firstValueFrom(service.runAfterConnect$());
       expect(vi.mocked(shellReadiness.setReady)).toHaveBeenCalledWith(true);
+      await vi.waitFor(() => {
+        expect(seen.at(-1)).toBe('failed');
+      });
+      sub.unsubscribe();
     });
   });
 });
