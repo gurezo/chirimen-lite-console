@@ -1,6 +1,6 @@
 /** Full rewrite (#606). Shell readiness flag for post-bootstrap consumers. */
-import { Injectable, inject } from '@angular/core';
-import { BehaviorSubject, type Observable, Subscription } from 'rxjs';
+import { Injectable, inject, signal } from '@angular/core';
+import { Subscription } from 'rxjs';
 import { stripSerialAnsiForPrompt } from '../functions';
 import { PiZeroPromptDetectorService } from './pi-zero-prompt-detector.service';
 import { SerialCommandPipelineService } from './serial-command/serial-command-pipeline.service';
@@ -23,14 +23,14 @@ export class PiZeroShellReadinessService {
   private readonly command = inject(SerialCommandPipelineService);
   private readonly detector = inject(PiZeroPromptDetectorService);
 
-  private readonly readySubject = new BehaviorSubject(false);
+  private readonly readySignal = signal(false);
   private watchSubscription: Subscription | null = null;
   private promptBuffer = '';
 
-  readonly ready$: Observable<boolean> = this.readySubject.asObservable();
+  readonly ready = this.readySignal.asReadonly();
 
   setReady(value: boolean): void {
-    this.readySubject.next(value);
+    this.readySignal.set(value);
     if (value) {
       this.stopWatching();
     }
@@ -39,11 +39,11 @@ export class PiZeroShellReadinessService {
   reset(): void {
     this.stopWatching();
     this.promptBuffer = '';
-    this.readySubject.next(false);
+    this.readySignal.set(false);
   }
 
   isReady(): boolean {
-    return this.readySubject.value;
+    return this.readySignal();
   }
 
   /**
