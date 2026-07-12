@@ -23,7 +23,7 @@ export function parseLsLine(
   line: string,
   basePath: string,
 ): FileTreeNode | null {
-  if (!line || line.startsWith('total ')) {
+  if (!line || line.startsWith('total ') || line.startsWith('合計 ')) {
     return null;
   }
 

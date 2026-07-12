@@ -9,7 +9,7 @@ import {
   PiZeroShellReadinessService,
   SerialConnectionViewModelFacade,
 } from '@libs-web-serial';
-import { filter, take } from 'rxjs/operators';
+import { filter, startWith, take } from 'rxjs/operators';
 
 @Component({
   selector: 'lib-file-tree-feature',
@@ -52,6 +52,7 @@ export class FileTreeFeatureComponent implements OnInit {
     }
     this.shellReadiness.ready$
       .pipe(
+        startWith(this.shellReadiness.isReady()),
         filter(Boolean),
         take(1),
         takeUntilDestroyed(this.destroyRef),

@@ -16,6 +16,7 @@ describe('file-tree util', () => {
 
   it('ignores total and dot entries', () => {
     expect(parseLsLine('total 12', '.')).toBeNull();
+    expect(parseLsLine('合計 36', '.')).toBeNull();
     expect(
       parseLsLine('drwxr-xr-x 2 pi pi 4096 Mar 20 10:00 "."', '.'),
     ).toBeNull();
