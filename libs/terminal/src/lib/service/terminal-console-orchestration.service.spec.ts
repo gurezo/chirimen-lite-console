@@ -1,3 +1,4 @@
+import { computed, signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import {
   defaultIfEmpty,
@@ -17,10 +18,12 @@ import { TerminalConsoleOrchestrationService } from './terminal-console-orchestr
 describe('TerminalConsoleOrchestrationService', () => {
   let sendMock: ReturnType<typeof vi.fn>;
   let execMock: ReturnType<typeof vi.fn>;
+  let isConnectedSignal: ReturnType<typeof signal<boolean>>;
 
   beforeEach(() => {
     sendMock = vi.fn().mockReturnValue(of(undefined));
     execMock = vi.fn();
+    isConnectedSignal = signal(true);
     TestBed.configureTestingModule({
       providers: [
         TerminalConsoleOrchestrationService,
@@ -29,9 +32,9 @@ describe('TerminalConsoleOrchestrationService', () => {
           useValue: {
             send$: sendMock,
             exec$: execMock,
-            isConnected$: of(true),
-            connectionEstablished$: of(undefined),
-            terminalText$: EMPTY,
+            isConnected: computed(() => isConnectedSignal()),
+            connectionEpoch: signal(0).asReadonly(),
+            terminalText: signal('').asReadonly(),
           },
         },
         {
@@ -70,15 +73,7 @@ describe('TerminalConsoleOrchestrationService', () => {
   });
 
   it('runToolbarCommand reports not_connected when serial is down', async () => {
-    TestBed.overrideProvider(SerialFacadeService, {
-      useValue: {
-        send$: sendMock,
-        exec$: execMock,
-        isConnected$: of(false),
-        connectionEstablished$: of(undefined),
-        terminalText$: EMPTY,
-      },
-    });
+    isConnectedSignal.set(false);
     const svc = TestBed.inject(TerminalConsoleOrchestrationService);
     const result = await svc.runToolbarCommand('ls');
     expect(result).toEqual({ status: 'not_connected' });
