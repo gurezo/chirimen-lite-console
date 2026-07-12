@@ -1,4 +1,3 @@
-import { AsyncPipe } from '@angular/common';
 import { Component, inject } from '@angular/core';
 import { ConnectButtonComponent } from '../connect-button/connect-button.component';
 import { ConnectionStatusComponent } from '../connection-status/connection-status.component';
@@ -7,13 +6,13 @@ import { SerialConnectionViewModelFacade } from '@libs-web-serial';
 @Component({
   selector: 'lib-connect-page',
   host: { class: 'flex min-h-0 flex-1 flex-col' },
-  imports: [AsyncPipe, ConnectButtonComponent, ConnectionStatusComponent],
+  imports: [ConnectButtonComponent, ConnectionStatusComponent],
   templateUrl: './connect-page.component.html',
 })
 export class ConnectPageComponent {
   private readonly connectionVm = inject(SerialConnectionViewModelFacade);
 
-  readonly vm$ = this.connectionVm.vm$;
+  readonly vm = this.connectionVm.vm;
 
   disconnectedMessage =
     'Raspberry Pi Zero と PC を USB で繋いだ後、Connect ボタンをクリックして、Web Serial を接続して下さい';

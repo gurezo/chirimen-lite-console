@@ -3,7 +3,7 @@ import {
   type SerialConnectionViewModel,
   SerialConnectionViewModelFacade,
 } from '@libs-web-serial';
-import { BehaviorSubject, firstValueFrom } from 'rxjs';
+import { computed, signal } from '@angular/core';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { ConnectPageComponent } from './connect-page.component';
 
@@ -25,12 +25,12 @@ function vmBase(
 describe('ConnectPageComponent', () => {
   let component: ConnectPageComponent;
   let fixture: ComponentFixture<ConnectPageComponent>;
-  let vmSubject: BehaviorSubject<SerialConnectionViewModel>;
+  let vmSignal: ReturnType<typeof signal<SerialConnectionViewModel>>;
   let connect: ReturnType<typeof vi.fn>;
   let clearError: ReturnType<typeof vi.fn>;
 
   beforeEach(async () => {
-    vmSubject = new BehaviorSubject(vmBase());
+    vmSignal = signal(vmBase());
     connect = vi.fn();
     clearError = vi.fn();
 
@@ -40,7 +40,7 @@ describe('ConnectPageComponent', () => {
         {
           provide: SerialConnectionViewModelFacade,
           useValue: {
-            vm$: vmSubject.asObservable(),
+            vm: computed(() => vmSignal()),
             connect,
             clearError,
           },
@@ -63,16 +63,14 @@ describe('ConnectPageComponent', () => {
     expect(connect).toHaveBeenCalledTimes(1);
   });
 
-  it('reports disconnected when vm is not connected', async () => {
-    vmSubject.next(vmBase({ isConnected: false }));
-    const vm = await firstValueFrom(component.vm$);
-    expect(vm.isConnected).toBe(false);
+  it('reports disconnected when vm is not connected', () => {
+    vmSignal.set(vmBase({ isConnected: false }));
+    expect(component.vm().isConnected).toBe(false);
   });
 
-  it('reports connected when vm is connected', async () => {
-    vmSubject.next(vmBase({ isConnected: true }));
-    const vm = await firstValueFrom(component.vm$);
-    expect(vm.isConnected).toBe(true);
+  it('reports connected when vm is connected', () => {
+    vmSignal.set(vmBase({ isConnected: true }));
+    expect(component.vm().isConnected).toBe(true);
   });
 
   it('calls facade clearError from onClearError', () => {
