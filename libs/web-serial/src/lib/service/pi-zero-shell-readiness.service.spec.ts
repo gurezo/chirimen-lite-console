@@ -66,6 +66,39 @@ describe('PiZeroShellReadinessService', () => {
     expect(service.logoutCompletedEpoch()).toBe(1);
   });
 
+  it('keeps logoutPending until reset after successful logout detection', () => {
+    const receive$ = new Subject<string>();
+    const service = createService(receive$);
+
+    service.startWatching();
+    receive$.next('pi@raspberrypi:~$ ');
+    service.beginLogoutPending();
+    expect(service.logoutPending()).toBe(true);
+
+    receive$.next('logout\r\nraspberrypi login: ');
+    expect(service.logoutCompletedEpoch()).toBe(1);
+    expect(service.logoutPending()).toBe(true);
+
+    service.reset();
+    expect(service.logoutPending()).toBe(false);
+  });
+
+  it('clears logoutPending when logout fails and shell prompt returns', () => {
+    const receive$ = new Subject<string>();
+    const service = createService(receive$);
+
+    service.startWatching();
+    receive$.next('pi@raspberrypi:~$ ');
+    service.beginLogoutPending();
+    expect(service.logoutPending()).toBe(true);
+
+    receive$.next('logout: command not found\r\npi@raspberrypi:~$ ');
+
+    expect(service.isReady()).toBe(true);
+    expect(service.logoutCompletedEpoch()).toBe(0);
+    expect(service.logoutPending()).toBe(false);
+  });
+
   it('does not report logout when a command fails and the shell remains ready', () => {
     const receive$ = new Subject<string>();
     const service = createService(receive$);
@@ -78,15 +111,18 @@ describe('PiZeroShellReadinessService', () => {
     expect(service.logoutCompletedEpoch()).toBe(0);
   });
 
-  it('reset clears ready and stops watching', () => {
+  it('reset clears ready, logoutPending, and stops watching', () => {
     const receive$ = new Subject<string>();
     const service = createService(receive$, 'pi@raspberrypi:~$ ');
 
     service.startWatching();
     expect(service.isReady()).toBe(true);
+    service.beginLogoutPending();
+    expect(service.logoutPending()).toBe(true);
 
     service.reset();
     expect(service.isReady()).toBe(false);
+    expect(service.logoutPending()).toBe(false);
 
     receive$.next('pi@raspberrypi:~$ ');
     expect(service.isReady()).toBe(false);
