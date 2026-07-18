@@ -8,6 +8,8 @@ export interface ConsoleShellState {
   leftNavOpen: boolean;
   rightNavOpen: boolean;
   selectedFilePath: string | null;
+  /** Current File Manager directory path (e.g. `.` or `./home/pi`). */
+  fileManagerCurrentPath: string;
   activeDialog: ConsoleShellDialog;
 }
 
@@ -17,6 +19,7 @@ export const DEFAULT_CONSOLE_SHELL_STATE: ConsoleShellState = {
   leftNavOpen: true,
   rightNavOpen: true,
   selectedFilePath: null,
+  fileManagerCurrentPath: '.',
   activeDialog: 'none',
 };
 
@@ -44,6 +47,10 @@ export class ConsoleShellStore {
 
   readonly selectedFilePath = computed(
     () => this.stateSignal().selectedFilePath,
+  );
+
+  readonly fileManagerCurrentPath = computed(
+    () => this.stateSignal().fileManagerCurrentPath,
   );
 
   readonly activeDialog = computed(
@@ -103,6 +110,13 @@ export class ConsoleShellStore {
     this.stateSignal.update((state) => ({
       ...state,
       selectedFilePath,
+    }));
+  }
+
+  setFileManagerCurrentPath(fileManagerCurrentPath: string): void {
+    this.stateSignal.update((state) => ({
+      ...state,
+      fileManagerCurrentPath,
     }));
   }
 
