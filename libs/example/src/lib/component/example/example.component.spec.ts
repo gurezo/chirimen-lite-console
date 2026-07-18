@@ -1,5 +1,6 @@
 import { HttpClientTestingModule } from '@angular/common/http/testing';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { SerialNotificationService } from '@libs-web-serial';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { ExampleComponent } from './example.component';
 
@@ -10,6 +11,18 @@ describe('ExampleComponent', () => {
   beforeEach(async () => {
     await TestBed.configureTestingModule({
       imports: [ExampleComponent, HttpClientTestingModule],
+      providers: [
+        {
+          provide: SerialNotificationService,
+          useValue: {
+            notifyAutoLoginFailed: () => undefined,
+            notifyConnectionSuccess: () => undefined,
+            notifyConnectionError: () => undefined,
+            notifyLogoutDetected: () => undefined,
+            notifyLogoutCancelled: () => undefined,
+          },
+        },
+      ],
     }).compileComponents();
 
     fixture = TestBed.createComponent(ExampleComponent);
