@@ -36,12 +36,23 @@ export class PiZeroPromptDetectorService {
    * CSI/OSC と、`\r` `\n` `\t` 以外の C0 制御文字を除去してから正規化する。
    */
   private sanitizeForPromptMatch(text: string): string {
-    return text
-      .replace(/\u001b\[[0-9;?]*[ -/]*[@-~]/g, '')
-      .replace(/\u001b\][^\u0007]*(?:\u0007|\u001b\\)/g, '')
-      .replace(/[\u0000-\u0008\u000b\u000c\u000e-\u001f]/g, '')
-      .replace(/\r\n/g, '\n')
-      .replace(/\r/g, '\n');
+    const esc = String.fromCharCode(0x1b);
+    const bel = String.fromCharCode(0x07);
+    const withoutAnsi = text
+      .replace(new RegExp(`${esc}\\[[0-9;?]*[ -/]*[@-~]`, 'g'), '')
+      .replace(new RegExp(`${esc}\\][^${bel}]*(?:${bel}|${esc}\\\\)`, 'g'), '');
+
+    let withoutC0 = '';
+    for (let i = 0; i < withoutAnsi.length; i++) {
+      const code = withoutAnsi.charCodeAt(i);
+      // keep TAB / LF / CR; strip other C0 controls
+      if (code <= 0x1f && code !== 0x09 && code !== 0x0a && code !== 0x0d) {
+        continue;
+      }
+      withoutC0 += withoutAnsi[i];
+    }
+
+    return withoutC0.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
   }
 
   /**

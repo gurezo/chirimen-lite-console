@@ -341,7 +341,7 @@ describe('PiZeroSessionService', () => {
 
       const service = createSession(serial, createShellReadinessMock());
       await firstValueFrom(
-        service.runAfterConnect$((_line) => {
+        service.runAfterConnect$(() => {
           statuses.push(service.setupStatus());
         }),
       );
