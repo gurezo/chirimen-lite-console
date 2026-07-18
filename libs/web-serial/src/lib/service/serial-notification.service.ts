@@ -30,4 +30,17 @@ export class SerialNotificationService {
       }
     );
   }
+
+  /**
+   * Terminal の logout 完了を検出し、接続前状態へ戻すときの通知（#725）。
+   */
+  notifyLogoutDetected(): void {
+    this.toastr.info(
+      'ログアウトを検出しました。接続を切断します',
+      'ログアウト',
+      {
+        timeOut: 4000,
+      },
+    );
+  }
 }
