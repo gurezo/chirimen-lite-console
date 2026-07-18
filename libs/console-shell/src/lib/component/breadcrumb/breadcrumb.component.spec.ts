@@ -48,4 +48,31 @@ describe('BreadcrumbComponent', () => {
     const current = fixture.nativeElement.querySelector('[aria-current="page"]');
     expect(current?.textContent?.trim()).toBe('Editor');
   });
+
+  it('emits segmentNavigate when a clickable path segment is activated', () => {
+    const emitSpy = vi.spyOn(component.segmentNavigate, 'emit');
+    fixture.componentRef.setInput('segments', [
+      { label: 'Console' },
+      { label: 'home', path: './home', clickable: true },
+      { label: 'pi', clickable: false },
+    ]);
+    fixture.detectChanges();
+
+    const button: HTMLButtonElement | null =
+      fixture.nativeElement.querySelector('button');
+    button?.click();
+
+    expect(emitSpy).toHaveBeenCalledWith('./home');
+  });
+
+  it('does not render a button for non-clickable intermediate labels', () => {
+    fixture.componentRef.setInput('segments', [
+      { label: 'Console' },
+      { label: 'Editor' },
+      { label: 'main.js' },
+    ]);
+    fixture.detectChanges();
+
+    expect(fixture.nativeElement.querySelector('button')).toBeNull();
+  });
 });

@@ -7,9 +7,10 @@ import {
   SerialConnectionViewModelFacade,
   type SerialConnectionViewModel,
 } from '@libs-web-serial';
-import { computed, signal } from '@angular/core';
+import { signal } from '@angular/core';
 import { EMPTY } from 'rxjs';
 import { LeftSidebarComponent } from './left-sidebar.component';
+import { ConsoleShellStore } from '../../service';
 
 const baseVm: SerialConnectionViewModel = {
   isBrowserSupported: true,
@@ -93,5 +94,16 @@ describe('LeftSidebarComponent', () => {
     expect(
       fixture.nativeElement.querySelector('lib-file-tree-feature'),
     ).toBeNull();
+  });
+
+  it('updates store path and clears selected file on currentPathChange', () => {
+    const store = TestBed.inject(ConsoleShellStore);
+    store.setSelectedFilePath('./docs/readme.md');
+    store.setFileManagerCurrentPath('./docs');
+
+    component.onCurrentPathChange('./home');
+
+    expect(store.fileManagerCurrentPath()).toBe('./home');
+    expect(store.selectedFilePath()).toBeNull();
   });
 });
