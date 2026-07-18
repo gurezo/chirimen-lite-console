@@ -1,6 +1,7 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { computed, signal } from '@angular/core';
 import { By } from '@angular/platform-browser';
+import { BreakpointObserver, BreakpointState } from '@angular/cdk/layout';
 import { ActivatedRoute, Router } from '@angular/router';
 import {
   PiZeroShellReadinessService,
@@ -10,9 +11,12 @@ import {
 } from '@libs-web-serial';
 import { DialogService } from '@libs-dialogs';
 import { ConsoleShellStore } from '../../service';
-import { EMPTY, of } from 'rxjs';
+import { BehaviorSubject, EMPTY, of } from 'rxjs';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { ConsoleShellComponent } from './console-shell.component';
+
+const OVERLAY_BP = '(max-width: 1023.98px)';
+const COMPACT_BP = '(max-width: 1279.98px)';
 
 function vmDefaults(
   overrides: Partial<SerialConnectionViewModel> = {},
@@ -55,6 +59,66 @@ function createShellReadinessMock(initialEpoch = 0) {
     logoutPendingSignal,
     clearLogoutPending: vi.fn(() => logoutPendingSignal.set(false)),
     beginLogoutPending: vi.fn(() => logoutPendingSignal.set(true)),
+  };
+}
+
+function createBreakpointObserverMock(
+  initial: { overlay?: boolean; compact?: boolean } = {},
+) {
+  const overlay = initial.overlay ?? false;
+  const compact = initial.compact ?? false;
+  const state$ = new BehaviorSubject<BreakpointState>({
+    matches: overlay || compact,
+    breakpoints: {
+      [OVERLAY_BP]: overlay,
+      [COMPACT_BP]: compact,
+    },
+  });
+
+  return {
+    state$,
+    provider: {
+      provide: BreakpointObserver,
+      useValue: {
+        observe: () => state$.asObservable(),
+      },
+    },
+    emit(next: { overlay?: boolean; compact?: boolean }) {
+      const nextOverlay = next.overlay ?? false;
+      const nextCompact = next.compact ?? false;
+      state$.next({
+        matches: nextOverlay || nextCompact,
+        breakpoints: {
+          [OVERLAY_BP]: nextOverlay,
+          [COMPACT_BP]: nextCompact,
+        },
+      });
+    },
+  };
+}
+
+function baseStoreMock(overrides: Record<string, unknown> = {}) {
+  return {
+    activePanel: () => 'terminal',
+    activeDialog: () => 'none',
+    selectedFilePath: () => null,
+    fileManagerCurrentPath: () => '.',
+    leftNavOpen: () => true,
+    rightNavOpen: () => true,
+    layoutMode: () => 'docked' as const,
+    setActivePanel: vi.fn(),
+    toggleLeftNav: vi.fn(),
+    toggleRightNav: vi.fn(),
+    closeLeftNav: vi.fn(),
+    closeRightNav: vi.fn(),
+    setLayoutMode: vi.fn(),
+    openDialog: vi.fn(),
+    closeDialog: vi.fn(),
+    applyConnectedLayout: vi.fn(),
+    resetLayoutAfterDisconnect: vi.fn(),
+    setFileManagerCurrentPath: vi.fn(),
+    setSelectedFilePath: vi.fn(),
+    ...overrides,
   };
 }
 
@@ -104,6 +168,8 @@ describe('ConsoleShellComponent', () => {
     closeDialog = vi.fn();
     openShellDialog = vi.fn();
 
+    const breakpoints = createBreakpointObserverMock();
+
     await TestBed.configureTestingModule({
       imports: [ConsoleShellComponent],
       providers: [
@@ -128,25 +194,16 @@ describe('ConsoleShellComponent', () => {
           provide: DialogService,
           useValue: { open: openDialog, closeAll: closeAllDialog },
         },
+        breakpoints.provider,
         {
           provide: ConsoleShellStore,
-          useValue: {
-            activePanel: () => 'terminal',
-            activeDialog: () => 'none',
-            selectedFilePath: () => null,
-            fileManagerCurrentPath: () => '.',
-            leftNavOpen: () => true,
-            rightNavOpen: () => true,
+          useValue: baseStoreMock({
             setActivePanel,
-            toggleLeftNav: vi.fn(),
-            toggleRightNav: vi.fn(),
             openDialog: openShellDialog,
             closeDialog,
             applyConnectedLayout,
             resetLayoutAfterDisconnect,
-            setFileManagerCurrentPath: vi.fn(),
-            setSelectedFilePath: vi.fn(),
-          },
+          }),
         },
       ],
     }).compileComponents();
@@ -362,25 +419,12 @@ describe('ConsoleShellComponent gridTemplateColumns when right nav closed', () =
           provide: DialogService,
           useValue: { open: vi.fn(), closeAll: vi.fn() },
         },
+        createBreakpointObserverMock().provider,
         {
           provide: ConsoleShellStore,
-          useValue: {
-            activePanel: () => 'terminal',
-            activeDialog: () => 'none',
-            selectedFilePath: () => null,
-            fileManagerCurrentPath: () => '.',
-            leftNavOpen: () => true,
+          useValue: baseStoreMock({
             rightNavOpen: () => false,
-            setActivePanel: vi.fn(),
-            toggleLeftNav: vi.fn(),
-            toggleRightNav: vi.fn(),
-            openDialog: vi.fn(),
-            closeDialog: vi.fn(),
-            applyConnectedLayout: vi.fn(),
-            resetLayoutAfterDisconnect: vi.fn(),
-            setFileManagerCurrentPath: vi.fn(),
-            setSelectedFilePath: vi.fn(),
-          },
+          }),
         },
       ],
     }).compileComponents();
@@ -392,6 +436,154 @@ describe('ConsoleShellComponent gridTemplateColumns when right nav closed', () =
 
   it('should set grid template columns with collapsed rail width when right nav is closed', () => {
     expect(component.gridTemplateColumns()).toBe('280px minmax(0, 1fr) 48px');
+  });
+});
+
+describe('ConsoleShellComponent responsive layout', () => {
+  let component: ConsoleShellComponent;
+  let fixture: ComponentFixture<ConsoleShellComponent>;
+  let setLayoutMode: ReturnType<typeof vi.fn>;
+  let closeLeftNav: ReturnType<typeof vi.fn>;
+  let closeRightNav: ReturnType<typeof vi.fn>;
+  let breakpoints: ReturnType<typeof createBreakpointObserverMock>;
+  let layoutModeSignal: ReturnType<typeof signal<'docked' | 'overlay'>>;
+  let leftNavOpenSignal: ReturnType<typeof signal<boolean>>;
+  let rightNavOpenSignal: ReturnType<typeof signal<boolean>>;
+
+  beforeEach(async () => {
+    const { facade } = createConnectionFacadeMock(true);
+    layoutModeSignal = signal<'docked' | 'overlay'>('docked');
+    leftNavOpenSignal = signal(true);
+    rightNavOpenSignal = signal(true);
+    setLayoutMode = vi.fn((mode: 'docked' | 'overlay') => {
+      layoutModeSignal.set(mode);
+      if (mode === 'overlay') {
+        leftNavOpenSignal.set(false);
+        rightNavOpenSignal.set(false);
+      } else {
+        leftNavOpenSignal.set(true);
+        rightNavOpenSignal.set(true);
+      }
+    });
+    closeLeftNav = vi.fn(() => leftNavOpenSignal.set(false));
+    closeRightNav = vi.fn(() => rightNavOpenSignal.set(false));
+    breakpoints = createBreakpointObserverMock();
+
+    const activatedRoute = {
+      firstChild: { snapshot: { url: [{ path: 'terminal' }] } },
+    } as unknown as ActivatedRoute;
+
+    await TestBed.configureTestingModule({
+      imports: [ConsoleShellComponent],
+      providers: [
+        {
+          provide: Router,
+          useValue: {
+            navigate: vi.fn().mockResolvedValue(true),
+            events: EMPTY,
+          },
+        },
+        { provide: ActivatedRoute, useValue: activatedRoute },
+        { provide: SerialConnectionViewModelFacade, useValue: facade },
+        {
+          provide: PiZeroShellReadinessService,
+          useValue: createShellReadinessMock(),
+        },
+        {
+          provide: SerialNotificationService,
+          useValue: {
+            notifyLogoutDetected: vi.fn(),
+            notifyLogoutCancelled: vi.fn(),
+          },
+        },
+        {
+          provide: DialogService,
+          useValue: { open: vi.fn(), closeAll: vi.fn() },
+        },
+        breakpoints.provider,
+        {
+          provide: ConsoleShellStore,
+          useValue: baseStoreMock({
+            layoutMode: () => layoutModeSignal(),
+            leftNavOpen: () => leftNavOpenSignal(),
+            rightNavOpen: () => rightNavOpenSignal(),
+            setLayoutMode,
+            closeLeftNav,
+            closeRightNav,
+          }),
+        },
+      ],
+    }).compileComponents();
+
+    fixture = TestBed.createComponent(ConsoleShellComponent);
+    component = fixture.componentInstance;
+    fixture.detectChanges();
+  });
+
+  it('uses rail-only grid columns in overlay mode', () => {
+    layoutModeSignal.set('overlay');
+    leftNavOpenSignal.set(false);
+    rightNavOpenSignal.set(false);
+    fixture.detectChanges();
+
+    expect(component.gridTemplateColumns()).toBe(
+      '48px minmax(0, 1fr) 48px',
+    );
+  });
+
+  it('uses compact pane widths when compact docked breakpoint matches', () => {
+    breakpoints.emit({ overlay: false, compact: true });
+    fixture.detectChanges();
+
+    expect(setLayoutMode).toHaveBeenCalledWith('docked');
+    expect(component.gridTemplateColumns()).toBe(
+      '240px minmax(0, 1fr) calc(48px + 240px)',
+    );
+  });
+
+  it('calls setLayoutMode(overlay) when overlay breakpoint matches', () => {
+    setLayoutMode.mockClear();
+    breakpoints.emit({ overlay: true, compact: true });
+    fixture.detectChanges();
+
+    expect(setLayoutMode).toHaveBeenCalledWith('overlay');
+  });
+
+  it('shows overlay backdrop when a side pane is open in overlay mode', () => {
+    layoutModeSignal.set('overlay');
+    leftNavOpenSignal.set(true);
+    rightNavOpenSignal.set(false);
+    fixture.detectChanges();
+
+    const backdrop = fixture.nativeElement.querySelector(
+      '[aria-label="Close side panels"]',
+    ) as HTMLElement | null;
+    expect(backdrop).toBeTruthy();
+  });
+
+  it('closes both panes when overlay backdrop is clicked', () => {
+    layoutModeSignal.set('overlay');
+    leftNavOpenSignal.set(true);
+    fixture.detectChanges();
+
+    const backdrop = fixture.nativeElement.querySelector(
+      '[aria-label="Close side panels"]',
+    ) as HTMLButtonElement;
+    backdrop.click();
+
+    expect(closeLeftNav).toHaveBeenCalledTimes(1);
+    expect(closeRightNav).toHaveBeenCalledTimes(1);
+  });
+
+  it('hides overlay backdrop when both panes are closed', () => {
+    layoutModeSignal.set('overlay');
+    leftNavOpenSignal.set(false);
+    rightNavOpenSignal.set(false);
+    fixture.detectChanges();
+
+    expect(
+      fixture.nativeElement.querySelector('[aria-label="Close side panels"]'),
+    ).toBeNull();
   });
 });
 
@@ -432,6 +624,7 @@ describe('ConsoleShellComponent layout DOM (connected vs disconnected)', () => {
           },
         },
         ConsoleShellStore,
+        createBreakpointObserverMock().provider,
         {
           provide: DialogService,
           useValue: { open: vi.fn(), closeAll: vi.fn() },

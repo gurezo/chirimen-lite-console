@@ -42,4 +42,44 @@ describe('ConsoleShellStore', () => {
 
     expect(store.state()).toEqual(DEFAULT_CONSOLE_SHELL_STATE);
   });
+
+  it('setLayoutMode to overlay closes both panes', () => {
+    expect(store.leftNavOpen()).toBe(true);
+    expect(store.rightNavOpen()).toBe(true);
+
+    store.setLayoutMode('overlay');
+
+    expect(store.layoutMode()).toBe('overlay');
+    expect(store.leftNavOpen()).toBe(false);
+    expect(store.rightNavOpen()).toBe(false);
+  });
+
+  it('setLayoutMode to docked opens both panes', () => {
+    store.setLayoutMode('overlay');
+    store.setLayoutMode('docked');
+
+    expect(store.layoutMode()).toBe('docked');
+    expect(store.leftNavOpen()).toBe(true);
+    expect(store.rightNavOpen()).toBe(true);
+  });
+
+  it('setLayoutMode is a no-op when mode is unchanged', () => {
+    store.closeLeftNav();
+    store.setLayoutMode('docked');
+
+    expect(store.leftNavOpen()).toBe(false);
+  });
+
+  it('applyConnectedLayout preserves overlay mode and keeps panes closed', () => {
+    store.setLayoutMode('overlay');
+    store.openLeftNav();
+    store.setActivePanel('editor');
+
+    store.applyConnectedLayout();
+
+    expect(store.layoutMode()).toBe('overlay');
+    expect(store.leftNavOpen()).toBe(false);
+    expect(store.rightNavOpen()).toBe(false);
+    expect(store.activePanel()).toBe('terminal');
+  });
 });
