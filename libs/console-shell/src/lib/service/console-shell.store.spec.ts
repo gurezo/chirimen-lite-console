@@ -60,18 +60,18 @@ describe('ConsoleShellStore', () => {
     expect(store.rightNavOpen()).toBe(true);
   });
 
-  it('setLeftPaneWidth clamps to min and max', () => {
+  it('setLeftPaneWidth clamps to min only', () => {
     store.setLeftPaneWidth(50);
     expect(store.leftPaneWidthPx()).toBe(LEFT_PANE_WIDTH.min);
     store.setLeftPaneWidth(9999);
-    expect(store.leftPaneWidthPx()).toBe(LEFT_PANE_WIDTH.max);
+    expect(store.leftPaneWidthPx()).toBe(9999);
   });
 
-  it('setRightDiagramWidth clamps to min and max', () => {
+  it('setRightDiagramWidth clamps to min only', () => {
     store.setRightDiagramWidth(10);
     expect(store.rightDiagramWidthPx()).toBe(RIGHT_DIAGRAM_WIDTH.min);
     store.setRightDiagramWidth(9999);
-    expect(store.rightDiagramWidthPx()).toBe(RIGHT_DIAGRAM_WIDTH.max);
+    expect(store.rightDiagramWidthPx()).toBe(9999);
   });
 
   it('applyConnectedLayout preserves custom pane widths', () => {
