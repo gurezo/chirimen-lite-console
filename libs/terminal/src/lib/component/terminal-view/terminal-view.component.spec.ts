@@ -10,8 +10,32 @@ vi.mock('@xterm/xterm', () => {
     dispose = vi.fn();
     writeln = vi.fn();
     write = vi.fn();
+    clear = vi.fn();
     reset = vi.fn();
-    onKey = vi.fn();
+    keyHandler?: (event: {
+      domEvent: {
+        altKey: boolean;
+        ctrlKey: boolean;
+        metaKey: boolean;
+        code: string;
+        key: string;
+      };
+    }) => void;
+    onKey = vi.fn(
+      (
+        handler: (event: {
+          domEvent: {
+            altKey: boolean;
+            ctrlKey: boolean;
+            metaKey: boolean;
+            code: string;
+            key: string;
+          };
+        }) => void,
+      ) => {
+        this.keyHandler = handler;
+      },
+    );
   }
   return { Terminal: MockTerminal };
 });
@@ -37,6 +61,41 @@ describe('TerminalViewComponent', () => {
   let terminalTextSignal: ReturnType<typeof signal<string>>;
   let isConnectedSignal: ReturnType<typeof signal<boolean>>;
   let connectionEpochSignal: ReturnType<typeof signal<number>>;
+
+  function typeCommand(command: string): void {
+    const terminal = fixture.componentInstance.xterminal as unknown as {
+      keyHandler?: (event: {
+        domEvent: {
+          altKey: boolean;
+          ctrlKey: boolean;
+          metaKey: boolean;
+          code: string;
+          key: string;
+        };
+      }) => void;
+    };
+
+    for (const key of command) {
+      terminal.keyHandler?.({
+        domEvent: {
+          altKey: false,
+          ctrlKey: false,
+          metaKey: false,
+          code: key === ' ' ? 'Space' : 'Key',
+          key,
+        },
+      });
+    }
+    terminal.keyHandler?.({
+      domEvent: {
+        altKey: false,
+        ctrlKey: false,
+        metaKey: false,
+        code: 'Enter',
+        key: 'Enter',
+      },
+    });
+  }
 
   beforeEach(async () => {
     sendMock = vi.fn().mockReturnValue(of(undefined));
@@ -87,6 +146,56 @@ describe('TerminalViewComponent', () => {
         `${coerceLsForSerialListing('i2cdetect -y 1')}\n`,
       );
     });
+  });
+
+  it('clears the display for a trimmed clear command and keeps accepting input', async () => {
+    const clearSpy = vi.spyOn(fixture.componentInstance.xterminal, 'clear');
+
+    typeCommand(' clear ');
+
+    await vi.waitFor(() => {
+      expect(clearSpy).toHaveBeenCalledTimes(1);
+      expect(sendMock).toHaveBeenCalledWith('clear\n');
+    });
+
+    typeCommand('pwd');
+
+    await vi.waitFor(() => {
+      expect(sendMock).toHaveBeenCalledWith('pwd\n');
+    });
+    expect(clearSpy).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not clear the display for commands containing clear', async () => {
+    const clearSpy = vi.spyOn(fixture.componentInstance.xterminal, 'clear');
+
+    typeCommand('clear logs');
+
+    await vi.waitFor(() => {
+      expect(sendMock).toHaveBeenCalledWith('clear logs\n');
+    });
+    expect(clearSpy).not.toHaveBeenCalled();
+  });
+
+  it('writes only new serial output after clearing the display', async () => {
+    const writeSpy = vi.spyOn(fixture.componentInstance.xterminal, 'write');
+    terminalTextSignal.set('previous output');
+    TestBed.flushEffects();
+    await vi.waitFor(() =>
+      expect(writeSpy).toHaveBeenCalledWith('previous output'),
+    );
+
+    typeCommand('clear');
+    await vi.waitFor(() => expect(sendMock).toHaveBeenCalledWith('clear\n'));
+    writeSpy.mockClear();
+
+    terminalTextSignal.set('previous outputnext output');
+    TestBed.flushEffects();
+
+    await vi.waitFor(() =>
+      expect(writeSpy).toHaveBeenCalledWith('next output'),
+    );
+    expect(writeSpy).not.toHaveBeenCalledWith('previous outputnext output');
   });
 
   it('skips bootstrap execution when already initialized', async () => {
