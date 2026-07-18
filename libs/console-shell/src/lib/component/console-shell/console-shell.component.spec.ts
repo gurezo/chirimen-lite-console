@@ -16,7 +16,6 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { ConsoleShellComponent } from './console-shell.component';
 
 const OVERLAY_BP = '(max-width: 1023.98px)';
-const COMPACT_BP = '(max-width: 1279.98px)';
 
 function vmDefaults(
   overrides: Partial<SerialConnectionViewModel> = {},
@@ -62,16 +61,11 @@ function createShellReadinessMock(initialEpoch = 0) {
   };
 }
 
-function createBreakpointObserverMock(
-  initial: { overlay?: boolean; compact?: boolean } = {},
-) {
-  const overlay = initial.overlay ?? false;
-  const compact = initial.compact ?? false;
+function createBreakpointObserverMock(initialOverlay = false) {
   const state$ = new BehaviorSubject<BreakpointState>({
-    matches: overlay || compact,
+    matches: initialOverlay,
     breakpoints: {
-      [OVERLAY_BP]: overlay,
-      [COMPACT_BP]: compact,
+      [OVERLAY_BP]: initialOverlay,
     },
   });
 
@@ -83,14 +77,11 @@ function createBreakpointObserverMock(
         observe: () => state$.asObservable(),
       },
     },
-    emit(next: { overlay?: boolean; compact?: boolean }) {
-      const nextOverlay = next.overlay ?? false;
-      const nextCompact = next.compact ?? false;
+    emit(overlay: boolean) {
       state$.next({
-        matches: nextOverlay || nextCompact,
+        matches: overlay,
         breakpoints: {
-          [OVERLAY_BP]: nextOverlay,
-          [COMPACT_BP]: nextCompact,
+          [OVERLAY_BP]: overlay,
         },
       });
     },
@@ -106,17 +97,12 @@ function baseStoreMock(overrides: Record<string, unknown> = {}) {
     leftNavOpen: () => true,
     rightNavOpen: () => true,
     layoutMode: () => 'docked' as const,
-    leftPaneWidthPx: () => 280,
-    rightDiagramWidthPx: () => 300,
     setActivePanel: vi.fn(),
     toggleLeftNav: vi.fn(),
     toggleRightNav: vi.fn(),
     closeLeftNav: vi.fn(),
     closeRightNav: vi.fn(),
     setLayoutMode: vi.fn(),
-    setLeftPaneWidth: vi.fn(),
-    setRightDiagramWidth: vi.fn(),
-    syncDockedPaneWidthsForBand: vi.fn(),
     openDialog: vi.fn(),
     closeDialog: vi.fn(),
     applyConnectedLayout: vi.fn(),
@@ -269,9 +255,9 @@ describe('ConsoleShellComponent', () => {
     expect(openDialog).not.toHaveBeenCalled();
   });
 
-  it('should set grid template columns with fixed diagram width when right nav is open', () => {
+  it('should set grid template columns to auto tracks when side panes are open', () => {
     expect(component.gridTemplateColumns()).toBe(
-      '280px minmax(0, 1fr) calc(48px + 300px)',
+      'auto minmax(0, 1fr) auto',
     );
   });
 
@@ -440,7 +426,7 @@ describe('ConsoleShellComponent gridTemplateColumns when right nav closed', () =
   });
 
   it('should set grid template columns with collapsed rail width when right nav is closed', () => {
-    expect(component.gridTemplateColumns()).toBe('280px minmax(0, 1fr) 48px');
+    expect(component.gridTemplateColumns()).toBe('auto minmax(0, 1fr) 48px');
   });
 });
 
@@ -450,23 +436,16 @@ describe('ConsoleShellComponent responsive layout', () => {
   let setLayoutMode: ReturnType<typeof vi.fn>;
   let closeLeftNav: ReturnType<typeof vi.fn>;
   let closeRightNav: ReturnType<typeof vi.fn>;
-  let setLeftPaneWidth: ReturnType<typeof vi.fn>;
-  let setRightDiagramWidth: ReturnType<typeof vi.fn>;
-  let syncDockedPaneWidthsForBand: ReturnType<typeof vi.fn>;
   let breakpoints: ReturnType<typeof createBreakpointObserverMock>;
   let layoutModeSignal: ReturnType<typeof signal<'docked' | 'overlay'>>;
   let leftNavOpenSignal: ReturnType<typeof signal<boolean>>;
   let rightNavOpenSignal: ReturnType<typeof signal<boolean>>;
-  let leftPaneWidthSignal: ReturnType<typeof signal<number>>;
-  let rightDiagramWidthSignal: ReturnType<typeof signal<number>>;
 
   beforeEach(async () => {
     const { facade } = createConnectionFacadeMock(true);
     layoutModeSignal = signal<'docked' | 'overlay'>('docked');
     leftNavOpenSignal = signal(true);
     rightNavOpenSignal = signal(true);
-    leftPaneWidthSignal = signal(280);
-    rightDiagramWidthSignal = signal(300);
     setLayoutMode = vi.fn((mode: 'docked' | 'overlay') => {
       layoutModeSignal.set(mode);
       if (mode === 'overlay') {
@@ -479,19 +458,6 @@ describe('ConsoleShellComponent responsive layout', () => {
     });
     closeLeftNav = vi.fn(() => leftNavOpenSignal.set(false));
     closeRightNav = vi.fn(() => rightNavOpenSignal.set(false));
-    setLeftPaneWidth = vi.fn((width: number) => leftPaneWidthSignal.set(width));
-    setRightDiagramWidth = vi.fn((width: number) =>
-      rightDiagramWidthSignal.set(width),
-    );
-    syncDockedPaneWidthsForBand = vi.fn((band: 'wide' | 'compact') => {
-      if (band === 'compact') {
-        leftPaneWidthSignal.set(240);
-        rightDiagramWidthSignal.set(240);
-      } else {
-        leftPaneWidthSignal.set(280);
-        rightDiagramWidthSignal.set(300);
-      }
-    });
     breakpoints = createBreakpointObserverMock();
 
     const activatedRoute = {
@@ -532,14 +498,9 @@ describe('ConsoleShellComponent responsive layout', () => {
             layoutMode: () => layoutModeSignal(),
             leftNavOpen: () => leftNavOpenSignal(),
             rightNavOpen: () => rightNavOpenSignal(),
-            leftPaneWidthPx: () => leftPaneWidthSignal(),
-            rightDiagramWidthPx: () => rightDiagramWidthSignal(),
             setLayoutMode,
             closeLeftNav,
             closeRightNav,
-            setLeftPaneWidth,
-            setRightDiagramWidth,
-            syncDockedPaneWidthsForBand,
           }),
         },
       ],
@@ -561,20 +522,15 @@ describe('ConsoleShellComponent responsive layout', () => {
     );
   });
 
-  it('uses compact pane widths when compact docked breakpoint matches', () => {
-    breakpoints.emit({ overlay: false, compact: true });
-    fixture.detectChanges();
-
-    expect(setLayoutMode).toHaveBeenCalledWith('docked');
-    expect(syncDockedPaneWidthsForBand).toHaveBeenCalledWith('compact');
+  it('uses auto side tracks when docked panes are open', () => {
     expect(component.gridTemplateColumns()).toBe(
-      '240px minmax(0, 1fr) calc(48px + 240px)',
+      'auto minmax(0, 1fr) auto',
     );
   });
 
   it('calls setLayoutMode(overlay) when overlay breakpoint matches', () => {
     setLayoutMode.mockClear();
-    breakpoints.emit({ overlay: true, compact: true });
+    breakpoints.emit(true);
     fixture.detectChanges();
 
     expect(setLayoutMode).toHaveBeenCalledWith('overlay');
@@ -617,48 +573,12 @@ describe('ConsoleShellComponent responsive layout', () => {
     ).toBeNull();
   });
 
-  it('resizes left pane width while dragging the left separator', () => {
-    const handle = fixture.nativeElement.querySelector(
-      '[aria-label="Resize left panel"]',
-    ) as HTMLElement;
-    expect(handle).toBeTruthy();
+  it('applies CSS resize host class on docked open sidebars', () => {
+    const left = fixture.debugElement.query(By.css('lib-left-sidebar'));
+    const right = fixture.debugElement.query(By.css('lib-right-sidebar'));
 
-    handle.dispatchEvent(
-      new PointerEvent('pointerdown', { clientX: 280, bubbles: true }),
-    );
-    window.dispatchEvent(
-      new PointerEvent('pointermove', { clientX: 320, bubbles: true }),
-    );
-    window.dispatchEvent(
-      new PointerEvent('pointerup', { clientX: 320, bubbles: true }),
-    );
-
-    expect(setLeftPaneWidth).toHaveBeenCalledWith(320);
-    expect(component.gridTemplateColumns()).toBe(
-      '320px minmax(0, 1fr) calc(48px + 300px)',
-    );
-  });
-
-  it('resizes right diagram width while dragging the right separator', () => {
-    const handle = fixture.nativeElement.querySelector(
-      '[aria-label="Resize right panel"]',
-    ) as HTMLElement;
-    expect(handle).toBeTruthy();
-
-    handle.dispatchEvent(
-      new PointerEvent('pointerdown', { clientX: 900, bubbles: true }),
-    );
-    window.dispatchEvent(
-      new PointerEvent('pointermove', { clientX: 860, bubbles: true }),
-    );
-    window.dispatchEvent(
-      new PointerEvent('pointerup', { clientX: 860, bubbles: true }),
-    );
-
-    expect(setRightDiagramWidth).toHaveBeenCalledWith(340);
-    expect(component.gridTemplateColumns()).toBe(
-      '280px minmax(0, 1fr) calc(48px + 340px)',
-    );
+    expect(left.nativeElement.classList.contains('is-docked-open')).toBe(true);
+    expect(right.nativeElement.classList.contains('is-docked-open')).toBe(true);
   });
 });
 

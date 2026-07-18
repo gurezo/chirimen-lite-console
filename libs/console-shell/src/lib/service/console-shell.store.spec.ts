@@ -2,8 +2,6 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import {
   ConsoleShellStore,
   DEFAULT_CONSOLE_SHELL_STATE,
-  LEFT_PANE_WIDTH,
-  RIGHT_DIAGRAM_WIDTH,
 } from './console-shell.store';
 
 describe('ConsoleShellStore', () => {
@@ -82,48 +80,6 @@ describe('ConsoleShellStore', () => {
     expect(store.layoutMode()).toBe('overlay');
     expect(store.leftNavOpen()).toBe(false);
     expect(store.rightNavOpen()).toBe(false);
-    expect(store.activePanel()).toBe('terminal');
-  });
-
-  it('setLeftPaneWidth clamps to min and max', () => {
-    store.setLeftPaneWidth(50);
-    expect(store.leftPaneWidthPx()).toBe(LEFT_PANE_WIDTH.min);
-
-    store.setLeftPaneWidth(9999);
-    expect(store.leftPaneWidthPx()).toBe(LEFT_PANE_WIDTH.max);
-
-    store.setLeftPaneWidth(320);
-    expect(store.leftPaneWidthPx()).toBe(320);
-  });
-
-  it('setRightDiagramWidth clamps to min and max', () => {
-    store.setRightDiagramWidth(10);
-    expect(store.rightDiagramWidthPx()).toBe(RIGHT_DIAGRAM_WIDTH.min);
-
-    store.setRightDiagramWidth(9999);
-    expect(store.rightDiagramWidthPx()).toBe(RIGHT_DIAGRAM_WIDTH.max);
-  });
-
-  it('syncDockedPaneWidthsForBand updates only when at previous defaults', () => {
-    store.syncDockedPaneWidthsForBand('compact');
-    expect(store.leftPaneWidthPx()).toBe(LEFT_PANE_WIDTH.compact);
-    expect(store.rightDiagramWidthPx()).toBe(RIGHT_DIAGRAM_WIDTH.compact);
-
-    store.setLeftPaneWidth(350);
-    store.syncDockedPaneWidthsForBand('wide');
-    expect(store.leftPaneWidthPx()).toBe(350);
-    expect(store.rightDiagramWidthPx()).toBe(RIGHT_DIAGRAM_WIDTH.wide);
-  });
-
-  it('applyConnectedLayout preserves custom pane widths', () => {
-    store.setLeftPaneWidth(320);
-    store.setRightDiagramWidth(260);
-    store.setActivePanel('editor');
-
-    store.applyConnectedLayout();
-
-    expect(store.leftPaneWidthPx()).toBe(320);
-    expect(store.rightDiagramWidthPx()).toBe(260);
     expect(store.activePanel()).toBe('terminal');
   });
 });
