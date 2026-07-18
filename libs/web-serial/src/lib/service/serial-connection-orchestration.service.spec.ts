@@ -1,12 +1,13 @@
 import '@angular/compiler';
 import { Injector } from '@angular/core';
-import { BehaviorSubject, firstValueFrom, of } from 'rxjs';
+import { BehaviorSubject, firstValueFrom, of, throwError } from 'rxjs';
 import { type Mock, beforeEach, describe, expect, it, vi } from 'vitest';
 import { PiZeroSessionService } from './pi-zero-session.service';
 import { PiZeroPromptDetectorService } from './pi-zero-prompt-detector.service';
 import { PiZeroShellReadinessService } from './pi-zero-shell-readiness.service';
 import { SerialCommandPipelineService } from './serial-command/serial-command-pipeline.service';
 import { SerialConnectionOrchestrationService } from './serial-connection-orchestration.service';
+import { SerialNotificationService } from './serial-notification.service';
 import { SerialTransportService } from './serial-transport.service';
 
 describe('SerialConnectionOrchestrationService', () => {
@@ -19,6 +20,7 @@ describe('SerialConnectionOrchestrationService', () => {
   let shellReadiness: PiZeroShellReadinessService;
   let runAfterConnect$: Mock;
   let resetSession: Mock;
+  let notifyAutoLoginFailed: Mock;
 
   beforeEach(() => {
     isConnectedSubj = new BehaviorSubject(false);
@@ -50,6 +52,7 @@ describe('SerialConnectionOrchestrationService', () => {
     }).get(PiZeroShellReadinessService);
     runAfterConnect$ = vi.fn(() => of(undefined));
     resetSession = vi.fn();
+    notifyAutoLoginFailed = vi.fn();
 
     const injector = Injector.create({
       providers: [
@@ -57,6 +60,10 @@ describe('SerialConnectionOrchestrationService', () => {
         { provide: SerialTransportService, useValue: transport },
         { provide: SerialCommandPipelineService, useValue: command },
         { provide: PiZeroShellReadinessService, useValue: shellReadiness },
+        {
+          provide: SerialNotificationService,
+          useValue: { notifyAutoLoginFailed },
+        },
         {
           provide: PiZeroSessionService,
           useValue: { runAfterConnect$, resetSession },
@@ -89,6 +96,19 @@ describe('SerialConnectionOrchestrationService', () => {
     await firstValueFrom(service.connect$(115200));
     await vi.waitFor(() => {
       expect(runAfterConnect$).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  it('notifies user when post-connect bootstrap fails (#726)', async () => {
+    runAfterConnect$.mockReturnValue(
+      throwError(() => new Error('Shell readiness timeout while waiting for prompt')),
+    );
+
+    await firstValueFrom(service.connect$(115200));
+    await vi.waitFor(() => {
+      expect(notifyAutoLoginFailed).toHaveBeenCalledWith(
+        'Shell readiness timeout while waiting for prompt',
+      );
     });
   });
 
