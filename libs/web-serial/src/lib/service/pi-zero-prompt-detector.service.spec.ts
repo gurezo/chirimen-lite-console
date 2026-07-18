@@ -80,4 +80,38 @@ describe('PiZeroPromptDetectorService', () => {
       detector.isAwaitingPasswordInput('foo login:\nPassword: '),
     ).toBe(true);
   });
+
+  it('isAwaitingLoginName ignores ANSI CSI and lone CR (#726)', () => {
+    expect(
+      detector.isAwaitingLoginName('raspberrypi login: \u001b[0m\r'),
+    ).toBe(true);
+    expect(
+      detector.isAwaitingLoginName('boot\nraspberrypi login:\u0000 '),
+    ).toBe(true);
+  });
+
+  it('isAwaitingPasswordInput ignores ANSI CSI and lone CR (#726)', () => {
+    expect(detector.isAwaitingPasswordInput('Password:\u001b[0m\r')).toBe(
+      true,
+    );
+    expect(
+      detector.isAwaitingPasswordInput('foo login:\nPassword: \u0007'),
+    ).toBe(true);
+  });
+
+  it('isAwaitingLoginName still prefers trailing password over scrollback login', () => {
+    expect(
+      detector.isAwaitingLoginName(
+        'raspberrypi login: \nPassword: \u001b[0m',
+      ),
+    ).toBe(false);
+  });
+
+  it('isLikelyLoggedInShellPrompt ignores ANSI before shell prompt (#726)', () => {
+    expect(
+      detector.isLikelyLoggedInShellPrompt(
+        'Last login: Mon Jan 01\n\u001b[0mpi@raspberrypi:~$ ',
+      ),
+    ).toBe(true);
+  });
 });
