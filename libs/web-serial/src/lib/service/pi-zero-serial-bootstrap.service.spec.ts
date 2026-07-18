@@ -222,6 +222,39 @@ describe('PiZeroSerialBootstrapService', () => {
     expect(send$).toHaveBeenCalledWith(`${PI_ZERO_LOGIN_USER}\r\n`);
   });
 
+  it('completes auth when prompts include ANSI CSI and lone CR (#726)', async () => {
+    const readUntilPrompt = vi
+      .fn()
+      .mockRejectedValueOnce(new Error('probe timeout'))
+      .mockResolvedValueOnce({ stdout: 'stale' })
+      .mockResolvedValueOnce({
+        stdout: 'raspberrypi login: \u001b[0m\r',
+      })
+      .mockResolvedValueOnce({
+        stdout: 'Password:\u001b[0m\r',
+      })
+      .mockResolvedValueOnce({
+        stdout: `\u001b[0m${PI_ZERO_PROMPT} `,
+      });
+    const exec = vi.fn().mockResolvedValue({ stdout: '' });
+    const send$ = vi.fn().mockReturnValue(of(undefined));
+    const serial = {
+      readUntilPrompt$: (o: unknown) => from(readUntilPrompt(o)),
+      exec$: (c: string, o: unknown) => from(exec(c, o)),
+      send$,
+    } as unknown as SerialFacadeService;
+
+    const logs: string[] = [];
+    await firstValueFrom(
+      createBootstrap(serial).loginIfNeeded$((l) => logs.push(l)),
+    );
+
+    expect(send$).toHaveBeenCalledWith(`${PI_ZERO_LOGIN_USER}\r\n`);
+    expect(send$).toHaveBeenCalledWith(`${PI_ZERO_LOGIN_PASSWORD}\r\n`);
+    expect(logs.some((l) => l.includes('シェルプロンプトを待機中'))).toBe(true);
+    expect(logs.some((l) => l.includes('ログインが完了'))).toBe(true);
+  });
+
   it('keeps environment status logging', async () => {
     const readUntilPrompt = vi.fn().mockResolvedValue({
       stdout: `ready\r\n${PI_ZERO_PROMPT} `,
