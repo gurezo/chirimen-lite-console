@@ -7,6 +7,7 @@ describe('buildConsoleShellBreadcrumbSegments', () => {
       activePanel: 'terminal',
       activeDialog: 'none',
       selectedFilePath: null,
+      fileManagerCurrentPath: '.',
     });
     expect(segments.map((s) => s.label)).toEqual(['Console', 'Terminal']);
   });
@@ -16,6 +17,7 @@ describe('buildConsoleShellBreadcrumbSegments', () => {
       activePanel: 'terminal',
       activeDialog: 'setup',
       selectedFilePath: null,
+      fileManagerCurrentPath: '.',
     });
     expect(segments.map((s) => s.label)).toEqual([
       'Console',
@@ -29,19 +31,23 @@ describe('buildConsoleShellBreadcrumbSegments', () => {
       activePanel: 'wifi',
       activeDialog: 'none',
       selectedFilePath: null,
+      fileManagerCurrentPath: '.',
     });
     expect(segments.map((s) => s.label)).toEqual(['Console', 'WiFi']);
   });
 
-  it('appends file basename in editor when a file is selected', () => {
+  it('appends hierarchical file path when a file is selected', () => {
     const segments = buildConsoleShellBreadcrumbSegments({
       activePanel: 'editor',
       activeDialog: 'none',
       selectedFilePath: '/app/src/main.js',
+      fileManagerCurrentPath: '.',
     });
     expect(segments.map((s) => s.label)).toEqual([
       'Console',
       'Editor',
+      'app',
+      'src',
       'main.js',
     ]);
   });

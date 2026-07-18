@@ -92,6 +92,7 @@ export class ConsoleShellComponent implements OnInit, OnDestroy {
       activePanel: this.shellStore.activePanel(),
       activeDialog: this.shellStore.activeDialog(),
       selectedFilePath: this.shellStore.selectedFilePath(),
+      fileManagerCurrentPath: this.shellStore.fileManagerCurrentPath(),
     }),
   );
 
@@ -239,6 +240,12 @@ export class ConsoleShellComponent implements OnInit, OnDestroy {
 
   onToggleRightSidebar() {
     this.shellStore.toggleRightNav();
+  }
+
+  /** Navigate File Manager to a breadcrumb directory segment (issue #727). */
+  onBreadcrumbNavigate(path: string): void {
+    this.shellStore.setFileManagerCurrentPath(path);
+    this.shellStore.setSelectedFilePath(null);
   }
 
   onToolbarAction(action: ToolbarAction): void {

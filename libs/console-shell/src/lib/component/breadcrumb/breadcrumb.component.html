@@ -1,10 +1,13 @@
 @if (segments().length > 0) {
-  <nav aria-label="breadcrumb" class="px-4 py-2 text-sm text-gray-500">
+  <nav
+    aria-label="breadcrumb"
+    class="overflow-x-auto px-4 py-2 text-sm text-gray-500"
+  >
     <ol
-      class="m-0 flex list-none flex-wrap items-center gap-x-1 gap-y-0.5 p-0"
+      class="m-0 flex list-none flex-nowrap items-center gap-x-1 gap-y-0.5 whitespace-nowrap p-0"
     >
       @for (segment of segments(); track $index) {
-        <li class="flex items-center gap-1">
+        <li class="flex shrink-0 items-center gap-1">
           @if (!$first) {
             <span aria-hidden="true" class="select-none text-gray-400">/</span>
           }
@@ -12,6 +15,14 @@
             <span aria-current="page" class="font-medium text-gray-800">
               {{ segment.label }}
             </span>
+          } @else if (segment.clickable && segment.path) {
+            <button
+              type="button"
+              class="cursor-pointer border-0 bg-transparent p-0 text-inherit underline-offset-2 hover:underline"
+              (click)="onSegmentActivate(segment)"
+            >
+              {{ segment.label }}
+            </button>
           } @else {
             <span>{{ segment.label }}</span>
           }
