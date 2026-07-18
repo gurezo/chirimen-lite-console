@@ -583,6 +583,10 @@ describe('ConsoleShellComponent responsive layout', () => {
 
     expect(leftRoot.style.resize).toBe('horizontal');
     expect(rightRoot.style.resize).toBe('horizontal');
+    // Width must come from class (not a continuous style.width binding),
+    // otherwise Angular overwrites native CSS resize.
+    expect(leftRoot.style.width).toBe('');
+    expect(rightRoot.style.width).toBe('');
   });
 });
 
