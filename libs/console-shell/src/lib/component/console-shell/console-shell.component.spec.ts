@@ -5,6 +5,7 @@ import { ActivatedRoute, Router } from '@angular/router';
 import {
   PiZeroShellReadinessService,
   SerialConnectionViewModelFacade,
+  SerialNotificationService,
   type SerialConnectionViewModel,
 } from '@libs-web-serial';
 import { DialogService } from '@libs-dialogs';
@@ -67,6 +68,7 @@ describe('ConsoleShellComponent', () => {
   let openShellDialog: ReturnType<typeof vi.fn>;
   let applyConnectedLayout: ReturnType<typeof vi.fn>;
   let resetLayoutAfterDisconnect: ReturnType<typeof vi.fn>;
+  let notifyLogoutDetected: ReturnType<typeof vi.fn>;
   let navigateSpy: ReturnType<typeof vi.fn>;
   let activatedRouteMock: ActivatedRoute;
 
@@ -85,6 +87,7 @@ describe('ConsoleShellComponent', () => {
     sendCommand = facade.sendCommand;
     applyConnectedLayout = vi.fn();
     resetLayoutAfterDisconnect = vi.fn();
+    notifyLogoutDetected = vi.fn();
 
     openDialog = vi.fn().mockReturnValue({ closed: of(undefined) });
     closeAllDialog = vi.fn();
@@ -107,6 +110,10 @@ describe('ConsoleShellComponent', () => {
         {
           provide: PiZeroShellReadinessService,
           useValue: shellReadiness,
+        },
+        {
+          provide: SerialNotificationService,
+          useValue: { notifyLogoutDetected },
         },
         {
           provide: DialogService,
@@ -224,10 +231,12 @@ describe('ConsoleShellComponent', () => {
     disconnect.mockClear();
     closeDialog.mockClear();
     closeAllDialog.mockClear();
+    notifyLogoutDetected.mockClear();
 
     logoutCompletedEpochSignal.set(1);
     TestBed.flushEffects();
 
+    expect(notifyLogoutDetected).toHaveBeenCalledTimes(1);
     expect(closeDialog).toHaveBeenCalledTimes(1);
     expect(closeAllDialog).toHaveBeenCalledTimes(1);
     expect(disconnect).toHaveBeenCalledTimes(1);
@@ -235,6 +244,7 @@ describe('ConsoleShellComponent', () => {
     logoutCompletedEpochSignal.set(1);
     TestBed.flushEffects();
     expect(disconnect).toHaveBeenCalledTimes(1);
+    expect(notifyLogoutDetected).toHaveBeenCalledTimes(1);
   });
 
   it('does not disconnect again for the same logout epoch while disconnect is in flight', () => {
@@ -284,6 +294,10 @@ describe('ConsoleShellComponent gridTemplateColumns when right nav closed', () =
         {
           provide: PiZeroShellReadinessService,
           useValue: createShellReadinessMock(),
+        },
+        {
+          provide: SerialNotificationService,
+          useValue: { notifyLogoutDetected: vi.fn() },
         },
         {
           provide: DialogService,
@@ -347,6 +361,10 @@ describe('ConsoleShellComponent layout DOM (connected vs disconnected)', () => {
         {
           provide: PiZeroShellReadinessService,
           useValue: createShellReadinessMock(),
+        },
+        {
+          provide: SerialNotificationService,
+          useValue: { notifyLogoutDetected: vi.fn() },
         },
         ConsoleShellStore,
         {

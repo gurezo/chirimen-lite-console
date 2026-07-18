@@ -28,6 +28,7 @@ import { RemotePageComponent } from '@libs-remote';
 import {
   PiZeroShellReadinessService,
   SerialConnectionViewModelFacade,
+  SerialNotificationService,
 } from '@libs-web-serial';
 import { DialogService } from '@libs-dialogs';
 import { filter, Subscription } from 'rxjs';
@@ -65,6 +66,7 @@ export class ConsoleShellComponent implements OnInit, OnDestroy {
 
   private connectionVm = inject(SerialConnectionViewModelFacade);
   private shellReadiness = inject(PiZeroShellReadinessService);
+  private notifications = inject(SerialNotificationService);
   private shellStore = inject(ConsoleShellStore);
   private dialogService = inject(DialogService);
   private router = inject(Router);
@@ -139,6 +141,7 @@ export class ConsoleShellComponent implements OnInit, OnDestroy {
       this.lastLogoutCompletedEpoch = logoutEpoch;
       untracked(() => {
         this.logoutDisconnectInFlight = true;
+        this.notifications.notifyLogoutDetected();
         this.shellStore.closeDialog();
         this.dialogService.closeAll();
         this.connectionVm.disconnect();
