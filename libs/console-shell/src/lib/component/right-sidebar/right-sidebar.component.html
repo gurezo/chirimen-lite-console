@@ -1,8 +1,8 @@
 <div
-  class="right-sidebar flex min-h-0 min-w-0 flex-1 flex-row overflow-hidden"
+  class="right-sidebar relative flex min-h-0 min-w-0 flex-1 flex-row overflow-hidden"
 >
   <div
-    class="flex shrink-0 flex-col items-center gap-1 border-r border-gray-200 py-2"
+    class="flex shrink-0 flex-col items-center gap-1 border-r border-gray-200 bg-white py-2"
   >
     <button
       mat-icon-button
@@ -30,8 +30,16 @@
     </button>
   </div>
   @if (rightNavOpen()) {
-    <div class="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
-      <choh-pin-assign />
-    </div>
+    @if (isOverlay()) {
+      <div
+        class="absolute top-0 right-full bottom-0 z-40 flex min-h-0 w-[min(300px,85vw)] min-w-0 flex-col overflow-hidden border-l border-gray-200 bg-white shadow-lg"
+      >
+        <choh-pin-assign />
+      </div>
+    } @else {
+      <div class="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden bg-white">
+        <choh-pin-assign />
+      </div>
+    }
   }
 </div>

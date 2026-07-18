@@ -21,17 +21,27 @@
   <div class="flex min-h-0 flex-1 flex-col overflow-hidden">
     @if (isConnected) {
       <div
-        class="grid h-full min-h-0 gap-x-0 gap-y-0"
+        class="relative grid h-full min-h-0 gap-x-0 gap-y-0"
         [style.grid-template-columns]="gridTemplateColumns()"
       >
-        <div class="flex min-h-0 min-w-0 flex-col overflow-hidden">
+        @if (showOverlayBackdrop()) {
+          <button
+            type="button"
+            class="absolute inset-0 z-30 cursor-default border-0 bg-black/30 p-0"
+            aria-label="Close side panels"
+            (click)="onCloseOverlayPanels()"
+          ></button>
+        }
+
+        <div class="relative z-40 flex min-h-0 min-w-0 flex-col overflow-hidden">
           <lib-left-sidebar
             [leftNavOpen]="leftNavOpen()"
+            [layoutMode]="layoutMode()"
             (toggleLeftSidebar)="onToggleLeftSidebar()"
           />
         </div>
 
-        <div class="flex min-h-0 min-w-0 flex-col overflow-hidden">
+        <div class="relative z-20 flex min-h-0 min-w-0 flex-col overflow-hidden">
           <lib-action-tool-bar
             [connected]="isConnected"
             (toolbarAction)="onToolbarAction($event)"
@@ -42,11 +52,12 @@
         </div>
 
         <div
-          class="flex min-h-0 min-w-0 flex-col overflow-hidden border-l border-gray-200"
+          class="relative z-40 flex min-h-0 min-w-0 flex-col overflow-hidden border-l border-gray-200"
         >
           <lib-right-sidebar
             class="min-h-0 min-w-0 flex-1"
             [rightNavOpen]="rightNavOpen()"
+            [layoutMode]="layoutMode()"
             (toggleRightSidebar)="onToggleRightSidebar()"
           />
         </div>

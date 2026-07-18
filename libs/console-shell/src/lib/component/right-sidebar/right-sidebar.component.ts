@@ -1,7 +1,8 @@
-import { Component, input, output } from '@angular/core';
+import { Component, computed, input, output } from '@angular/core';
 import { MatIconButton } from '@angular/material/button';
 import { MatIcon } from '@angular/material/icon';
 import { PinAssignComponent } from '@libs-pin-assign-panel';
+import { ConsoleShellLayoutMode } from '../../service';
 
 @Component({
   selector: 'lib-right-sidebar',
@@ -13,5 +14,8 @@ import { PinAssignComponent } from '@libs-pin-assign-panel';
 })
 export class RightSidebarComponent {
   rightNavOpen = input<boolean>(true);
+  layoutMode = input<ConsoleShellLayoutMode>('docked');
   toggleRightSidebar = output<void>();
+
+  readonly isOverlay = computed(() => this.layoutMode() === 'overlay');
 }
