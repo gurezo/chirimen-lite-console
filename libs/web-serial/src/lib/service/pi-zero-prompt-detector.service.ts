@@ -32,11 +32,24 @@ export class PiZeroPromptDetectorService {
   private readonly shellPromptLinePattern = /pi@[^:\r\n]+:/;
 
   /**
+   * getty / ANSI 制御シーケンス混入時に行判定が崩れるのを防ぐ。
+   * CSI/OSC と、`\r` `\n` `\t` 以外の C0 制御文字を除去してから正規化する。
+   */
+  private sanitizeForPromptMatch(text: string): string {
+    return text
+      .replace(/\u001b\[[0-9;?]*[ -/]*[@-~]/g, '')
+      .replace(/\u001b\][^\u0007]*(?:\u0007|\u001b\\)/g, '')
+      .replace(/[\u0000-\u0008\u000b\u000c\u000e-\u001f]/g, '')
+      .replace(/\r\n/g, '\n')
+      .replace(/\r/g, '\n');
+  }
+
+  /**
    * getty の入力待ちを **末尾の非空行** で見る（バッファ先頭に `login:` が残っていても
    * 実際には `Password:` 待ち、などを区別するため）。
    */
   private trailingNonEmptyLine(text: string): string {
-    const normalized = text.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
+    const normalized = this.sanitizeForPromptMatch(text);
     const lines = normalized.split('\n');
     for (let i = lines.length - 1; i >= 0; i--) {
       const t = lines[i]?.trim();
@@ -45,6 +58,20 @@ export class PiZeroPromptDetectorService {
       }
     }
     return '';
+  }
+
+  /**
+   * 末尾行が取れない場合のフォールバック。
+   * バッファ末尾が login / password プロンプトで終わるかだけを見る（scrollback 先頭は見ない）。
+   */
+  private bufferEndsWithLoginPrompt(text: string): boolean {
+    const normalized = this.sanitizeForPromptMatch(text).trimEnd();
+    return /(?:[Ll]ogin|ログイン)\s*:\s*$/.test(normalized);
+  }
+
+  private bufferEndsWithPasswordPrompt(text: string): boolean {
+    const normalized = this.sanitizeForPromptMatch(text).trimEnd();
+    return /[Pp]assword:\s*$/.test(normalized);
   }
 
   isLoginPrompt(text: string): boolean {
@@ -71,7 +98,7 @@ export class PiZeroPromptDetectorService {
     if (this.isShellPrompt(text)) {
       return true;
     }
-    const normalized = text.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
+    const normalized = this.sanitizeForPromptMatch(text);
     // パス省略で `pi@host:$` になるとき `.+` は一致しない（`.` は 0 回以上にする）
     if (/(?:^|[\n])[\t ]*[^\s]+@[^:]+:.*[$#%]/m.test(normalized)) {
       return true;
@@ -106,25 +133,28 @@ export class PiZeroPromptDetectorService {
   }
 
   /**
-   * 末尾行がユーザー名入力待ちの `login:` / `ログイン:`（getty の現在のプロンプト）
+   * 末尾行がユーザー名入力待ちの `login:` / `ログイン:`（getty の現在のプロンプト）。
+   * 末尾行が空のときはバッファ末尾一致にフォールバック（#726）。
    */
   isAwaitingLoginName(text: string): boolean {
     const line = this.trailingNonEmptyLine(text);
-    if (!line) {
-      return false;
+    if (line) {
+      // scrollback 先頭の古い login: を拾わない（末尾行優先）
+      return /(?:[Ll]ogin|ログイン)\s*:\s*$/.test(line);
     }
-    return /(?:[Ll]ogin|ログイン)\s*:\s*$/.test(line);
+    return this.bufferEndsWithLoginPrompt(text);
   }
 
   /**
    * 末尾がパスワード入力待ち（接続直後ですでに `Password:` のみ、など）。
+   * 末尾行が空のときはバッファ末尾一致にフォールバック（#726）。
    */
   isAwaitingPasswordInput(text: string): boolean {
     const line = this.trailingNonEmptyLine(text);
-    if (!line) {
-      return false;
+    if (line) {
+      return /[Pp]assword:\s*$/.test(line);
     }
-    return /[Pp]assword:\s*$/.test(line);
+    return this.bufferEndsWithPasswordPrompt(text);
   }
 
   /**
@@ -132,7 +162,7 @@ export class PiZeroPromptDetectorService {
    * `pi@host:~$ ls ...` のようなコマンドエコー行では一致させない（issue #717）。
    */
   isCommandCompleted(text: string): boolean {
-    const normalized = text.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
+    const normalized = this.sanitizeForPromptMatch(text);
     const lines = normalized.split('\n');
     const windowSize = Math.min(lines.length, 12);
     for (let j = lines.length - 1; j >= lines.length - windowSize; j--) {
