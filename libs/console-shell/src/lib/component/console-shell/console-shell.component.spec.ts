@@ -97,12 +97,16 @@ function baseStoreMock(overrides: Record<string, unknown> = {}) {
     leftNavOpen: () => true,
     rightNavOpen: () => true,
     layoutMode: () => 'docked' as const,
+    leftPaneWidthPx: () => 280,
+    rightDiagramWidthPx: () => 300,
     setActivePanel: vi.fn(),
     toggleLeftNav: vi.fn(),
     toggleRightNav: vi.fn(),
     closeLeftNav: vi.fn(),
     closeRightNav: vi.fn(),
     setLayoutMode: vi.fn(),
+    setLeftPaneWidth: vi.fn(),
+    setRightDiagramWidth: vi.fn(),
     openDialog: vi.fn(),
     closeDialog: vi.fn(),
     applyConnectedLayout: vi.fn(),
@@ -255,9 +259,9 @@ describe('ConsoleShellComponent', () => {
     expect(openDialog).not.toHaveBeenCalled();
   });
 
-  it('should set grid template columns to auto tracks when side panes are open', () => {
+  it('should set grid template columns with store-backed pane widths', () => {
     expect(component.gridTemplateColumns()).toBe(
-      'auto minmax(0, 1fr) auto',
+      '280px minmax(0, 1fr) calc(48px + 300px)',
     );
   });
 
@@ -426,7 +430,7 @@ describe('ConsoleShellComponent gridTemplateColumns when right nav closed', () =
   });
 
   it('should set grid template columns with collapsed rail width when right nav is closed', () => {
-    expect(component.gridTemplateColumns()).toBe('auto minmax(0, 1fr) 48px');
+    expect(component.gridTemplateColumns()).toBe('280px minmax(0, 1fr) 48px');
   });
 });
 
@@ -436,16 +440,22 @@ describe('ConsoleShellComponent responsive layout', () => {
   let setLayoutMode: ReturnType<typeof vi.fn>;
   let closeLeftNav: ReturnType<typeof vi.fn>;
   let closeRightNav: ReturnType<typeof vi.fn>;
+  let setLeftPaneWidth: ReturnType<typeof vi.fn>;
+  let setRightDiagramWidth: ReturnType<typeof vi.fn>;
   let breakpoints: ReturnType<typeof createBreakpointObserverMock>;
   let layoutModeSignal: ReturnType<typeof signal<'docked' | 'overlay'>>;
   let leftNavOpenSignal: ReturnType<typeof signal<boolean>>;
   let rightNavOpenSignal: ReturnType<typeof signal<boolean>>;
+  let leftPaneWidthSignal: ReturnType<typeof signal<number>>;
+  let rightDiagramWidthSignal: ReturnType<typeof signal<number>>;
 
   beforeEach(async () => {
     const { facade } = createConnectionFacadeMock(true);
     layoutModeSignal = signal<'docked' | 'overlay'>('docked');
     leftNavOpenSignal = signal(true);
     rightNavOpenSignal = signal(true);
+    leftPaneWidthSignal = signal(280);
+    rightDiagramWidthSignal = signal(300);
     setLayoutMode = vi.fn((mode: 'docked' | 'overlay') => {
       layoutModeSignal.set(mode);
       if (mode === 'overlay') {
@@ -458,6 +468,10 @@ describe('ConsoleShellComponent responsive layout', () => {
     });
     closeLeftNav = vi.fn(() => leftNavOpenSignal.set(false));
     closeRightNav = vi.fn(() => rightNavOpenSignal.set(false));
+    setLeftPaneWidth = vi.fn((width: number) => leftPaneWidthSignal.set(width));
+    setRightDiagramWidth = vi.fn((width: number) =>
+      rightDiagramWidthSignal.set(width),
+    );
     breakpoints = createBreakpointObserverMock();
 
     const activatedRoute = {
@@ -498,9 +512,13 @@ describe('ConsoleShellComponent responsive layout', () => {
             layoutMode: () => layoutModeSignal(),
             leftNavOpen: () => leftNavOpenSignal(),
             rightNavOpen: () => rightNavOpenSignal(),
+            leftPaneWidthPx: () => leftPaneWidthSignal(),
+            rightDiagramWidthPx: () => rightDiagramWidthSignal(),
             setLayoutMode,
             closeLeftNav,
             closeRightNav,
+            setLeftPaneWidth,
+            setRightDiagramWidth,
           }),
         },
       ],
@@ -522,9 +540,9 @@ describe('ConsoleShellComponent responsive layout', () => {
     );
   });
 
-  it('uses auto side tracks when docked panes are open', () => {
+  it('uses store-backed side tracks when docked panes are open', () => {
     expect(component.gridTemplateColumns()).toBe(
-      'auto minmax(0, 1fr) auto',
+      '280px minmax(0, 1fr) calc(48px + 300px)',
     );
   });
 
@@ -573,20 +591,48 @@ describe('ConsoleShellComponent responsive layout', () => {
     ).toBeNull();
   });
 
-  it('applies CSS resize style on docked open sidebars', () => {
-    const leftRoot = fixture.nativeElement.querySelector(
-      'lib-left-sidebar > div',
+  it('resizes left pane width while dragging the left separator', () => {
+    const handle = fixture.nativeElement.querySelector(
+      '[aria-label="Resize left panel"]',
     ) as HTMLElement;
-    const rightRoot = fixture.nativeElement.querySelector(
-      'lib-right-sidebar > div',
-    ) as HTMLElement;
+    expect(handle).toBeTruthy();
 
-    expect(leftRoot.style.resize).toBe('horizontal');
-    expect(rightRoot.style.resize).toBe('horizontal');
-    // Width must come from class (not a continuous style.width binding),
-    // otherwise Angular overwrites native CSS resize.
-    expect(leftRoot.style.width).toBe('');
-    expect(rightRoot.style.width).toBe('');
+    handle.dispatchEvent(
+      new PointerEvent('pointerdown', { clientX: 280, bubbles: true }),
+    );
+    window.dispatchEvent(
+      new PointerEvent('pointermove', { clientX: 320, bubbles: true }),
+    );
+    window.dispatchEvent(
+      new PointerEvent('pointerup', { clientX: 320, bubbles: true }),
+    );
+
+    expect(setLeftPaneWidth).toHaveBeenCalledWith(320);
+    expect(component.gridTemplateColumns()).toBe(
+      '320px minmax(0, 1fr) calc(48px + 300px)',
+    );
+  });
+
+  it('resizes right diagram width while dragging the right separator', () => {
+    const handle = fixture.nativeElement.querySelector(
+      '[aria-label="Resize right panel"]',
+    ) as HTMLElement;
+    expect(handle).toBeTruthy();
+
+    handle.dispatchEvent(
+      new PointerEvent('pointerdown', { clientX: 900, bubbles: true }),
+    );
+    window.dispatchEvent(
+      new PointerEvent('pointermove', { clientX: 860, bubbles: true }),
+    );
+    window.dispatchEvent(
+      new PointerEvent('pointerup', { clientX: 860, bubbles: true }),
+    );
+
+    expect(setRightDiagramWidth).toHaveBeenCalledWith(340);
+    expect(component.gridTemplateColumns()).toBe(
+      '280px minmax(0, 1fr) calc(48px + 340px)',
+    );
   });
 });
 

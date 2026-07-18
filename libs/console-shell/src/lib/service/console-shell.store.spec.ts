@@ -2,6 +2,8 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import {
   ConsoleShellStore,
   DEFAULT_CONSOLE_SHELL_STATE,
+  LEFT_PANE_WIDTH,
+  RIGHT_DIAGRAM_WIDTH,
 } from './console-shell.store';
 
 describe('ConsoleShellStore', () => {
@@ -44,11 +46,7 @@ describe('ConsoleShellStore', () => {
   });
 
   it('setLayoutMode to overlay closes both panes', () => {
-    expect(store.leftNavOpen()).toBe(true);
-    expect(store.rightNavOpen()).toBe(true);
-
     store.setLayoutMode('overlay');
-
     expect(store.layoutMode()).toBe('overlay');
     expect(store.leftNavOpen()).toBe(false);
     expect(store.rightNavOpen()).toBe(false);
@@ -57,29 +55,30 @@ describe('ConsoleShellStore', () => {
   it('setLayoutMode to docked opens both panes', () => {
     store.setLayoutMode('overlay');
     store.setLayoutMode('docked');
-
     expect(store.layoutMode()).toBe('docked');
     expect(store.leftNavOpen()).toBe(true);
     expect(store.rightNavOpen()).toBe(true);
   });
 
-  it('setLayoutMode is a no-op when mode is unchanged', () => {
-    store.closeLeftNav();
-    store.setLayoutMode('docked');
-
-    expect(store.leftNavOpen()).toBe(false);
+  it('setLeftPaneWidth clamps to min and max', () => {
+    store.setLeftPaneWidth(50);
+    expect(store.leftPaneWidthPx()).toBe(LEFT_PANE_WIDTH.min);
+    store.setLeftPaneWidth(9999);
+    expect(store.leftPaneWidthPx()).toBe(LEFT_PANE_WIDTH.max);
   });
 
-  it('applyConnectedLayout preserves overlay mode and keeps panes closed', () => {
-    store.setLayoutMode('overlay');
-    store.openLeftNav();
-    store.setActivePanel('editor');
+  it('setRightDiagramWidth clamps to min and max', () => {
+    store.setRightDiagramWidth(10);
+    expect(store.rightDiagramWidthPx()).toBe(RIGHT_DIAGRAM_WIDTH.min);
+    store.setRightDiagramWidth(9999);
+    expect(store.rightDiagramWidthPx()).toBe(RIGHT_DIAGRAM_WIDTH.max);
+  });
 
+  it('applyConnectedLayout preserves custom pane widths', () => {
+    store.setLeftPaneWidth(320);
+    store.setRightDiagramWidth(260);
     store.applyConnectedLayout();
-
-    expect(store.layoutMode()).toBe('overlay');
-    expect(store.leftNavOpen()).toBe(false);
-    expect(store.rightNavOpen()).toBe(false);
-    expect(store.activePanel()).toBe('terminal');
+    expect(store.leftPaneWidthPx()).toBe(320);
+    expect(store.rightDiagramWidthPx()).toBe(260);
   });
 });

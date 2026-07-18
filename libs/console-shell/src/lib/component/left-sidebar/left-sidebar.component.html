@@ -1,79 +1,75 @@
-@if (isDockedOpen()) {
-  <!--
-    Do not bind style.width while open: Angular would overwrite the
-    inline width that the browser sets during native CSS resize.
-  -->
-  <div
-    class="box-border flex h-full min-h-0 w-[280px] min-w-[180px] max-w-[480px] flex-col overflow-hidden max-xl:w-[240px]"
-    [style.resize]="'horizontal'"
-  >
-    <ng-container *ngTemplateOutlet="sidebarBody" />
-  </div>
-} @else {
-  <div
-    class="box-border flex h-full min-h-0 w-12 min-w-12 max-w-12 flex-col overflow-hidden"
-    [style.resize]="'none'"
-  >
-    <ng-container *ngTemplateOutlet="sidebarBody" />
-  </div>
-}
-
-<ng-template #sidebarBody>
-  <div
-    class="flex min-h-0 min-w-0 flex-1 flex-row overflow-hidden border-r border-gray-200"
-  >
-    @if (leftNavOpen()) {
-      @if (isOverlay()) {
-        <!-- Initial width via class only; resize must own inline width. -->
+<div
+  class="relative flex min-h-0 min-w-0 flex-1 flex-row overflow-hidden border-r border-gray-200"
+>
+  @if (leftNavOpen()) {
+    @if (isOverlay()) {
+      <div
+        class="absolute top-0 bottom-0 left-full z-40 flex min-h-0 min-w-0 flex-col overflow-hidden border-r border-gray-200 bg-white shadow-lg"
+        [style.width]="overlayWidth()"
+      >
+        <lib-file-tree-feature
+          [currentPath]="shellStore.fileManagerCurrentPath()"
+          (currentPathChange)="onCurrentPathChange($event)"
+          (fileSelected)="onFileSelected($event)"
+        />
         <div
-          class="absolute top-0 bottom-0 left-full z-40 box-border flex min-h-0 w-[min(280px,85vw)] min-w-[min(180px,85vw)] max-w-[min(480px,85vw)] flex-col overflow-hidden border-r border-gray-200 bg-white shadow-lg max-xl:w-[min(240px,85vw)]"
-          [style.resize]="'horizontal'"
-        >
-          <lib-file-tree-feature
-            [currentPath]="shellStore.fileManagerCurrentPath()"
-            (currentPathChange)="onCurrentPathChange($event)"
-            (fileSelected)="onFileSelected($event)"
-          />
-        </div>
-      } @else {
-        <div
-          class="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden bg-white"
-        >
-          <lib-file-tree-feature
-            [currentPath]="shellStore.fileManagerCurrentPath()"
-            (currentPathChange)="onCurrentPathChange($event)"
-            (fileSelected)="onFileSelected($event)"
-          />
-        </div>
-      }
+          role="separator"
+          aria-orientation="vertical"
+          aria-label="Resize left panel"
+          tabindex="0"
+          class="absolute top-0 right-0 bottom-0 z-50 w-1.5 cursor-col-resize touch-none bg-transparent hover:bg-blue-500/40"
+          (pointerdown)="onResizePointerDown($event)"
+        ></div>
+      </div>
+    } @else {
+      <div
+        class="flex min-h-0 min-w-0 flex-col overflow-hidden bg-white"
+        [style.width.px]="treeWidthPx()"
+      >
+        <lib-file-tree-feature
+          [currentPath]="shellStore.fileManagerCurrentPath()"
+          (currentPathChange)="onCurrentPathChange($event)"
+          (fileSelected)="onFileSelected($event)"
+        />
+      </div>
     }
-    <div
-      class="flex shrink-0 flex-col items-center gap-1 border-l border-gray-200 bg-white py-2"
+  }
+  <div
+    class="relative flex w-12 shrink-0 flex-col items-center gap-1 border-l border-gray-200 bg-white py-2"
+  >
+    <button
+      mat-icon-button
+      type="button"
+      aria-label="Toggle left panel"
+      (click)="toggleLeftSidebar.emit()"
     >
-      <button
-        mat-icon-button
-        type="button"
-        aria-label="Toggle left panel"
-        (click)="toggleLeftSidebar.emit()"
-      >
-        <mat-icon>folder</mat-icon>
-      </button>
-      <button
-        mat-icon-button
-        type="button"
-        [attr.aria-label]="
-          leftNavOpen() ? 'Close left panel' : 'Open left panel'
-        "
-        (click)="toggleLeftSidebar.emit()"
-      >
-        <mat-icon>
-          @if (leftNavOpen()) {
-            left_panel_close
-          } @else {
-            left_panel_open
-          }
-        </mat-icon>
-      </button>
-    </div>
+      <mat-icon>folder</mat-icon>
+    </button>
+    <button
+      mat-icon-button
+      type="button"
+      [attr.aria-label]="
+        leftNavOpen() ? 'Close left panel' : 'Open left panel'
+      "
+      (click)="toggleLeftSidebar.emit()"
+    >
+      <mat-icon>
+        @if (leftNavOpen()) {
+          left_panel_close
+        } @else {
+          left_panel_open
+        }
+      </mat-icon>
+    </button>
+    @if (isDockedOpen()) {
+      <div
+        role="separator"
+        aria-orientation="vertical"
+        aria-label="Resize left panel"
+        tabindex="0"
+        class="absolute top-0 right-0 bottom-0 z-50 w-1.5 cursor-col-resize touch-none bg-transparent hover:bg-blue-500/40"
+        (pointerdown)="onResizePointerDown($event)"
+      ></div>
+    }
   </div>
-</ng-template>
+</div>
