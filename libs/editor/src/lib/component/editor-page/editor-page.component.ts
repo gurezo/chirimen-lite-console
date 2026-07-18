@@ -8,7 +8,7 @@ import {
 } from '@angular/core';
 import { ConsoleShellStore } from '@libs-console-shell';
 import type { editor } from 'monaco-editor';
-import { EditorService } from '../../service';
+import { EditorDraftService, EditorService } from '../../service';
 import { EditorToolbarComponent } from '../editor-toolbar/editor-toolbar.component';
 import { FileNameDisplayComponent } from '../file-name-display/file-name-display.component';
 import { MonacoEditorComponent } from '../monaco-editor/monaco-editor.component';
@@ -45,13 +45,16 @@ export class EditorPageComponent implements OnInit {
   isSaving = signal(false);
 
   private editorService = inject(EditorService);
+  private draftService = inject(EditorDraftService);
   private shellStore = inject(ConsoleShellStore);
   private readonly defaultFilePath = '/home/pi/edited.js';
+  private readonly activeFilePath = signal(this.defaultFilePath);
+  private initialized = false;
 
   constructor() {
     effect(() => {
       const selectedPath = this.shellStore.selectedFilePath();
-      if (!selectedPath) {
+      if (!this.initialized || !selectedPath) {
         return;
       }
       void this.loadFile(selectedPath);
@@ -59,11 +62,23 @@ export class EditorPageComponent implements OnInit {
   }
 
   async ngOnInit(): Promise<void> {
-    await this.loadFile(this.currentFilePath());
+    const draft = this.draftService.read();
+    if (draft) {
+      this.activeFilePath.set(draft.path);
+      this.code.set(draft.content);
+      this.isDirty.set(true);
+      this.initialized = true;
+      return;
+    }
+
+    await this.loadFile(
+      this.shellStore.selectedFilePath() ?? this.defaultFilePath,
+    );
+    this.initialized = true;
   }
 
   private currentFilePath(): string {
-    return this.shellStore.selectedFilePath() ?? this.defaultFilePath;
+    return this.activeFilePath();
   }
 
   currentFileName(): string {
@@ -73,6 +88,7 @@ export class EditorPageComponent implements OnInit {
   private async loadFile(path: string): Promise<void> {
     try {
       const loaded = await this.editorService.loadTextFile(path);
+      this.activeFilePath.set(path);
       this.code.set(loaded);
       this.isDirty.set(false);
     } catch {
@@ -92,6 +108,7 @@ export class EditorPageComponent implements OnInit {
         this.code(),
       );
       this.isDirty.set(false);
+      this.draftService.clear();
     } finally {
       this.isSaving.set(false);
     }
@@ -99,6 +116,18 @@ export class EditorPageComponent implements OnInit {
 
   onEditorInitialized(editorInstance: editor.IStandaloneCodeEditor): void {
     this.editorService.initializeEditor(editorInstance);
+  }
+
+  onCodeChange(code: string): void {
+    this.code.set(code);
+    if (this.isDirty()) {
+      this.draftService.save(this.currentFilePath(), code);
+    }
+  }
+
+  onContentEdited(): void {
+    this.isDirty.set(true);
+    this.draftService.save(this.currentFilePath(), this.code());
   }
 
   @HostListener('window:keydown', ['$event'])
