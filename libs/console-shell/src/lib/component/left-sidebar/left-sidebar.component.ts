@@ -1,3 +1,4 @@
+import { NgClass } from '@angular/common';
 import { Component, computed, inject, input, output } from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
 import { MatIconButton } from '@angular/material/button';
@@ -10,12 +11,10 @@ import { FileTreeFeatureComponent } from '@libs-file-manager';
 
 @Component({
   selector: 'lib-left-sidebar',
-  imports: [FileTreeFeatureComponent, MatIconButton, MatIcon],
+  imports: [FileTreeFeatureComponent, MatIconButton, MatIcon, NgClass],
   templateUrl: './left-sidebar.component.html',
-  styleUrl: './left-sidebar.component.css',
   host: {
-    '[class.is-docked-open]': 'isDockedOpen()',
-    '[class.is-rail]': 'isRail()',
+    class: 'contents',
   },
 })
 export class LeftSidebarComponent {
@@ -27,7 +26,6 @@ export class LeftSidebarComponent {
   readonly isDockedOpen = computed(
     () => this.leftNavOpen() && !this.isOverlay(),
   );
-  readonly isRail = computed(() => !this.isDockedOpen());
 
   readonly shellStore = inject(ConsoleShellStore);
   private router = inject(Router);

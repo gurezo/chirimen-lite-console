@@ -573,12 +573,16 @@ describe('ConsoleShellComponent responsive layout', () => {
     ).toBeNull();
   });
 
-  it('applies CSS resize host class on docked open sidebars', () => {
-    const left = fixture.debugElement.query(By.css('lib-left-sidebar'));
-    const right = fixture.debugElement.query(By.css('lib-right-sidebar'));
+  it('applies CSS resize utilities on docked open sidebars', () => {
+    const leftRoot = fixture.nativeElement.querySelector(
+      'lib-left-sidebar > div',
+    ) as HTMLElement;
+    const rightRoot = fixture.nativeElement.querySelector(
+      'lib-right-sidebar > div',
+    ) as HTMLElement;
 
-    expect(left.nativeElement.classList.contains('is-docked-open')).toBe(true);
-    expect(right.nativeElement.classList.contains('is-docked-open')).toBe(true);
+    expect(leftRoot.classList.contains('resize-x')).toBe(true);
+    expect(rightRoot.classList.contains('resize-x')).toBe(true);
   });
 });
 
