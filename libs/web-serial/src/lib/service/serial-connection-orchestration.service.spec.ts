@@ -18,6 +18,7 @@ describe('SerialConnectionOrchestrationService', () => {
   let command: Partial<SerialCommandPipelineService>;
   let shellReadiness: PiZeroShellReadinessService;
   let runAfterConnect$: Mock;
+  let resetSession: Mock;
 
   beforeEach(() => {
     isConnectedSubj = new BehaviorSubject(false);
@@ -48,6 +49,7 @@ describe('SerialConnectionOrchestrationService', () => {
       ],
     }).get(PiZeroShellReadinessService);
     runAfterConnect$ = vi.fn(() => of(undefined));
+    resetSession = vi.fn();
 
     const injector = Injector.create({
       providers: [
@@ -57,7 +59,7 @@ describe('SerialConnectionOrchestrationService', () => {
         { provide: PiZeroShellReadinessService, useValue: shellReadiness },
         {
           provide: PiZeroSessionService,
-          useValue: { runAfterConnect$ },
+          useValue: { runAfterConnect$, resetSession },
         },
       ],
     });
@@ -123,6 +125,7 @@ describe('SerialConnectionOrchestrationService', () => {
     expect(command.stopReadLoop).toHaveBeenCalled();
     expect(disconnectMock).toHaveBeenCalled();
     expect(shellReadiness.isReady()).toBe(false);
+    expect(resetSession).toHaveBeenCalledTimes(1);
   });
 
   it('does not increment epoch or start read loop when transport returns error', async () => {
