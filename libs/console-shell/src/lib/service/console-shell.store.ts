@@ -3,6 +3,9 @@ import { computed, Injectable, signal } from '@angular/core';
 type ConsoleShellPanel = 'terminal' | 'editor' | 'example' | 'wifi';
 type ConsoleShellDialog = 'none' | 'setup' | 'remote';
 
+/** docked: in-flow side panes; overlay: rails only in-flow, panes float over center. */
+export type ConsoleShellLayoutMode = 'docked' | 'overlay';
+
 export interface ConsoleShellState {
   activePanel: ConsoleShellPanel;
   leftNavOpen: boolean;
@@ -11,6 +14,7 @@ export interface ConsoleShellState {
   /** Current File Manager directory path (e.g. `.` or `./home/pi`). */
   fileManagerCurrentPath: string;
   activeDialog: ConsoleShellDialog;
+  layoutMode: ConsoleShellLayoutMode;
 }
 
 /** Default shell layout after connect and after disconnect (issue #462). */
@@ -21,6 +25,7 @@ export const DEFAULT_CONSOLE_SHELL_STATE: ConsoleShellState = {
   selectedFilePath: null,
   fileManagerCurrentPath: '.',
   activeDialog: 'none',
+  layoutMode: 'docked',
 };
 
 @Injectable({
@@ -55,6 +60,10 @@ export class ConsoleShellStore {
 
   readonly activeDialog = computed(
     () => this.stateSignal().activeDialog,
+  );
+
+  readonly layoutMode = computed(
+    () => this.stateSignal().layoutMode,
   );
 
   setActivePanel(panel: ConsoleShellPanel): void {
@@ -106,6 +115,32 @@ export class ConsoleShellStore {
     }));
   }
 
+  /**
+   * Switch between docked and overlay layout (issue #728).
+   * Entering overlay closes both panes; returning to docked opens both.
+   */
+  setLayoutMode(layoutMode: ConsoleShellLayoutMode): void {
+    this.stateSignal.update((state) => {
+      if (state.layoutMode === layoutMode) {
+        return state;
+      }
+      if (layoutMode === 'overlay') {
+        return {
+          ...state,
+          layoutMode,
+          leftNavOpen: false,
+          rightNavOpen: false,
+        };
+      }
+      return {
+        ...state,
+        layoutMode,
+        leftNavOpen: true,
+        rightNavOpen: true,
+      };
+    });
+  }
+
   setSelectedFilePath(selectedFilePath: string | null): void {
     this.stateSignal.update((state) => ({
       ...state,
@@ -136,12 +171,23 @@ export class ConsoleShellStore {
 
   /** Apply expected layout when Web Serial connection succeeds. */
   applyConnectedLayout(): void {
-    this.stateSignal.set({ ...DEFAULT_CONSOLE_SHELL_STATE });
+    this.stateSignal.update((state) => ({
+      ...DEFAULT_CONSOLE_SHELL_STATE,
+      layoutMode: state.layoutMode,
+      ...(state.layoutMode === 'overlay'
+        ? { leftNavOpen: false, rightNavOpen: false }
+        : {}),
+    }));
   }
 
   /** Reset shell UI state when disconnected so reconnect gets a stable layout. */
   resetLayoutAfterDisconnect(): void {
-    this.stateSignal.set({ ...DEFAULT_CONSOLE_SHELL_STATE });
+    this.stateSignal.update((state) => ({
+      ...DEFAULT_CONSOLE_SHELL_STATE,
+      layoutMode: state.layoutMode,
+      ...(state.layoutMode === 'overlay'
+        ? { leftNavOpen: false, rightNavOpen: false }
+        : {}),
+    }));
   }
 }
-

@@ -5,9 +5,11 @@ import {
   inject,
   OnDestroy,
   OnInit,
+  signal,
   Type,
   untracked,
 } from '@angular/core';
+import { BreakpointObserver } from '@angular/cdk/layout';
 import {
   ActivatedRoute,
   NavigationEnd,
@@ -36,6 +38,9 @@ import { filter, Subscription } from 'rxjs';
 import { buildConsoleShellBreadcrumbSegments } from '../../functions';
 import { ConsoleShellStore } from '../../service';
 
+/** docked pane size band: wide (>=1280) vs compact (1024–1279). */
+type DockedPaneWidthBand = 'wide' | 'compact';
+
 @Component({
   selector: 'lib-console-shell',
   imports: [
@@ -51,20 +56,32 @@ import { ConsoleShellStore } from '../../service';
   templateUrl: './console-shell.component.html',
 })
 export class ConsoleShellComponent implements OnInit, OnDestroy {
-  /** Left column width when the file tree is open: tree + chrome rail (px). */
+  /** Left column width when the file tree is open (wide docked). */
   private static readonly LEFT_PANE_WIDTH_PX = 280;
+
+  /** Left column width when the file tree is open (compact docked). */
+  private static readonly LEFT_PANE_COMPACT_WIDTH_PX = 240;
 
   /** Narrow rail when the left file tree is collapsed (px); folder + toggle stay visible. */
   private static readonly LEFT_RAIL_COLLAPSED_WIDTH_PX = 48;
 
   /**
-   * Pin diagram image width (px); grid track adds the left chrome rail width on top.
-   * Keep in sync with pin-assign `wallpaperS` display width.
+   * Pin diagram image width (px); grid track adds the chrome rail width on top.
+   * Keep in sync with pin-assign `wallpaperS` max display width.
    */
   private static readonly RIGHT_PIN_DIAGRAM_WIDTH_PX = 300;
 
+  /** Pin diagram width in compact docked layout (px). */
+  private static readonly RIGHT_PIN_DIAGRAM_COMPACT_WIDTH_PX = 240;
+
   /** Narrow rail when the PIN panel is collapsed (px); keeps toggle + pin chrome visible. */
   private static readonly RIGHT_RAIL_COLLAPSED_WIDTH_PX = 48;
+
+  /** Viewport max-width for overlay layout mode (issue #728). */
+  private static readonly OVERLAY_BREAKPOINT = '(max-width: 1023.98px)';
+
+  /** Viewport max-width for compact docked pane widths. */
+  private static readonly COMPACT_DOCKED_BREAKPOINT = '(max-width: 1279.98px)';
 
   /** logout 完了待ちローダーの上限（失敗検知漏れの安全弁）。 */
   private static readonly LOGOUT_PENDING_TIMEOUT_MS = 30_000;
@@ -74,6 +91,7 @@ export class ConsoleShellComponent implements OnInit, OnDestroy {
   private notifications = inject(SerialNotificationService);
   private shellStore = inject(ConsoleShellStore);
   private dialogService = inject(DialogService);
+  private breakpointObserver = inject(BreakpointObserver);
   private router = inject(Router);
   private route = inject(ActivatedRoute);
 
@@ -86,6 +104,11 @@ export class ConsoleShellComponent implements OnInit, OnDestroy {
   readonly activePanel = this.shellStore.activePanel;
   readonly leftNavOpen = this.shellStore.leftNavOpen;
   readonly rightNavOpen = this.shellStore.rightNavOpen;
+  readonly layoutMode = this.shellStore.layoutMode;
+
+  /** Wide vs compact in-flow pane widths while docked. */
+  private readonly dockedPaneWidthBand =
+    signal<DockedPaneWidthBand>('wide');
 
   readonly breadcrumbSegments = computed(() =>
     buildConsoleShellBreadcrumbSegments({
@@ -96,16 +119,34 @@ export class ConsoleShellComponent implements OnInit, OnDestroy {
     }),
   );
 
+  /** True when overlay mode has at least one side pane open (backdrop). */
+  readonly showOverlayBackdrop = computed(
+    () =>
+      this.layoutMode() === 'overlay' &&
+      (this.leftNavOpen() || this.rightNavOpen()),
+  );
+
   /**
-   * Stable 3-column template: fixed left, flexible center, fixed right track.
-   * Left: full pane or narrow rail; right: rail + pin diagram or narrow rail.
+   * 3-column template: docked uses in-flow pane widths; overlay keeps rails only.
    */
   readonly gridTemplateColumns = computed(() => {
-    const left = this.leftNavOpen()
-      ? `${ConsoleShellComponent.LEFT_PANE_WIDTH_PX}px`
-      : `${ConsoleShellComponent.LEFT_RAIL_COLLAPSED_WIDTH_PX}px`;
     const rail = ConsoleShellComponent.RIGHT_RAIL_COLLAPSED_WIDTH_PX;
-    const diagram = ConsoleShellComponent.RIGHT_PIN_DIAGRAM_WIDTH_PX;
+
+    if (this.layoutMode() === 'overlay') {
+      return `${rail}px minmax(0, 1fr) ${rail}px`;
+    }
+
+    const compact = this.dockedPaneWidthBand() === 'compact';
+    const leftPane = compact
+      ? ConsoleShellComponent.LEFT_PANE_COMPACT_WIDTH_PX
+      : ConsoleShellComponent.LEFT_PANE_WIDTH_PX;
+    const diagram = compact
+      ? ConsoleShellComponent.RIGHT_PIN_DIAGRAM_COMPACT_WIDTH_PX
+      : ConsoleShellComponent.RIGHT_PIN_DIAGRAM_WIDTH_PX;
+
+    const left = this.leftNavOpen()
+      ? `${leftPane}px`
+      : `${ConsoleShellComponent.LEFT_RAIL_COLLAPSED_WIDTH_PX}px`;
     const right = this.rightNavOpen()
       ? `calc(${rail}px + ${diagram}px)`
       : `${rail}px`;
@@ -200,6 +241,26 @@ export class ConsoleShellComponent implements OnInit, OnDestroy {
         )
         .subscribe(() => this.syncActivePanelFromRouter()),
     );
+
+    this.subscriptions.add(
+      this.breakpointObserver
+        .observe([
+          ConsoleShellComponent.OVERLAY_BREAKPOINT,
+          ConsoleShellComponent.COMPACT_DOCKED_BREAKPOINT,
+        ])
+        .subscribe((state) => {
+          const overlay =
+            state.breakpoints[ConsoleShellComponent.OVERLAY_BREAKPOINT];
+          this.shellStore.setLayoutMode(overlay ? 'overlay' : 'docked');
+          this.dockedPaneWidthBand.set(
+            state.breakpoints[
+              ConsoleShellComponent.COMPACT_DOCKED_BREAKPOINT
+            ]
+              ? 'compact'
+              : 'wide',
+          );
+        }),
+    );
   }
 
   private syncActivePanelFromRouter(): void {
@@ -240,6 +301,12 @@ export class ConsoleShellComponent implements OnInit, OnDestroy {
 
   onToggleRightSidebar() {
     this.shellStore.toggleRightNav();
+  }
+
+  /** Close both side panes (overlay backdrop click). */
+  onCloseOverlayPanels(): void {
+    this.shellStore.closeLeftNav();
+    this.shellStore.closeRightNav();
   }
 
   /** Navigate File Manager to a breadcrumb directory segment (issue #727). */
