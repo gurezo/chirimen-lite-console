@@ -3,6 +3,7 @@ import {
   Component,
   effect,
   inject,
+  input,
   output,
   untracked,
 } from '@angular/core';
@@ -25,15 +26,19 @@ export class FileTreeFeatureComponent {
   private file = inject(FileService);
   private connectionVm = inject(SerialConnectionViewModelFacade);
   private cdr = inject(ChangeDetectorRef);
+
+  /** Bound from ConsoleShellStore via LeftSidebar (issue #727). */
+  readonly currentPath = input<string>('.');
+  readonly currentPathChange = output<string>();
   readonly fileSelected = output<string>();
 
   nodes: FileTreeNode[] = [];
-  currentPath = '.';
   loading = false;
   errorMessage: string | null = null;
 
   private loadedForLogin = false;
   private lastVmKey = '';
+  private lastLoadedPath: string | null = null;
 
   /** ログイン完了後・環境設定前の窓で初回 ls を走らせる（issue #717）。 */
   private canLoadTree(vm: {
@@ -63,7 +68,11 @@ export class FileTreeFeatureComponent {
           this.errorMessage = null;
           this.nodes = [];
           this.loadedForLogin = false;
+          this.lastLoadedPath = null;
           this.cdr.markForCheck();
+          if (this.currentPath() !== '.') {
+            this.currentPathChange.emit('.');
+          }
           return;
         }
 
@@ -87,19 +96,33 @@ export class FileTreeFeatureComponent {
           return;
         }
         this.loadedForLogin = true;
-        queueMicrotask(() => void this.loadCurrentPath());
+        queueMicrotask(() => void this.loadAt(this.currentPath()));
+      });
+    });
+
+    effect(() => {
+      const path = this.currentPath();
+      const vm = this.connectionVm.vm();
+      if (!vm.isConnected || !this.canLoadTree(vm) || !this.loadedForLogin) {
+        return;
+      }
+      if (path === this.lastLoadedPath) {
+        return;
+      }
+      untracked(() => {
+        queueMicrotask(() => void this.loadAt(path));
       });
     });
   }
 
   async reload(): Promise<void> {
     this.loadedForLogin = false;
-    await this.loadCurrentPath();
+    await this.loadAt(this.currentPath());
+    this.loadedForLogin = true;
   }
 
   async onDirectorySelected(node: FileTreeNode): Promise<void> {
-    this.currentPath = node.path;
-    await this.loadCurrentPath();
+    await this.navigateTo(node.path);
   }
 
   onFileSelected(node: FileTreeNode): void {
@@ -107,25 +130,32 @@ export class FileTreeFeatureComponent {
   }
 
   async goParent(): Promise<void> {
-    if (this.currentPath === '.') {
+    const path = this.currentPath();
+    if (path === '.') {
       return;
     }
-    const normalized = this.currentPath.startsWith('./')
-      ? this.currentPath.slice(2)
-      : this.currentPath;
+    const normalized = path.startsWith('./') ? path.slice(2) : path;
     const segments = normalized.split('/').filter(Boolean);
     segments.pop();
-    this.currentPath =
+    const parentPath =
       segments.length === 0 ? '.' : joinPath('.', segments.join('/'));
-    await this.loadCurrentPath();
+    await this.navigateTo(parentPath);
   }
 
-  private async loadCurrentPath(): Promise<void> {
+  private async navigateTo(path: string): Promise<void> {
+    if (path !== this.currentPath()) {
+      this.currentPathChange.emit(path);
+    }
+    await this.loadAt(path);
+  }
+
+  private async loadAt(path: string): Promise<void> {
+    this.lastLoadedPath = path;
     this.loading = true;
     this.errorMessage = null;
     this.cdr.markForCheck();
     try {
-      this.nodes = await this.file.listTree(this.currentPath);
+      this.nodes = await this.file.listTree(path);
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : String(error);
       this.errorMessage = message;

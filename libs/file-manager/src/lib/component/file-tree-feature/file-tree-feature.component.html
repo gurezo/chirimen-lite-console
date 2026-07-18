@@ -23,9 +23,11 @@
         </button>
       </div>
 
-      <p class="text-xs text-gray-500 break-all">current: {{ currentPath }}</p>
+      <p class="text-xs text-gray-500 break-all">
+        current: {{ currentPath() }}
+      </p>
 
-      @if (currentPath !== '.') {
+      @if (currentPath() !== '.') {
         <button type="button" class="text-xs underline" (click)="goParent()">
           ← parent
         </button>

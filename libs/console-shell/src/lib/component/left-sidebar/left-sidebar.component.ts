@@ -17,9 +17,14 @@ export class LeftSidebarComponent {
   leftNavOpen = input<boolean>(true);
   toggleLeftSidebar = output<void>();
 
-  private shellStore = inject(ConsoleShellStore);
+  readonly shellStore = inject(ConsoleShellStore);
   private router = inject(Router);
   private route = inject(ActivatedRoute);
+
+  onCurrentPathChange(path: string): void {
+    this.shellStore.setFileManagerCurrentPath(path);
+    this.shellStore.setSelectedFilePath(null);
+  }
 
   onFileSelected(path: string): void {
     this.shellStore.setSelectedFilePath(path);
