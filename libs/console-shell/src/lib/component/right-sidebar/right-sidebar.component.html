@@ -1,13 +1,14 @@
 <div
   class="box-border flex h-full min-h-0 min-w-0 flex-col overflow-hidden"
-  [ngClass]="
-    isDockedOpen()
-      ? 'w-[348px] min-w-[208px] max-w-[528px] resize-x [direction:rtl] max-xl:w-[288px]'
-      : 'w-12 min-w-12 max-w-12 resize-none [direction:ltr]'
-  "
+  [style.width.px]="rootWidthPx()"
+  [style.min-width.px]="rootMinWidthPx()"
+  [style.max-width.px]="rootMaxWidthPx()"
+  [style.resize]="rootResize()"
+  [style.direction]="rootDirection()"
 >
   <div
-    class="flex min-h-0 min-w-0 flex-1 flex-row overflow-hidden [direction:ltr]"
+    class="flex min-h-0 min-w-0 flex-1 flex-row overflow-hidden"
+    style="direction: ltr"
   >
     <div
       class="flex shrink-0 flex-col items-center gap-1 border-r border-gray-200 bg-white py-2"
@@ -40,10 +41,16 @@
     @if (rightNavOpen()) {
       @if (isOverlay()) {
         <div
-          class="absolute top-0 right-full bottom-0 z-40 box-border flex min-h-0 w-[min(300px,85vw)] min-w-[min(160px,85vw)] max-w-[min(480px,85vw)] resize-x flex-col overflow-hidden border-l border-gray-200 bg-white shadow-lg [direction:rtl] max-xl:w-[min(240px,85vw)]"
+          class="absolute top-0 right-full bottom-0 z-40 box-border flex min-h-0 flex-col overflow-hidden border-l border-gray-200 bg-white shadow-lg"
+          [style.width]="overlayWidth()"
+          [style.min-width]="overlayMinWidth()"
+          [style.max-width]="overlayMaxWidth()"
+          [style.resize]="'horizontal'"
+          [style.direction]="'rtl'"
         >
           <div
-            class="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden [direction:ltr]"
+            class="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden"
+            style="direction: ltr"
           >
             <choh-pin-assign />
           </div>

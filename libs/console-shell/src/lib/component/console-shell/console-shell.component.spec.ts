@@ -573,7 +573,7 @@ describe('ConsoleShellComponent responsive layout', () => {
     ).toBeNull();
   });
 
-  it('applies CSS resize utilities on docked open sidebars', () => {
+  it('applies CSS resize style on docked open sidebars', () => {
     const leftRoot = fixture.nativeElement.querySelector(
       'lib-left-sidebar > div',
     ) as HTMLElement;
@@ -581,8 +581,8 @@ describe('ConsoleShellComponent responsive layout', () => {
       'lib-right-sidebar > div',
     ) as HTMLElement;
 
-    expect(leftRoot.classList.contains('resize-x')).toBe(true);
-    expect(rightRoot.classList.contains('resize-x')).toBe(true);
+    expect(leftRoot.style.resize).toBe('horizontal');
+    expect(rightRoot.style.resize).toBe('horizontal');
   });
 });
 
