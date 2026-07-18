@@ -1,0 +1,109 @@
+:host {
+  display: flex;
+  height: 100%;
+  min-height: 0;
+  min-width: 0;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+/*
+ * Docked + open: resize from the center-facing edge via direction: rtl
+ * (native resize handle is bottom-end; rtl makes that the left side).
+ */
+:host(.is-docked-open) {
+  box-sizing: border-box;
+  /* rail (48) + diagram (300) */
+  width: 348px;
+  min-width: 208px;
+  max-width: 528px;
+  overflow: hidden;
+  direction: rtl;
+  resize: horizontal;
+}
+
+@media (max-width: 1279.98px) {
+  :host(.is-docked-open) {
+    /* rail (48) + diagram (240) */
+    width: 288px;
+  }
+}
+
+:host(.is-rail) {
+  width: 48px;
+  min-width: 48px;
+  max-width: 48px;
+  resize: none;
+  direction: ltr;
+}
+
+.right-sidebar {
+  display: flex;
+  min-height: 0;
+  min-width: 0;
+  flex: 1;
+  flex-direction: row;
+  overflow: hidden;
+  direction: ltr;
+}
+
+.right-sidebar__rail {
+  display: flex;
+  flex-shrink: 0;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.25rem;
+  border-right: 1px solid #e5e7eb;
+  background: #fff;
+  padding-block: 0.5rem;
+}
+
+.right-sidebar__diagram {
+  display: flex;
+  min-height: 0;
+  min-width: 0;
+  flex: 1;
+  flex-direction: column;
+  overflow: hidden;
+  background: #fff;
+}
+
+.right-sidebar__overlay {
+  position: absolute;
+  top: 0;
+  right: 100%;
+  bottom: 0;
+  z-index: 40;
+  display: flex;
+  box-sizing: border-box;
+  width: min(300px, 85vw);
+  min-width: min(160px, 85vw);
+  max-width: min(480px, 85vw);
+  min-height: 0;
+  flex-direction: column;
+  overflow: hidden;
+  border-left: 1px solid #e5e7eb;
+  background: #fff;
+  box-shadow:
+    0 10px 15px -3px rgb(0 0 0 / 0.1),
+    0 4px 6px -4px rgb(0 0 0 / 0.1);
+  /* Grow toward the center (left). */
+  direction: rtl;
+  resize: horizontal;
+}
+
+.right-sidebar__overlay-inner {
+  display: flex;
+  min-height: 0;
+  min-width: 0;
+  flex: 1;
+  flex-direction: column;
+  overflow: hidden;
+  direction: ltr;
+}
+
+@media (max-width: 1279.98px) {
+  .right-sidebar__overlay {
+    width: min(240px, 85vw);
+  }
+}

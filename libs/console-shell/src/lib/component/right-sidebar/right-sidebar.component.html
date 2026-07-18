@@ -1,9 +1,5 @@
-<div
-  class="right-sidebar relative flex min-h-0 min-w-0 flex-1 flex-row overflow-hidden"
->
-  <div
-    class="relative flex shrink-0 flex-col items-center gap-1 border-r border-gray-200 bg-white py-2"
-  >
+<div class="right-sidebar">
+  <div class="right-sidebar__rail">
     <button
       mat-icon-button
       type="button"
@@ -28,35 +24,16 @@
         }
       </mat-icon>
     </button>
-    @if (rightNavOpen() && !isOverlay()) {
-      <div
-        role="separator"
-        aria-orientation="vertical"
-        aria-label="Resize right panel"
-        tabindex="0"
-        class="absolute top-0 left-0 bottom-0 z-50 w-1.5 cursor-col-resize touch-none bg-transparent hover:bg-blue-500/40"
-        (pointerdown)="onResizePointerDown($event)"
-      ></div>
-    }
   </div>
   @if (rightNavOpen()) {
     @if (isOverlay()) {
-      <div
-        class="absolute top-0 right-full bottom-0 z-40 flex min-h-0 min-w-0 flex-col overflow-hidden border-l border-gray-200 bg-white shadow-lg"
-        [style.width]="overlayPaneWidth()"
-      >
-        <div
-          role="separator"
-          aria-orientation="vertical"
-          aria-label="Resize right panel"
-          tabindex="0"
-          class="absolute top-0 left-0 bottom-0 z-50 w-1.5 cursor-col-resize touch-none bg-transparent hover:bg-blue-500/40"
-          (pointerdown)="onResizePointerDown($event)"
-        ></div>
-        <choh-pin-assign />
+      <div class="right-sidebar__overlay">
+        <div class="right-sidebar__overlay-inner">
+          <choh-pin-assign />
+        </div>
       </div>
     } @else {
-      <div class="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden bg-white">
+      <div class="right-sidebar__diagram">
         <choh-pin-assign />
       </div>
     }

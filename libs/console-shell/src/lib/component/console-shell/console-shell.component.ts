@@ -5,7 +5,6 @@ import {
   inject,
   OnDestroy,
   OnInit,
-  signal,
   Type,
   untracked,
 } from '@angular/core';
@@ -36,7 +35,7 @@ import {
 import { DialogService } from '@libs-dialogs';
 import { filter, Subscription } from 'rxjs';
 import { buildConsoleShellBreadcrumbSegments } from '../../functions';
-import { ConsoleShellStore, DockedPaneWidthBand } from '../../service';
+import { ConsoleShellStore } from '../../service';
 
 @Component({
   selector: 'lib-console-shell',
@@ -53,17 +52,11 @@ import { ConsoleShellStore, DockedPaneWidthBand } from '../../service';
   templateUrl: './console-shell.component.html',
 })
 export class ConsoleShellComponent implements OnInit, OnDestroy {
-  /** Narrow rail when the left file tree is collapsed (px); folder + toggle stay visible. */
-  private static readonly LEFT_RAIL_COLLAPSED_WIDTH_PX = 48;
-
-  /** Narrow rail when the PIN panel is collapsed (px); keeps toggle + pin chrome visible. */
-  private static readonly RIGHT_RAIL_COLLAPSED_WIDTH_PX = 48;
+  /** Narrow rail when a side pane is collapsed or in overlay mode (px). */
+  private static readonly RAIL_WIDTH_PX = 48;
 
   /** Viewport max-width for overlay layout mode (issue #728). */
   private static readonly OVERLAY_BREAKPOINT = '(max-width: 1023.98px)';
-
-  /** Viewport max-width for compact docked pane widths. */
-  private static readonly COMPACT_DOCKED_BREAKPOINT = '(max-width: 1279.98px)';
 
   /** logout 完了待ちローダーの上限（失敗検知漏れの安全弁）。 */
   private static readonly LOGOUT_PENDING_TIMEOUT_MS = 30_000;
@@ -87,11 +80,6 @@ export class ConsoleShellComponent implements OnInit, OnDestroy {
   readonly leftNavOpen = this.shellStore.leftNavOpen;
   readonly rightNavOpen = this.shellStore.rightNavOpen;
   readonly layoutMode = this.shellStore.layoutMode;
-  readonly leftPaneWidthPx = this.shellStore.leftPaneWidthPx;
-  readonly rightDiagramWidthPx = this.shellStore.rightDiagramWidthPx;
-
-  /** True while a pane resize drag is active (blocks text selection). */
-  readonly isResizingPane = signal(false);
 
   readonly breadcrumbSegments = computed(() =>
     buildConsoleShellBreadcrumbSegments({
@@ -110,21 +98,18 @@ export class ConsoleShellComponent implements OnInit, OnDestroy {
   );
 
   /**
-   * 3-column template: docked uses in-flow pane widths; overlay keeps rails only.
+   * Overlay keeps fixed rails; docked open panes use `auto` so CSS `resize`
+   * on the sidebar hosts can drive column width.
    */
   readonly gridTemplateColumns = computed(() => {
-    const rail = ConsoleShellComponent.RIGHT_RAIL_COLLAPSED_WIDTH_PX;
+    const rail = ConsoleShellComponent.RAIL_WIDTH_PX;
 
     if (this.layoutMode() === 'overlay') {
       return `${rail}px minmax(0, 1fr) ${rail}px`;
     }
 
-    const left = this.leftNavOpen()
-      ? `${this.leftPaneWidthPx()}px`
-      : `${ConsoleShellComponent.LEFT_RAIL_COLLAPSED_WIDTH_PX}px`;
-    const right = this.rightNavOpen()
-      ? `calc(${rail}px + ${this.rightDiagramWidthPx()}px)`
-      : `${rail}px`;
+    const left = this.leftNavOpen() ? 'auto' : `${rail}px`;
+    const right = this.rightNavOpen() ? 'auto' : `${rail}px`;
     return `${left} minmax(0, 1fr) ${right}`;
   });
 
@@ -135,8 +120,6 @@ export class ConsoleShellComponent implements OnInit, OnDestroy {
   private lastLogoutPending = false;
   private logoutPendingTimedOut = false;
   private logoutPendingTimeoutId: ReturnType<typeof setTimeout> | null = null;
-  private paneResizeCleanup: (() => void) | null = null;
-  private lastDockedPaneWidthBand: DockedPaneWidthBand | null = null;
 
   constructor() {
     effect(() => {
@@ -221,23 +204,11 @@ export class ConsoleShellComponent implements OnInit, OnDestroy {
 
     this.subscriptions.add(
       this.breakpointObserver
-        .observe([
-          ConsoleShellComponent.OVERLAY_BREAKPOINT,
-          ConsoleShellComponent.COMPACT_DOCKED_BREAKPOINT,
-        ])
+        .observe([ConsoleShellComponent.OVERLAY_BREAKPOINT])
         .subscribe((state) => {
-          const overlay =
-            state.breakpoints[ConsoleShellComponent.OVERLAY_BREAKPOINT];
-          this.shellStore.setLayoutMode(overlay ? 'overlay' : 'docked');
-          const band: DockedPaneWidthBand = state.breakpoints[
-            ConsoleShellComponent.COMPACT_DOCKED_BREAKPOINT
-          ]
-            ? 'compact'
-            : 'wide';
-          if (this.lastDockedPaneWidthBand !== band) {
-            this.lastDockedPaneWidthBand = band;
-            this.shellStore.syncDockedPaneWidthsForBand(band);
-          }
+          this.shellStore.setLayoutMode(
+            state.matches ? 'overlay' : 'docked',
+          );
         }),
     );
   }
@@ -256,7 +227,6 @@ export class ConsoleShellComponent implements OnInit, OnDestroy {
 
   ngOnDestroy() {
     this.clearLogoutPendingTimeout();
-    this.stopPaneResize();
     this.subscriptions.unsubscribe();
   }
 
@@ -287,60 +257,6 @@ export class ConsoleShellComponent implements OnInit, OnDestroy {
   onCloseOverlayPanels(): void {
     this.shellStore.closeLeftNav();
     this.shellStore.closeRightNav();
-  }
-
-  /** Start dragging the left pane width (docked or overlay). */
-  onLeftPaneResizeStart(event: PointerEvent): void {
-    this.startPaneResize(event, 'left');
-  }
-
-  /** Start dragging the right diagram width (docked or overlay). */
-  onRightPaneResizeStart(event: PointerEvent): void {
-    this.startPaneResize(event, 'right');
-  }
-
-  private startPaneResize(
-    event: PointerEvent,
-    side: 'left' | 'right',
-  ): void {
-    event.preventDefault();
-    event.stopPropagation();
-    this.stopPaneResize();
-
-    const startX = event.clientX;
-    const startWidth =
-      side === 'left'
-        ? this.shellStore.leftPaneWidthPx()
-        : this.shellStore.rightDiagramWidthPx();
-
-    this.isResizingPane.set(true);
-
-    const onMove = (moveEvent: PointerEvent) => {
-      const delta = moveEvent.clientX - startX;
-      if (side === 'left') {
-        this.shellStore.setLeftPaneWidth(startWidth + delta);
-      } else {
-        // Dragging the left edge of the right pane: move left => wider.
-        this.shellStore.setRightDiagramWidth(startWidth - delta);
-      }
-    };
-
-    const onUp = () => this.stopPaneResize();
-
-    window.addEventListener('pointermove', onMove);
-    window.addEventListener('pointerup', onUp);
-    window.addEventListener('pointercancel', onUp);
-    this.paneResizeCleanup = () => {
-      window.removeEventListener('pointermove', onMove);
-      window.removeEventListener('pointerup', onUp);
-      window.removeEventListener('pointercancel', onUp);
-      this.isResizingPane.set(false);
-      this.paneResizeCleanup = null;
-    };
-  }
-
-  private stopPaneResize(): void {
-    this.paneResizeCleanup?.();
   }
 
   /** Navigate File Manager to a breadcrumb directory segment (issue #727). */
