@@ -53,7 +53,7 @@ describe('attachTerminalInput', () => {
     expect(terminal.writeln).not.toHaveBeenCalled();
   });
 
-  it('executes command when input is enabled', async () => {
+  it('trims and executes command when input is enabled', async () => {
     let keyHandler: ((e: TerminalKeyEvent) => void) | undefined;
 
     const terminal = {
@@ -79,6 +79,15 @@ describe('attachTerminalInput', () => {
         altKey: false,
         ctrlKey: false,
         metaKey: false,
+        code: 'Space',
+        key: ' ',
+      },
+    });
+    keyHandler?.({
+      domEvent: {
+        altKey: false,
+        ctrlKey: false,
+        metaKey: false,
         code: 'KeyL',
         key: 'l',
       },
@@ -90,6 +99,15 @@ describe('attachTerminalInput', () => {
         metaKey: false,
         code: 'KeyS',
         key: 's',
+      },
+    });
+    keyHandler?.({
+      domEvent: {
+        altKey: false,
+        ctrlKey: false,
+        metaKey: false,
+        code: 'Space',
+        key: ' ',
       },
     });
     keyHandler?.({
