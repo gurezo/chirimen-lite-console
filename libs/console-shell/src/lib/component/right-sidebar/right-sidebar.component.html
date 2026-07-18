@@ -1,41 +1,60 @@
-<div class="right-sidebar">
-  <div class="right-sidebar__rail">
-    <button
-      mat-icon-button
-      type="button"
-      aria-label="Toggle right panel"
-      (click)="toggleRightSidebar.emit()"
+<div
+  class="box-border flex h-full min-h-0 min-w-0 flex-col overflow-hidden"
+  [ngClass]="
+    isDockedOpen()
+      ? 'w-[348px] min-w-[208px] max-w-[528px] resize-x [direction:rtl] max-xl:w-[288px]'
+      : 'w-12 min-w-12 max-w-12 resize-none [direction:ltr]'
+  "
+>
+  <div
+    class="flex min-h-0 min-w-0 flex-1 flex-row overflow-hidden [direction:ltr]"
+  >
+    <div
+      class="flex shrink-0 flex-col items-center gap-1 border-r border-gray-200 bg-white py-2"
     >
-      <mat-icon>fiber_pin</mat-icon>
-    </button>
-    <button
-      mat-icon-button
-      type="button"
-      [attr.aria-label]="
-        rightNavOpen() ? 'Close right panel' : 'Open right panel'
-      "
-      (click)="toggleRightSidebar.emit()"
-    >
-      <mat-icon>
-        @if (rightNavOpen()) {
-          right_panel_close
-        } @else {
-          right_panel_open
-        }
-      </mat-icon>
-    </button>
-  </div>
-  @if (rightNavOpen()) {
-    @if (isOverlay()) {
-      <div class="right-sidebar__overlay">
-        <div class="right-sidebar__overlay-inner">
+      <button
+        mat-icon-button
+        type="button"
+        aria-label="Toggle right panel"
+        (click)="toggleRightSidebar.emit()"
+      >
+        <mat-icon>fiber_pin</mat-icon>
+      </button>
+      <button
+        mat-icon-button
+        type="button"
+        [attr.aria-label]="
+          rightNavOpen() ? 'Close right panel' : 'Open right panel'
+        "
+        (click)="toggleRightSidebar.emit()"
+      >
+        <mat-icon>
+          @if (rightNavOpen()) {
+            right_panel_close
+          } @else {
+            right_panel_open
+          }
+        </mat-icon>
+      </button>
+    </div>
+    @if (rightNavOpen()) {
+      @if (isOverlay()) {
+        <div
+          class="absolute top-0 right-full bottom-0 z-40 box-border flex min-h-0 w-[min(300px,85vw)] min-w-[min(160px,85vw)] max-w-[min(480px,85vw)] resize-x flex-col overflow-hidden border-l border-gray-200 bg-white shadow-lg [direction:rtl] max-xl:w-[min(240px,85vw)]"
+        >
+          <div
+            class="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden [direction:ltr]"
+          >
+            <choh-pin-assign />
+          </div>
+        </div>
+      } @else {
+        <div
+          class="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden bg-white"
+        >
           <choh-pin-assign />
         </div>
-      </div>
-    } @else {
-      <div class="right-sidebar__diagram">
-        <choh-pin-assign />
-      </div>
+      }
     }
-  }
+  </div>
 </div>

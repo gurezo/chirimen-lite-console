@@ -1,3 +1,4 @@
+import { NgClass } from '@angular/common';
 import { Component, computed, input, output } from '@angular/core';
 import { MatIconButton } from '@angular/material/button';
 import { MatIcon } from '@angular/material/icon';
@@ -6,12 +7,10 @@ import { ConsoleShellLayoutMode } from '../../service';
 
 @Component({
   selector: 'lib-right-sidebar',
-  imports: [MatIconButton, MatIcon, PinAssignComponent],
+  imports: [MatIconButton, MatIcon, PinAssignComponent, NgClass],
   templateUrl: './right-sidebar.component.html',
-  styleUrl: './right-sidebar.component.css',
   host: {
-    '[class.is-docked-open]': 'isDockedOpen()',
-    '[class.is-rail]': 'isRail()',
+    class: 'contents',
   },
 })
 export class RightSidebarComponent {
@@ -23,5 +22,4 @@ export class RightSidebarComponent {
   readonly isDockedOpen = computed(
     () => this.rightNavOpen() && !this.isOverlay(),
   );
-  readonly isRail = computed(() => !this.isDockedOpen());
 }
