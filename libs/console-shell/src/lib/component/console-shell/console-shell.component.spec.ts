@@ -3,6 +3,7 @@ import { computed, signal } from '@angular/core';
 import { By } from '@angular/platform-browser';
 import { ActivatedRoute, Router } from '@angular/router';
 import {
+  PiZeroShellReadinessService,
   SerialConnectionViewModelFacade,
   type SerialConnectionViewModel,
 } from '@libs-web-serial';
@@ -43,6 +44,14 @@ function createConnectionFacadeMock(initialConnected = false) {
   return { facade, vmSignal };
 }
 
+function createShellReadinessMock(initialEpoch = 0) {
+  const logoutCompletedEpochSignal = signal(initialEpoch);
+  return {
+    logoutCompletedEpoch: logoutCompletedEpochSignal.asReadonly(),
+    logoutCompletedEpochSignal,
+  };
+}
+
 describe('ConsoleShellComponent', () => {
   let component: ConsoleShellComponent;
   let fixture: ComponentFixture<ConsoleShellComponent>;
@@ -50,6 +59,7 @@ describe('ConsoleShellComponent', () => {
   let disconnect: ReturnType<typeof vi.fn>;
   let sendCommand: ReturnType<typeof vi.fn>;
   let vmSignal: ReturnType<typeof signal<SerialConnectionViewModel>>;
+  let logoutCompletedEpochSignal: ReturnType<typeof signal<number>>;
   let openDialog: ReturnType<typeof vi.fn>;
   let closeAllDialog: ReturnType<typeof vi.fn>;
   let setActivePanel: ReturnType<typeof vi.fn>;
@@ -67,7 +77,9 @@ describe('ConsoleShellComponent', () => {
     } as unknown as ActivatedRoute;
 
     const { facade, vmSignal: vm } = createConnectionFacadeMock(false);
+    const shellReadiness = createShellReadinessMock();
     vmSignal = vm;
+    logoutCompletedEpochSignal = shellReadiness.logoutCompletedEpochSignal;
     connect = facade.connect;
     disconnect = facade.disconnect;
     sendCommand = facade.sendCommand;
@@ -91,6 +103,10 @@ describe('ConsoleShellComponent', () => {
         {
           provide: SerialConnectionViewModelFacade,
           useValue: facade,
+        },
+        {
+          provide: PiZeroShellReadinessService,
+          useValue: shellReadiness,
         },
         {
           provide: DialogService,
@@ -201,6 +217,46 @@ describe('ConsoleShellComponent', () => {
       relativeTo: activatedRouteMock,
     });
   });
+
+  it('closes dialogs and disconnects once when logout completes while connected', () => {
+    vmSignal.set(vmDefaults({ isConnected: true }));
+    TestBed.flushEffects();
+    disconnect.mockClear();
+    closeDialog.mockClear();
+    closeAllDialog.mockClear();
+
+    logoutCompletedEpochSignal.set(1);
+    TestBed.flushEffects();
+
+    expect(closeDialog).toHaveBeenCalledTimes(1);
+    expect(closeAllDialog).toHaveBeenCalledTimes(1);
+    expect(disconnect).toHaveBeenCalledTimes(1);
+
+    logoutCompletedEpochSignal.set(1);
+    TestBed.flushEffects();
+    expect(disconnect).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not disconnect again for the same logout epoch while disconnect is in flight', () => {
+    vmSignal.set(vmDefaults({ isConnected: true }));
+    TestBed.flushEffects();
+    disconnect.mockClear();
+
+    logoutCompletedEpochSignal.set(1);
+    TestBed.flushEffects();
+    expect(disconnect).toHaveBeenCalledTimes(1);
+
+    logoutCompletedEpochSignal.set(1);
+    TestBed.flushEffects();
+    expect(disconnect).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not disconnect on logout when already disconnected', () => {
+    disconnect.mockClear();
+    logoutCompletedEpochSignal.set(1);
+    TestBed.flushEffects();
+    expect(disconnect).not.toHaveBeenCalled();
+  });
 });
 
 describe('ConsoleShellComponent gridTemplateColumns when right nav closed', () => {
@@ -225,6 +281,10 @@ describe('ConsoleShellComponent gridTemplateColumns when right nav closed', () =
         },
         { provide: ActivatedRoute, useValue: activatedRoute },
         { provide: SerialConnectionViewModelFacade, useValue: facade },
+        {
+          provide: PiZeroShellReadinessService,
+          useValue: createShellReadinessMock(),
+        },
         {
           provide: DialogService,
           useValue: { open: vi.fn(), closeAll: vi.fn() },
@@ -284,6 +344,10 @@ describe('ConsoleShellComponent layout DOM (connected vs disconnected)', () => {
         },
         { provide: ActivatedRoute, useValue: activatedRouteMock },
         { provide: SerialConnectionViewModelFacade, useValue: facade },
+        {
+          provide: PiZeroShellReadinessService,
+          useValue: createShellReadinessMock(),
+        },
         ConsoleShellStore,
         {
           provide: DialogService,

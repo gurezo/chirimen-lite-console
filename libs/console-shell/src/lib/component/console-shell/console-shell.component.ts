@@ -25,7 +25,10 @@ import { LeftSidebarComponent } from '../left-sidebar/left-sidebar.component';
 import { RightSidebarComponent } from '../right-sidebar/right-sidebar.component';
 import { SetupPageComponent } from '@libs-chirimen-setup';
 import { RemotePageComponent } from '@libs-remote';
-import { SerialConnectionViewModelFacade } from '@libs-web-serial';
+import {
+  PiZeroShellReadinessService,
+  SerialConnectionViewModelFacade,
+} from '@libs-web-serial';
 import { DialogService } from '@libs-dialogs';
 import { filter, Subscription } from 'rxjs';
 import { buildConsoleShellBreadcrumbSegments } from '../../functions';
@@ -61,6 +64,7 @@ export class ConsoleShellComponent implements OnInit, OnDestroy {
   private static readonly RIGHT_RAIL_COLLAPSED_WIDTH_PX = 48;
 
   private connectionVm = inject(SerialConnectionViewModelFacade);
+  private shellReadiness = inject(PiZeroShellReadinessService);
   private shellStore = inject(ConsoleShellStore);
   private dialogService = inject(DialogService);
   private router = inject(Router);
@@ -99,6 +103,8 @@ export class ConsoleShellComponent implements OnInit, OnDestroy {
 
   private subscriptions = new Subscription();
   private lastConnected = false;
+  private lastLogoutCompletedEpoch = 0;
+  private logoutDisconnectInFlight = false;
 
   constructor() {
     effect(() => {
@@ -113,9 +119,29 @@ export class ConsoleShellComponent implements OnInit, OnDestroy {
           this.shellStore.applyConnectedLayout();
           void this.router.navigate(['terminal'], { relativeTo: this.route });
         } else if (prev && !next) {
+          this.logoutDisconnectInFlight = false;
           this.shellStore.resetLayoutAfterDisconnect();
           void this.router.navigate(['terminal'], { relativeTo: this.route });
         }
+      });
+    });
+
+    effect(() => {
+      const logoutEpoch = this.shellReadiness.logoutCompletedEpoch();
+      if (
+        logoutEpoch <= 0 ||
+        logoutEpoch === this.lastLogoutCompletedEpoch ||
+        this.logoutDisconnectInFlight ||
+        !this.connectionVm.vm().isConnected
+      ) {
+        return;
+      }
+      this.lastLogoutCompletedEpoch = logoutEpoch;
+      untracked(() => {
+        this.logoutDisconnectInFlight = true;
+        this.shellStore.closeDialog();
+        this.dialogService.closeAll();
+        this.connectionVm.disconnect();
       });
     });
   }
