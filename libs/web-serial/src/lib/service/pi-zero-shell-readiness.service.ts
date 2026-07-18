@@ -25,22 +25,47 @@ export class PiZeroShellReadinessService {
 
   private readonly readySignal = signal(false);
   private readonly logoutCompletedEpochSignal = signal(0);
+  private readonly logoutPendingSignal = signal(false);
   private watchSubscription: Subscription | null = null;
   private promptBuffer = '';
+  /** `beginLogoutPending` 時点のバッファ長。失敗時のシェル復帰判定に使う。 */
+  private logoutPendingBufferMark = 0;
 
   readonly ready = this.readySignal.asReadonly();
   /** ログイン済みシェルから getty の login 待ちへ戻るたびに増加する。 */
   readonly logoutCompletedEpoch =
     this.logoutCompletedEpochSignal.asReadonly();
+  /**
+   * Terminal で `logout` / `exit` 送信後、切断完了までの UI ブロック用。
+   * 成功時は disconnect の `reset()` まで、失敗時はシェル復帰で解除する。
+   */
+  readonly logoutPending = this.logoutPendingSignal.asReadonly();
 
   setReady(value: boolean): void {
     this.readySignal.set(value);
+  }
+
+  /**
+   * 対話シェルから logout / exit を送った直後に呼び、ローダー表示を開始する。
+   */
+  beginLogoutPending(): void {
+    if (!this.isReady()) {
+      return;
+    }
+    this.logoutPendingSignal.set(true);
+    this.logoutPendingBufferMark = this.promptBuffer.length;
+  }
+
+  clearLogoutPending(): void {
+    this.logoutPendingSignal.set(false);
+    this.logoutPendingBufferMark = 0;
   }
 
   reset(): void {
     this.stopWatching();
     this.promptBuffer = '';
     this.readySignal.set(false);
+    this.clearLogoutPending();
   }
 
   isReady(): boolean {
@@ -90,6 +115,15 @@ export class PiZeroShellReadinessService {
         this.readySignal.set(false);
         this.logoutCompletedEpochSignal.update((epoch) => epoch + 1);
         this.stopWatching();
+        return;
+      }
+      if (
+        this.logoutPendingSignal() &&
+        buffer.length > this.logoutPendingBufferMark &&
+        this.detector.isCommandCompleted(buffer)
+      ) {
+        // logout / exit が失敗し対話シェルへ戻った場合はローダーを解除する。
+        this.clearLogoutPending();
       }
       return;
     }

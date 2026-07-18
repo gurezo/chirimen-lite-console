@@ -43,4 +43,17 @@ export class SerialNotificationService {
       },
     );
   }
+
+  /**
+   * logout / exit が完了せずシェルへ戻った、またはタイムアウトしたときの通知。
+   */
+  notifyLogoutCancelled(reason: 'failed' | 'timeout' = 'failed'): void {
+    const message =
+      reason === 'timeout'
+        ? 'ログアウトの完了を確認できませんでした。操作を再開できます'
+        : 'ログアウトに失敗したようです。操作を再開できます';
+    this.toastr.warning(message, 'ログアウト', {
+      timeOut: 5000,
+    });
+  }
 }
