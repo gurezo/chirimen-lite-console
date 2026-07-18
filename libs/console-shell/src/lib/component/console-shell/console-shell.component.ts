@@ -5,6 +5,7 @@ import {
   inject,
   OnDestroy,
   OnInit,
+  signal,
   Type,
   untracked,
 } from '@angular/core';
@@ -35,7 +36,7 @@ import {
 import { DialogService } from '@libs-dialogs';
 import { filter, Subscription } from 'rxjs';
 import { buildConsoleShellBreadcrumbSegments } from '../../functions';
-import { ConsoleShellStore } from '../../service';
+import { ConsoleShellStore, RAIL_WIDTH_PX } from '../../service';
 
 @Component({
   selector: 'lib-console-shell',
@@ -52,9 +53,6 @@ import { ConsoleShellStore } from '../../service';
   templateUrl: './console-shell.component.html',
 })
 export class ConsoleShellComponent implements OnInit, OnDestroy {
-  /** Narrow rail when a side pane is collapsed or in overlay mode (px). */
-  private static readonly RAIL_WIDTH_PX = 48;
-
   /** Viewport max-width for overlay layout mode (issue #728). */
   private static readonly OVERLAY_BREAKPOINT = '(max-width: 1023.98px)';
 
@@ -80,6 +78,11 @@ export class ConsoleShellComponent implements OnInit, OnDestroy {
   readonly leftNavOpen = this.shellStore.leftNavOpen;
   readonly rightNavOpen = this.shellStore.rightNavOpen;
   readonly layoutMode = this.shellStore.layoutMode;
+  readonly leftPaneWidthPx = this.shellStore.leftPaneWidthPx;
+  readonly rightDiagramWidthPx = this.shellStore.rightDiagramWidthPx;
+
+  /** True while a pane resize drag is active (blocks text selection). */
+  readonly isResizingPane = signal(false);
 
   readonly breadcrumbSegments = computed(() =>
     buildConsoleShellBreadcrumbSegments({
@@ -98,18 +101,22 @@ export class ConsoleShellComponent implements OnInit, OnDestroy {
   );
 
   /**
-   * Overlay keeps fixed rails; docked open panes use `auto` so CSS `resize`
-   * on the sidebar hosts can drive column width.
+   * Overlay keeps fixed rails; docked open panes use store-backed widths
+   * updated by drag handles.
    */
   readonly gridTemplateColumns = computed(() => {
-    const rail = ConsoleShellComponent.RAIL_WIDTH_PX;
+    const rail = RAIL_WIDTH_PX;
 
     if (this.layoutMode() === 'overlay') {
       return `${rail}px minmax(0, 1fr) ${rail}px`;
     }
 
-    const left = this.leftNavOpen() ? 'auto' : `${rail}px`;
-    const right = this.rightNavOpen() ? 'auto' : `${rail}px`;
+    const left = this.leftNavOpen()
+      ? `${this.leftPaneWidthPx()}px`
+      : `${rail}px`;
+    const right = this.rightNavOpen()
+      ? `calc(${rail}px + ${this.rightDiagramWidthPx()}px)`
+      : `${rail}px`;
     return `${left} minmax(0, 1fr) ${right}`;
   });
 
@@ -120,6 +127,7 @@ export class ConsoleShellComponent implements OnInit, OnDestroy {
   private lastLogoutPending = false;
   private logoutPendingTimedOut = false;
   private logoutPendingTimeoutId: ReturnType<typeof setTimeout> | null = null;
+  private paneResizeCleanup: (() => void) | null = null;
 
   constructor() {
     effect(() => {
@@ -227,6 +235,7 @@ export class ConsoleShellComponent implements OnInit, OnDestroy {
 
   ngOnDestroy() {
     this.clearLogoutPendingTimeout();
+    this.stopPaneResize();
     this.subscriptions.unsubscribe();
   }
 
@@ -257,6 +266,57 @@ export class ConsoleShellComponent implements OnInit, OnDestroy {
   onCloseOverlayPanels(): void {
     this.shellStore.closeLeftNav();
     this.shellStore.closeRightNav();
+  }
+
+  onLeftPaneResizeStart(event: PointerEvent): void {
+    this.startPaneResize(event, 'left');
+  }
+
+  onRightPaneResizeStart(event: PointerEvent): void {
+    this.startPaneResize(event, 'right');
+  }
+
+  private startPaneResize(
+    event: PointerEvent,
+    side: 'left' | 'right',
+  ): void {
+    event.preventDefault();
+    event.stopPropagation();
+    this.stopPaneResize();
+
+    const startX = event.clientX;
+    const startWidth =
+      side === 'left'
+        ? this.shellStore.leftPaneWidthPx()
+        : this.shellStore.rightDiagramWidthPx();
+
+    this.isResizingPane.set(true);
+
+    const onMove = (moveEvent: PointerEvent) => {
+      const delta = moveEvent.clientX - startX;
+      if (side === 'left') {
+        this.shellStore.setLeftPaneWidth(startWidth + delta);
+      } else {
+        this.shellStore.setRightDiagramWidth(startWidth - delta);
+      }
+    };
+
+    const onUp = () => this.stopPaneResize();
+
+    window.addEventListener('pointermove', onMove);
+    window.addEventListener('pointerup', onUp);
+    window.addEventListener('pointercancel', onUp);
+    this.paneResizeCleanup = () => {
+      window.removeEventListener('pointermove', onMove);
+      window.removeEventListener('pointerup', onUp);
+      window.removeEventListener('pointercancel', onUp);
+      this.isResizingPane.set(false);
+      this.paneResizeCleanup = null;
+    };
+  }
+
+  private stopPaneResize(): void {
+    this.paneResizeCleanup?.();
   }
 
   /** Navigate File Manager to a breadcrumb directory segment (issue #727). */

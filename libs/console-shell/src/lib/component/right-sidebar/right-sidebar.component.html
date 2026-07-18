@@ -1,79 +1,67 @@
-@if (isDockedOpen()) {
-  <!--
-    Do not bind style.width while open: Angular would overwrite the
-    inline width that the browser sets during native CSS resize.
-  -->
+<div
+  class="relative flex min-h-0 min-w-0 flex-1 flex-row overflow-hidden"
+>
   <div
-    class="box-border flex h-full min-h-0 w-[348px] min-w-[208px] max-w-[528px] flex-col overflow-hidden max-xl:w-[288px]"
-    [style.resize]="'horizontal'"
-    [style.direction]="'rtl'"
+    class="relative flex w-12 shrink-0 flex-col items-center gap-1 border-r border-gray-200 bg-white py-2"
   >
-    <ng-container *ngTemplateOutlet="sidebarBody" />
-  </div>
-} @else {
-  <div
-    class="box-border flex h-full min-h-0 w-12 min-w-12 max-w-12 flex-col overflow-hidden"
-    [style.resize]="'none'"
-    [style.direction]="'ltr'"
-  >
-    <ng-container *ngTemplateOutlet="sidebarBody" />
-  </div>
-}
-
-<ng-template #sidebarBody>
-  <div
-    class="flex min-h-0 min-w-0 flex-1 flex-row overflow-hidden"
-    [style.direction]="'ltr'"
-  >
-    <div
-      class="flex shrink-0 flex-col items-center gap-1 border-r border-gray-200 bg-white py-2"
+    <button
+      mat-icon-button
+      type="button"
+      aria-label="Toggle right panel"
+      (click)="toggleRightSidebar.emit()"
     >
-      <button
-        mat-icon-button
-        type="button"
-        aria-label="Toggle right panel"
-        (click)="toggleRightSidebar.emit()"
-      >
-        <mat-icon>fiber_pin</mat-icon>
-      </button>
-      <button
-        mat-icon-button
-        type="button"
-        [attr.aria-label]="
-          rightNavOpen() ? 'Close right panel' : 'Open right panel'
-        "
-        (click)="toggleRightSidebar.emit()"
-      >
-        <mat-icon>
-          @if (rightNavOpen()) {
-            right_panel_close
-          } @else {
-            right_panel_open
-          }
-        </mat-icon>
-      </button>
-    </div>
-    @if (rightNavOpen()) {
-      @if (isOverlay()) {
-        <div
-          class="absolute top-0 right-full bottom-0 z-40 box-border flex min-h-0 w-[min(300px,85vw)] min-w-[min(160px,85vw)] max-w-[min(480px,85vw)] flex-col overflow-hidden border-l border-gray-200 bg-white shadow-lg max-xl:w-[min(240px,85vw)]"
-          [style.resize]="'horizontal'"
-          [style.direction]="'rtl'"
-        >
-          <div
-            class="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden"
-            [style.direction]="'ltr'"
-          >
-            <choh-pin-assign />
-          </div>
-        </div>
-      } @else {
-        <div
-          class="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden bg-white"
-        >
-          <choh-pin-assign />
-        </div>
-      }
+      <mat-icon>fiber_pin</mat-icon>
+    </button>
+    <button
+      mat-icon-button
+      type="button"
+      [attr.aria-label]="
+        rightNavOpen() ? 'Close right panel' : 'Open right panel'
+      "
+      (click)="toggleRightSidebar.emit()"
+    >
+      <mat-icon>
+        @if (rightNavOpen()) {
+          right_panel_close
+        } @else {
+          right_panel_open
+        }
+      </mat-icon>
+    </button>
+    @if (isDockedOpen()) {
+      <div
+        role="separator"
+        aria-orientation="vertical"
+        aria-label="Resize right panel"
+        tabindex="0"
+        class="absolute top-0 left-0 bottom-0 z-50 w-1.5 cursor-col-resize touch-none bg-transparent hover:bg-blue-500/40"
+        (pointerdown)="onResizePointerDown($event)"
+      ></div>
     }
   </div>
-</ng-template>
+  @if (rightNavOpen()) {
+    @if (isOverlay()) {
+      <div
+        class="absolute top-0 right-full bottom-0 z-40 flex min-h-0 min-w-0 flex-col overflow-hidden border-l border-gray-200 bg-white shadow-lg"
+        [style.width]="overlayWidth()"
+      >
+        <div
+          role="separator"
+          aria-orientation="vertical"
+          aria-label="Resize right panel"
+          tabindex="0"
+          class="absolute top-0 left-0 bottom-0 z-50 w-1.5 cursor-col-resize touch-none bg-transparent hover:bg-blue-500/40"
+          (pointerdown)="onResizePointerDown($event)"
+        ></div>
+        <choh-pin-assign />
+      </div>
+    } @else {
+      <div
+        class="flex min-h-0 min-w-0 flex-col overflow-hidden bg-white"
+        [style.width.px]="diagramWidthPx()"
+      >
+        <choh-pin-assign />
+      </div>
+    }
+  }
+</div>

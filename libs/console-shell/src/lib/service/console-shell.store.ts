@@ -6,6 +6,22 @@ type ConsoleShellDialog = 'none' | 'setup' | 'remote';
 /** docked: in-flow side panes; overlay: rails only in-flow, panes float over center. */
 export type ConsoleShellLayoutMode = 'docked' | 'overlay';
 
+/** Left column width (tree + rail) defaults and clamps (px). */
+export const LEFT_PANE_WIDTH = {
+  default: 280,
+  min: 180,
+  max: 480,
+} as const;
+
+/** Right pin-diagram track width (excludes chrome rail) defaults and clamps (px). */
+export const RIGHT_DIAGRAM_WIDTH = {
+  default: 300,
+  min: 160,
+  max: 480,
+} as const;
+
+export const RAIL_WIDTH_PX = 48;
+
 export interface ConsoleShellState {
   activePanel: ConsoleShellPanel;
   leftNavOpen: boolean;
@@ -15,6 +31,10 @@ export interface ConsoleShellState {
   fileManagerCurrentPath: string;
   activeDialog: ConsoleShellDialog;
   layoutMode: ConsoleShellLayoutMode;
+  /** Left column width when open (includes chrome rail). */
+  leftPaneWidthPx: number;
+  /** Pin diagram width when open (chrome rail is added in the grid track). */
+  rightDiagramWidthPx: number;
 }
 
 /** Default shell layout after connect and after disconnect (issue #462). */
@@ -26,7 +46,13 @@ export const DEFAULT_CONSOLE_SHELL_STATE: ConsoleShellState = {
   fileManagerCurrentPath: '.',
   activeDialog: 'none',
   layoutMode: 'docked',
+  leftPaneWidthPx: LEFT_PANE_WIDTH.default,
+  rightDiagramWidthPx: RIGHT_DIAGRAM_WIDTH.default,
 };
+
+function clamp(value: number, min: number, max: number): number {
+  return Math.min(max, Math.max(min, Math.round(value)));
+}
 
 @Injectable({
   providedIn: 'root',
@@ -64,6 +90,14 @@ export class ConsoleShellStore {
 
   readonly layoutMode = computed(
     () => this.stateSignal().layoutMode,
+  );
+
+  readonly leftPaneWidthPx = computed(
+    () => this.stateSignal().leftPaneWidthPx,
+  );
+
+  readonly rightDiagramWidthPx = computed(
+    () => this.stateSignal().rightDiagramWidthPx,
   );
 
   setActivePanel(panel: ConsoleShellPanel): void {
@@ -141,6 +175,28 @@ export class ConsoleShellStore {
     });
   }
 
+  setLeftPaneWidth(widthPx: number): void {
+    this.stateSignal.update((state) => ({
+      ...state,
+      leftPaneWidthPx: clamp(
+        widthPx,
+        LEFT_PANE_WIDTH.min,
+        LEFT_PANE_WIDTH.max,
+      ),
+    }));
+  }
+
+  setRightDiagramWidth(widthPx: number): void {
+    this.stateSignal.update((state) => ({
+      ...state,
+      rightDiagramWidthPx: clamp(
+        widthPx,
+        RIGHT_DIAGRAM_WIDTH.min,
+        RIGHT_DIAGRAM_WIDTH.max,
+      ),
+    }));
+  }
+
   setSelectedFilePath(selectedFilePath: string | null): void {
     this.stateSignal.update((state) => ({
       ...state,
@@ -174,6 +230,8 @@ export class ConsoleShellStore {
     this.stateSignal.update((state) => ({
       ...DEFAULT_CONSOLE_SHELL_STATE,
       layoutMode: state.layoutMode,
+      leftPaneWidthPx: state.leftPaneWidthPx,
+      rightDiagramWidthPx: state.rightDiagramWidthPx,
       ...(state.layoutMode === 'overlay'
         ? { leftNavOpen: false, rightNavOpen: false }
         : {}),
@@ -185,6 +243,8 @@ export class ConsoleShellStore {
     this.stateSignal.update((state) => ({
       ...DEFAULT_CONSOLE_SHELL_STATE,
       layoutMode: state.layoutMode,
+      leftPaneWidthPx: state.leftPaneWidthPx,
+      rightDiagramWidthPx: state.rightDiagramWidthPx,
       ...(state.layoutMode === 'overlay'
         ? { leftNavOpen: false, rightNavOpen: false }
         : {}),
