@@ -97,6 +97,31 @@ describe('buildConsoleShellBreadcrumbSegments', () => {
       'src',
       'main.js',
     ]);
+    expect(segments[1]).toEqual({
+      label: 'Editor',
+      path: '.',
+      clickable: true,
+    });
+  });
+
+  it('makes Terminal clickable to return home when browsing a directory', () => {
+    const segments = buildConsoleShellBreadcrumbSegments({
+      activePanel: 'terminal',
+      activeDialog: 'none',
+      selectedFilePath: null,
+      fileManagerCurrentPath: './home/pi',
+    });
+    expect(segments[1]).toEqual({
+      label: 'Terminal',
+      path: '.',
+      clickable: true,
+    });
+    expect(segments.map((s) => s.label)).toEqual([
+      'Console',
+      'Terminal',
+      'home',
+      'pi',
+    ]);
   });
 
   it('prefers selectedFilePath over fileManagerCurrentPath', () => {

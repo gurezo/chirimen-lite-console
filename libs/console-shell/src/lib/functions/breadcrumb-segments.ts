@@ -88,13 +88,23 @@ export function buildConsoleShellBreadcrumbSegments(
   >,
 ): BreadcrumbSegment[] {
   const segments: BreadcrumbSegment[] = [{ label: 'Console' }];
-  segments.push({ label: PANEL_LABELS[state.activePanel] });
+
+  const pathSource = resolveFileManagerPathSource(state);
+  // Panel label (e.g. Terminal) navigates File Manager back to home (~ / `.`).
+  if (pathSource) {
+    segments.push({
+      label: PANEL_LABELS[state.activePanel],
+      path: '.',
+      clickable: true,
+    });
+  } else {
+    segments.push({ label: PANEL_LABELS[state.activePanel] });
+  }
 
   if (state.activeDialog !== 'none') {
     segments.push({ label: DIALOG_LABELS[state.activeDialog] });
   }
 
-  const pathSource = resolveFileManagerPathSource(state);
   if (pathSource) {
     segments.push(...buildFilePathBreadcrumbSegments(pathSource));
   }
