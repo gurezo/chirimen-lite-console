@@ -77,6 +77,7 @@ export class SerialConnectionOrchestrationService {
   }
 
   disconnect$(): Observable<void> {
+    this.injector.get(PiZeroSessionService).resetSession();
     this.shellReadiness.reset();
     this.command.cancelAllCommands();
     this.command.stopReadLoop();

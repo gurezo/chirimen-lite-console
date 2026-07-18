@@ -40,6 +40,8 @@ export class PiZeroSessionService {
 
   /** `activeBootstrap$` が属する接続 epoch。finalize で当該 epoch のみクリーンアップする。 */
   private activeBootstrapEpoch: number | null = null;
+  private activeBootstrapGeneration: number | null = null;
+  private sessionGeneration = 0;
 
   private readonly setupStatusSignal = signal<SerialSetupStatus>('idle');
 
@@ -71,6 +73,18 @@ export class PiZeroSessionService {
     return this.serial.disconnect$();
   }
 
+  /**
+   * 切断済みセッションの非同期処理を無効化し、次回接続を初期状態から開始する。
+   */
+  resetSession(): void {
+    this.sessionGeneration += 1;
+    this.bootstrappedEpoch = -1;
+    this.activeBootstrap$ = null;
+    this.activeBootstrapEpoch = null;
+    this.activeBootstrapGeneration = null;
+    this.setupStatusSignal.set('idle');
+  }
+
   loginIfNeeded$(
     onStatus?: PiZeroBootstrapStatusHandler,
   ): Observable<void> {
@@ -100,10 +114,19 @@ export class PiZeroSessionService {
     return epoch !== this.bootstrappedEpoch;
   }
 
-  private markShellReadyIfActive(epoch: number): void {
+  private isSessionActive(epoch: number, generation: number): boolean {
+    return (
+      this.sessionGeneration === generation &&
+      this.connection.getConnectionEpoch() === epoch
+    );
+  }
+
+  private markShellReadyIfActive(epoch: number, generation: number): void {
     const currentEpoch = this.connection.getConnectionEpoch();
     if (
       this.activeBootstrapEpoch === epoch &&
+      this.activeBootstrapGeneration === generation &&
+      this.sessionGeneration === generation &&
       currentEpoch === epoch
     ) {
       this.shellReadiness.setReady(true);
@@ -112,6 +135,7 @@ export class PiZeroSessionService {
 
   private runEnvironmentSetupInBackground(
     epoch: number,
+    generation: number,
     onBootstrapStatus: PiZeroBootstrapStatusHandler,
     log: PiZeroBootstrapStatusHandler,
   ): void {
@@ -121,23 +145,27 @@ export class PiZeroSessionService {
         .setupEnvironment$(onBootstrapStatus)
         .pipe(
           tap(() => {
-            if (this.connection.getConnectionEpoch() === epoch) {
+            if (this.isSessionActive(epoch, generation)) {
               this.setupStatusSignal.set('ready');
             }
           }),
           catchError((error: unknown) => {
             const message =
               error instanceof Error ? error.message : String(error);
-            if (this.connection.getConnectionEpoch() === epoch) {
+            if (this.isSessionActive(epoch, generation)) {
               this.setupStatusSignal.set('failed');
+              log(`[コンソール] 環境設定に失敗しました: ${message}`);
             }
-            log(`[コンソール] 環境設定に失敗しました: ${message}`);
             return EMPTY;
           }),
           finalize(() => {
-            if (this.activeBootstrapEpoch === epoch) {
+            if (
+              this.activeBootstrapEpoch === epoch &&
+              this.activeBootstrapGeneration === generation
+            ) {
               this.activeBootstrap$ = null;
               this.activeBootstrapEpoch = null;
+              this.activeBootstrapGeneration = null;
             }
           }),
         )
@@ -152,14 +180,6 @@ export class PiZeroSessionService {
     onStatus?: PiZeroBootstrapStatusHandler,
   ): Observable<void> {
     const log = onStatus ?? (() => undefined);
-    const onBootstrapStatus = (line: string): void => {
-      if (line.includes('ログインユーザー')) {
-        this.setupStatusSignal.set('sending-username');
-      } else if (line.includes('パスワードを送信中')) {
-        this.setupStatusSignal.set('sending-password');
-      }
-      log(line);
-    };
 
     return this.shouldRunAfterConnect$().pipe(
       switchMap((shouldRun) => {
@@ -167,15 +187,29 @@ export class PiZeroSessionService {
           return of(undefined);
         }
         const epoch = this.connection.getConnectionEpoch();
+        const generation = this.sessionGeneration;
+        const onBootstrapStatus = (line: string): void => {
+          if (!this.isSessionActive(epoch, generation)) {
+            return;
+          }
+          if (line.includes('ログインユーザー')) {
+            this.setupStatusSignal.set('sending-username');
+          } else if (line.includes('パスワードを送信中')) {
+            this.setupStatusSignal.set('sending-password');
+          }
+          log(line);
+        };
 
         if (
           this.activeBootstrap$ !== null &&
-          this.activeBootstrapEpoch === epoch
+          this.activeBootstrapEpoch === epoch &&
+          this.activeBootstrapGeneration === generation
         ) {
           return this.activeBootstrap$;
         }
 
         this.activeBootstrapEpoch = epoch;
+        this.activeBootstrapGeneration = generation;
 
         this.activeBootstrap$ = defer(() => {
           this.setupStatusSignal.set('waiting-login');
@@ -188,18 +222,28 @@ export class PiZeroSessionService {
           ),
           tap(() => {
             if (!this.shellReadiness.isReady()) {
-              this.markShellReadyIfActive(epoch);
+              this.markShellReadyIfActive(epoch, generation);
+            }
+            if (!this.isSessionActive(epoch, generation)) {
+              return;
             }
             this.bootstrappedEpoch = epoch;
             this.setupStatusSignal.set('setting-timezone');
-            this.runEnvironmentSetupInBackground(epoch, onBootstrapStatus, log);
+            this.runEnvironmentSetupInBackground(
+              epoch,
+              generation,
+              onBootstrapStatus,
+              log,
+            );
           }),
           map(() => undefined),
           catchError((error: unknown) => {
             const message =
               error instanceof Error ? error.message : String(error);
-            this.setupStatusSignal.set('failed');
-            log(`[コンソール] 接続後の初期化に失敗しました: ${message}`);
+            if (this.isSessionActive(epoch, generation)) {
+              this.setupStatusSignal.set('failed');
+              log(`[コンソール] 接続後の初期化に失敗しました: ${message}`);
+            }
             return throwError(() => error);
           }),
           shareReplay({ bufferSize: 1, refCount: true }),

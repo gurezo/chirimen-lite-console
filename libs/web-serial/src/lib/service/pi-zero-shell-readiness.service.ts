@@ -24,16 +24,17 @@ export class PiZeroShellReadinessService {
   private readonly detector = inject(PiZeroPromptDetectorService);
 
   private readonly readySignal = signal(false);
+  private readonly logoutCompletedEpochSignal = signal(0);
   private watchSubscription: Subscription | null = null;
   private promptBuffer = '';
 
   readonly ready = this.readySignal.asReadonly();
+  /** ログイン済みシェルから getty の login 待ちへ戻るたびに増加する。 */
+  readonly logoutCompletedEpoch =
+    this.logoutCompletedEpochSignal.asReadonly();
 
   setReady(value: boolean): void {
     this.readySignal.set(value);
-    if (value) {
-      this.stopWatching();
-    }
   }
 
   reset(): void {
@@ -53,9 +54,6 @@ export class PiZeroShellReadinessService {
     this.stopWatching();
     this.promptBuffer = '';
     this.evaluatePromptBuffer(this.command.inspectReadBuffer());
-    if (this.isReady()) {
-      return;
-    }
     this.watchSubscription = this.transport.receive$.subscribe({
       next: (chunk) => {
         this.appendPromptChunk(chunk ?? '');
@@ -83,9 +81,19 @@ export class PiZeroShellReadinessService {
   }
 
   private evaluatePromptBuffer(buffer: string): void {
-    if (this.isReady() || !buffer.length) {
+    if (!buffer.length) {
       return;
     }
+
+    if (this.isReady()) {
+      if (this.detector.isAwaitingLoginName(buffer)) {
+        this.readySignal.set(false);
+        this.logoutCompletedEpochSignal.update((epoch) => epoch + 1);
+        this.stopWatching();
+      }
+      return;
+    }
+
     if (this.detector.isLikelyLoggedInShellPrompt(buffer)) {
       this.setReady(true);
     }

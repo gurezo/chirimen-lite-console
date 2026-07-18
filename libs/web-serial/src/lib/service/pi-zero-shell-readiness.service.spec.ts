@@ -49,6 +49,35 @@ describe('PiZeroShellReadinessService', () => {
     expect(service.isReady()).toBe(true);
   });
 
+  it('reports logout only when login prompt follows a ready shell', () => {
+    const receive$ = new Subject<string>();
+    const service = createService(receive$);
+
+    service.startWatching();
+    receive$.next('raspberrypi login: ');
+    expect(service.logoutCompletedEpoch()).toBe(0);
+
+    receive$.next('\npi@raspberrypi:~$ ');
+    expect(service.isReady()).toBe(true);
+
+    receive$.next('logout\r\nraspberrypi login: ');
+
+    expect(service.isReady()).toBe(false);
+    expect(service.logoutCompletedEpoch()).toBe(1);
+  });
+
+  it('does not report logout when a command fails and the shell remains ready', () => {
+    const receive$ = new Subject<string>();
+    const service = createService(receive$);
+
+    service.startWatching();
+    receive$.next('pi@raspberrypi:~$ ');
+    receive$.next('logout: command not found\r\npi@raspberrypi:~$ ');
+
+    expect(service.isReady()).toBe(true);
+    expect(service.logoutCompletedEpoch()).toBe(0);
+  });
+
   it('reset clears ready and stops watching', () => {
     const receive$ = new Subject<string>();
     const service = createService(receive$, 'pi@raspberrypi:~$ ');

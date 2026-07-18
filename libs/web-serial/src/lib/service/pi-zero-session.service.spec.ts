@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { firstValueFrom, from, NEVER, of, throwError } from 'rxjs';
+import { firstValueFrom, from, NEVER, of, Subject, throwError } from 'rxjs';
 import { PI_ZERO_LOGIN_USER, PI_ZERO_PROMPT } from '../constants';
 import { PiZeroPromptDetectorService } from './pi-zero-prompt-detector.service';
 import { PiZeroSerialBootstrapService } from './pi-zero-serial-bootstrap.service';
@@ -239,6 +239,29 @@ describe('PiZeroSessionService', () => {
     await vi.waitFor(() => {
       expect(service.setupStatus()).toBe('ready');
     });
+  });
+
+  it('resetSession keeps a late bootstrap result from restoring session state', async () => {
+    const promptResult$ = new Subject<{ stdout: string }>();
+    const serial = {
+      isConnected$: of(true),
+      connectionEstablished$: NEVER,
+      readUntilPrompt$: () => promptResult$.asObservable(),
+      exec$: () => of({ stdout: '' }),
+    } as unknown as SerialFacadeService;
+    const shellReadiness = createShellReadinessMock();
+    const service = createSession(serial, shellReadiness);
+
+    const bootstrapPromise = firstValueFrom(service.runAfterConnect$());
+    expect(service.setupStatus()).toBe('waiting-login');
+
+    service.resetSession();
+    promptResult$.next({ stdout: `${PI_ZERO_PROMPT} ` });
+    promptResult$.complete();
+    await bootstrapPromise;
+
+    expect(service.setupStatus()).toBe('idle');
+    expect(vi.mocked(shellReadiness.setReady)).not.toHaveBeenCalledWith(true);
   });
 
   describe('login flow (loginIfNeeded$)', () => {
