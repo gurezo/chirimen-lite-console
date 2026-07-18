@@ -106,12 +106,17 @@ function baseStoreMock(overrides: Record<string, unknown> = {}) {
     leftNavOpen: () => true,
     rightNavOpen: () => true,
     layoutMode: () => 'docked' as const,
+    leftPaneWidthPx: () => 280,
+    rightDiagramWidthPx: () => 300,
     setActivePanel: vi.fn(),
     toggleLeftNav: vi.fn(),
     toggleRightNav: vi.fn(),
     closeLeftNav: vi.fn(),
     closeRightNav: vi.fn(),
     setLayoutMode: vi.fn(),
+    setLeftPaneWidth: vi.fn(),
+    setRightDiagramWidth: vi.fn(),
+    syncDockedPaneWidthsForBand: vi.fn(),
     openDialog: vi.fn(),
     closeDialog: vi.fn(),
     applyConnectedLayout: vi.fn(),
@@ -445,16 +450,23 @@ describe('ConsoleShellComponent responsive layout', () => {
   let setLayoutMode: ReturnType<typeof vi.fn>;
   let closeLeftNav: ReturnType<typeof vi.fn>;
   let closeRightNav: ReturnType<typeof vi.fn>;
+  let setLeftPaneWidth: ReturnType<typeof vi.fn>;
+  let setRightDiagramWidth: ReturnType<typeof vi.fn>;
+  let syncDockedPaneWidthsForBand: ReturnType<typeof vi.fn>;
   let breakpoints: ReturnType<typeof createBreakpointObserverMock>;
   let layoutModeSignal: ReturnType<typeof signal<'docked' | 'overlay'>>;
   let leftNavOpenSignal: ReturnType<typeof signal<boolean>>;
   let rightNavOpenSignal: ReturnType<typeof signal<boolean>>;
+  let leftPaneWidthSignal: ReturnType<typeof signal<number>>;
+  let rightDiagramWidthSignal: ReturnType<typeof signal<number>>;
 
   beforeEach(async () => {
     const { facade } = createConnectionFacadeMock(true);
     layoutModeSignal = signal<'docked' | 'overlay'>('docked');
     leftNavOpenSignal = signal(true);
     rightNavOpenSignal = signal(true);
+    leftPaneWidthSignal = signal(280);
+    rightDiagramWidthSignal = signal(300);
     setLayoutMode = vi.fn((mode: 'docked' | 'overlay') => {
       layoutModeSignal.set(mode);
       if (mode === 'overlay') {
@@ -467,6 +479,19 @@ describe('ConsoleShellComponent responsive layout', () => {
     });
     closeLeftNav = vi.fn(() => leftNavOpenSignal.set(false));
     closeRightNav = vi.fn(() => rightNavOpenSignal.set(false));
+    setLeftPaneWidth = vi.fn((width: number) => leftPaneWidthSignal.set(width));
+    setRightDiagramWidth = vi.fn((width: number) =>
+      rightDiagramWidthSignal.set(width),
+    );
+    syncDockedPaneWidthsForBand = vi.fn((band: 'wide' | 'compact') => {
+      if (band === 'compact') {
+        leftPaneWidthSignal.set(240);
+        rightDiagramWidthSignal.set(240);
+      } else {
+        leftPaneWidthSignal.set(280);
+        rightDiagramWidthSignal.set(300);
+      }
+    });
     breakpoints = createBreakpointObserverMock();
 
     const activatedRoute = {
@@ -507,9 +532,14 @@ describe('ConsoleShellComponent responsive layout', () => {
             layoutMode: () => layoutModeSignal(),
             leftNavOpen: () => leftNavOpenSignal(),
             rightNavOpen: () => rightNavOpenSignal(),
+            leftPaneWidthPx: () => leftPaneWidthSignal(),
+            rightDiagramWidthPx: () => rightDiagramWidthSignal(),
             setLayoutMode,
             closeLeftNav,
             closeRightNav,
+            setLeftPaneWidth,
+            setRightDiagramWidth,
+            syncDockedPaneWidthsForBand,
           }),
         },
       ],
@@ -536,6 +566,7 @@ describe('ConsoleShellComponent responsive layout', () => {
     fixture.detectChanges();
 
     expect(setLayoutMode).toHaveBeenCalledWith('docked');
+    expect(syncDockedPaneWidthsForBand).toHaveBeenCalledWith('compact');
     expect(component.gridTemplateColumns()).toBe(
       '240px minmax(0, 1fr) calc(48px + 240px)',
     );
@@ -584,6 +615,50 @@ describe('ConsoleShellComponent responsive layout', () => {
     expect(
       fixture.nativeElement.querySelector('[aria-label="Close side panels"]'),
     ).toBeNull();
+  });
+
+  it('resizes left pane width while dragging the left separator', () => {
+    const handle = fixture.nativeElement.querySelector(
+      '[aria-label="Resize left panel"]',
+    ) as HTMLElement;
+    expect(handle).toBeTruthy();
+
+    handle.dispatchEvent(
+      new PointerEvent('pointerdown', { clientX: 280, bubbles: true }),
+    );
+    window.dispatchEvent(
+      new PointerEvent('pointermove', { clientX: 320, bubbles: true }),
+    );
+    window.dispatchEvent(
+      new PointerEvent('pointerup', { clientX: 320, bubbles: true }),
+    );
+
+    expect(setLeftPaneWidth).toHaveBeenCalledWith(320);
+    expect(component.gridTemplateColumns()).toBe(
+      '320px minmax(0, 1fr) calc(48px + 300px)',
+    );
+  });
+
+  it('resizes right diagram width while dragging the right separator', () => {
+    const handle = fixture.nativeElement.querySelector(
+      '[aria-label="Resize right panel"]',
+    ) as HTMLElement;
+    expect(handle).toBeTruthy();
+
+    handle.dispatchEvent(
+      new PointerEvent('pointerdown', { clientX: 900, bubbles: true }),
+    );
+    window.dispatchEvent(
+      new PointerEvent('pointermove', { clientX: 860, bubbles: true }),
+    );
+    window.dispatchEvent(
+      new PointerEvent('pointerup', { clientX: 860, bubbles: true }),
+    );
+
+    expect(setRightDiagramWidth).toHaveBeenCalledWith(340);
+    expect(component.gridTemplateColumns()).toBe(
+      '280px minmax(0, 1fr) calc(48px + 340px)',
+    );
   });
 });
 

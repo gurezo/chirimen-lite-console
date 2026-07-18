@@ -1,7 +1,10 @@
 @let isConnected = connected();
 @let isLogoutPending = logoutPending();
 
-<div class="relative flex h-[100dvh] min-h-0 flex-col overflow-hidden">
+<div
+  class="relative flex h-[100dvh] min-h-0 flex-col overflow-hidden"
+  [class.select-none]="isResizingPane()"
+>
   <div
     class="shrink-0"
     [class.border-b]="isConnected"
@@ -37,7 +40,9 @@
           <lib-left-sidebar
             [leftNavOpen]="leftNavOpen()"
             [layoutMode]="layoutMode()"
+            [paneWidthPx]="leftPaneWidthPx()"
             (toggleLeftSidebar)="onToggleLeftSidebar()"
+            (paneResizeStart)="onLeftPaneResizeStart($event)"
           />
         </div>
 
@@ -58,7 +63,9 @@
             class="min-h-0 min-w-0 flex-1"
             [rightNavOpen]="rightNavOpen()"
             [layoutMode]="layoutMode()"
+            [diagramWidthPx]="rightDiagramWidthPx()"
             (toggleRightSidebar)="onToggleRightSidebar()"
+            (paneResizeStart)="onRightPaneResizeStart($event)"
           />
         </div>
       </div>
