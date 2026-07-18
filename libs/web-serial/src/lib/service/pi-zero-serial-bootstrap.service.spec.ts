@@ -35,11 +35,15 @@ describe('PiZeroSerialBootstrapService', () => {
       send$,
     } as unknown as SerialFacadeService;
 
-    await firstValueFrom(createBootstrap(serial).runPostConnectPipeline$());
+    const logs: string[] = [];
+    await firstValueFrom(
+      createBootstrap(serial).runPostConnectPipeline$((l) => logs.push(l)),
+    );
 
     expect(send$).toHaveBeenCalledWith('\r\n');
     expect(send$).toHaveBeenCalledWith(`${PI_ZERO_LOGIN_USER}\r\n`);
     expect(send$).toHaveBeenCalledWith(`${PI_ZERO_LOGIN_PASSWORD}\r\n`);
+    expect(logs.some((l) => l.includes('シェルプロンプトを待機中'))).toBe(true);
     expect(exec).toHaveBeenCalledTimes(6); // environment setup steps
   });
 

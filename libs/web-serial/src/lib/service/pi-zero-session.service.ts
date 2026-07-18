@@ -196,6 +196,8 @@ export class PiZeroSessionService {
             this.setupStatusSignal.set('sending-username');
           } else if (line.includes('パスワードを送信中')) {
             this.setupStatusSignal.set('sending-password');
+          } else if (line.includes('シェルプロンプトを待機中')) {
+            this.setupStatusSignal.set('waiting-shell');
           }
           log(line);
         };

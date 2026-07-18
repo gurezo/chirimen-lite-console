@@ -316,6 +316,45 @@ describe('PiZeroSessionService', () => {
       expect(send$).toHaveBeenCalledWith(`${PI_ZERO_LOGIN_USER}\r\n`);
       expect(exec).not.toHaveBeenCalled();
     });
+
+    it('sets waiting-shell after password is sent during runAfterConnect$', async () => {
+      const statuses: string[] = [];
+      const readUntilPrompt = vi
+        .fn()
+        .mockImplementationOnce(() =>
+          throwError(() => new Error('shell prompt timeout')),
+        )
+        .mockImplementationOnce(() => of({ stdout: 'stale buffer' }))
+        .mockImplementationOnce(() => of({ stdout: 'raspberrypi login: ' }))
+        .mockImplementationOnce(() => of({ stdout: 'Password: ' }))
+        .mockImplementationOnce(() =>
+          of({ stdout: `ready\n${PI_ZERO_PROMPT} ` }),
+        );
+      const exec = vi.fn().mockReturnValue(of({ stdout: `${PI_ZERO_PROMPT} ` }));
+      const serial = {
+        isConnected$: of(true),
+        connectionEstablished$: NEVER,
+        readUntilPrompt$: (o: unknown) => readUntilPrompt(o),
+        exec$: (c: string, o: unknown) => exec(c, o),
+        send$: () => of(undefined),
+      } as unknown as SerialFacadeService;
+
+      const service = createSession(serial, createShellReadinessMock());
+      await firstValueFrom(
+        service.runAfterConnect$((_line) => {
+          statuses.push(service.setupStatus());
+        }),
+      );
+      await vi.waitFor(() => {
+        expect(service.setupStatus()).toBe('ready');
+      });
+
+      expect(statuses).toContain('sending-password');
+      expect(statuses).toContain('waiting-shell');
+      expect(statuses.indexOf('sending-password')).toBeLessThan(
+        statuses.indexOf('waiting-shell'),
+      );
+    });
   });
 
   describe('setup flow (setupEnvironment$)', () => {
