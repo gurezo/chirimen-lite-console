@@ -56,4 +56,17 @@ export class SerialNotificationService {
       timeOut: 5000,
     });
   }
+
+  /**
+   * 接続後オートログイン / bootstrap 失敗時の通知（#726）。
+   */
+  notifyAutoLoginFailed(errorMessage: string): void {
+    this.toastr.error(
+      `オートログインに失敗しました: ${errorMessage}`,
+      'ログインエラー',
+      {
+        timeOut: 8000,
+      },
+    );
+  }
 }

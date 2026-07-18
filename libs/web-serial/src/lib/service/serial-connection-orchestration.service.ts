@@ -15,6 +15,7 @@ import { getConnectionErrorMessage } from '../functions';
 import { PiZeroSessionService } from './pi-zero-session.service';
 import { PiZeroShellReadinessService } from './pi-zero-shell-readiness.service';
 import { SerialCommandPipelineService } from './serial-command/serial-command-pipeline.service';
+import { SerialNotificationService } from './serial-notification.service';
 import { SerialTransportService } from './serial-transport.service';
 
 /** {@link SerialConnectionOrchestrationService#connect$} の結果 */
@@ -33,6 +34,7 @@ export class SerialConnectionOrchestrationService {
   private readonly transport = inject(SerialTransportService);
   private readonly command = inject(SerialCommandPipelineService);
   private readonly shellReadiness = inject(PiZeroShellReadinessService);
+  private readonly notifications = inject(SerialNotificationService);
   private readonly injector = inject(Injector);
 
   /**
@@ -113,6 +115,7 @@ export class SerialConnectionOrchestrationService {
               '[SerialConnection] post-connect bootstrap failed:',
               message,
             );
+            this.notifications.notifyAutoLoginFailed(message);
             return EMPTY;
           }),
         )
