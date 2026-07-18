@@ -1,8 +1,11 @@
-import { Component, inject, input, output } from '@angular/core';
+import { Component, computed, inject, input, output } from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
 import { MatIconButton } from '@angular/material/button';
 import { MatIcon } from '@angular/material/icon';
-import { ConsoleShellStore } from '../../service';
+import {
+  ConsoleShellLayoutMode,
+  ConsoleShellStore,
+} from '../../service';
 import { FileTreeFeatureComponent } from '@libs-file-manager';
 
 @Component({
@@ -15,7 +18,10 @@ import { FileTreeFeatureComponent } from '@libs-file-manager';
 })
 export class LeftSidebarComponent {
   leftNavOpen = input<boolean>(true);
+  layoutMode = input<ConsoleShellLayoutMode>('docked');
   toggleLeftSidebar = output<void>();
+
+  readonly isOverlay = computed(() => this.layoutMode() === 'overlay');
 
   readonly shellStore = inject(ConsoleShellStore);
   private router = inject(Router);
