@@ -171,6 +171,42 @@ npx nx run apps-console:test
 
 迷った場合は、**「他プロジェクトにそのままコピーしても意味が通るか」** で区切るとよい。通るならライブラリ、CHIRIMEN Lite Console 前提なら本リポジトリ。
 
+## ログアウト後のセッションリセット（[#725](https://github.com/gurezo/chirimen-lite-console/issues/725)）
+
+Web Serial の物理接続と Linux シェルのログイン状態は別である。Terminal で `logout` が完了すると getty が再び `login:` を出すが、ポートは開いたままになり得る。画面状態と実セッションを一致させるため、本アプリでは **ログアウト完了を検出したら Web Serial ポートを閉じ、既存の未接続 UI へ戻す**。
+
+### 状態モデル
+
+| 状態 | 意味 | 主な判定 |
+|------|------|----------|
+| 切断済み | Web Serial 未接続。Connect ページを表示 | `SerialConnectionViewModel.isConnected === false` |
+| 物理接続 | ポートは開いているがシェル未到達 | `isConnected === true` かつ `isLoggedIn === false` |
+| ログイン済みシェル | 対話シェル到達後 | `PiZeroShellReadinessService.ready === true`（`isLoggedIn`） |
+| ログアウト完了 | ログイン済みから getty の login 待ちへ戻った | `logoutCompletedEpoch` が増加 |
+
+### 検出とリセットの流れ
+
+```text
+ログイン済みシェル
+  -> receive$ 末尾が login: / ログイン: （isAwaitingLoginName）
+  -> PiZeroShellReadinessService.logoutCompletedEpoch++
+  -> ConsoleShellComponent がダイアログを閉じ disconnect()
+  -> SerialConnectionOrchestrationService.disconnect$()
+       ├ PiZeroSessionService.resetSession()（setupStatus idle / bootstrap 無効化）
+       ├ shellReadiness.reset()
+       ├ command cancel / stopReadLoop
+       └ transport.disconnect$()
+  -> isConnected false
+  -> ConsoleShellStore.resetLayoutAfterDisconnect() + Connect ページ表示
+```
+
+要点:
+
+- **接続直後の `login:` では発火しない**。一度シェル到達（`ready === true`）したあとに限りログアウト完了とみなす。
+- **`logout` 失敗でシェルが残る場合はリセットしない**（末尾がシェルプロンプトのままなら `logoutCompletedEpoch` は増えない）。
+- **再接続時**は新しい connection epoch と `resetSession()` によりオートログイン（`runAfterConnect$`）を再実行できる。
+- **Editor 未保存内容**はデバイスへ書き戻せず失われるため、`EditorDraftService` が同じタブの `sessionStorage` にドラフトを保持し、再接続後に Editor を開いた際に自動復元する。
+
 ## 関連 Issue
 
 - [#557](https://github.com/gurezo/chirimen-lite-console/issues/557) — `SerialSession` を正としたアプリ側の薄型化（本ドキュメント執筆時点でコード上の受け入れ条件を満たしている旨を PR で確認済みとする想定）
@@ -187,3 +223,4 @@ npx nx run apps-console:test
 - [#673](https://github.com/gurezo/chirimen-lite-console/issues/673) — Facade / Orchestration / Pipeline の境界整理（docs / JSDoc の整合）
 - [#674](https://github.com/gurezo/chirimen-lite-console/issues/674) — `SerialValidatorService` を `SerialTransportService` に統合（Pi Zero 判定の集約）
 - [#676](https://github.com/gurezo/chirimen-lite-console/issues/676) — 回帰テスト・実機確認（親 #671 の受け入れ）
+- [#725](https://github.com/gurezo/chirimen-lite-console/issues/725) — logout 完了後に Web Serial 接続前の状態へ戻す（本ドキュメント「ログアウト後のセッションリセット」節）
