@@ -1,20 +1,32 @@
-<div
-  class="box-border flex h-full min-h-0 min-w-0 flex-col overflow-hidden"
-  [style.width.px]="rootWidthPx()"
-  [style.min-width.px]="rootMinWidthPx()"
-  [style.max-width.px]="rootMaxWidthPx()"
-  [style.resize]="rootResize()"
->
+@if (isDockedOpen()) {
+  <!--
+    Do not bind style.width while open: Angular would overwrite the
+    inline width that the browser sets during native CSS resize.
+  -->
+  <div
+    class="box-border flex h-full min-h-0 w-[280px] min-w-[180px] max-w-[480px] flex-col overflow-hidden max-xl:w-[240px]"
+    [style.resize]="'horizontal'"
+  >
+    <ng-container *ngTemplateOutlet="sidebarBody" />
+  </div>
+} @else {
+  <div
+    class="box-border flex h-full min-h-0 w-12 min-w-12 max-w-12 flex-col overflow-hidden"
+    [style.resize]="'none'"
+  >
+    <ng-container *ngTemplateOutlet="sidebarBody" />
+  </div>
+}
+
+<ng-template #sidebarBody>
   <div
     class="flex min-h-0 min-w-0 flex-1 flex-row overflow-hidden border-r border-gray-200"
   >
     @if (leftNavOpen()) {
       @if (isOverlay()) {
+        <!-- Initial width via class only; resize must own inline width. -->
         <div
-          class="absolute top-0 bottom-0 left-full z-40 box-border flex min-h-0 flex-col overflow-hidden border-r border-gray-200 bg-white shadow-lg"
-          [style.width]="overlayWidth()"
-          [style.min-width]="overlayMinWidth()"
-          [style.max-width]="overlayMaxWidth()"
+          class="absolute top-0 bottom-0 left-full z-40 box-border flex min-h-0 w-[min(280px,85vw)] min-w-[min(180px,85vw)] max-w-[min(480px,85vw)] flex-col overflow-hidden border-r border-gray-200 bg-white shadow-lg max-xl:w-[min(240px,85vw)]"
           [style.resize]="'horizontal'"
         >
           <lib-file-tree-feature
@@ -64,4 +76,4 @@
       </button>
     </div>
   </div>
-</div>
+</ng-template>
