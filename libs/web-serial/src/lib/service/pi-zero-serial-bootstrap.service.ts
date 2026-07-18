@@ -317,6 +317,7 @@ export class PiZeroSerialBootstrapService {
         log('[コンソール] パスワードを送信中（画面には表示しません）...');
         return this.serial.send$(`${PI_ZERO_LOGIN_PASSWORD}\r\n`).pipe(
           switchMap(() => this.serial.send$('\r\n')),
+          tap(() => log('[コンソール] シェルプロンプトを待機中...')),
           switchMap(() =>
             this.runAuthLoop$(log, {
               stepCount: state.stepCount + 1,
