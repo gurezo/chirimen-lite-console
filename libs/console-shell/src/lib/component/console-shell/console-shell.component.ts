@@ -14,6 +14,7 @@ import {
   Router,
   RouterOutlet,
 } from '@angular/router';
+import { MatProgressSpinner } from '@angular/material/progress-spinner';
 import { ConnectPageComponent } from '@libs-connect';
 import {
   ActionToolBarComponent,
@@ -43,6 +44,7 @@ import { ConsoleShellStore } from '../../service';
     ConnectPageComponent,
     HeaderToolbarComponent,
     LeftSidebarComponent,
+    MatProgressSpinner,
     RightSidebarComponent,
     RouterOutlet,
   ],
@@ -64,6 +66,9 @@ export class ConsoleShellComponent implements OnInit, OnDestroy {
   /** Narrow rail when the PIN panel is collapsed (px); keeps toggle + pin chrome visible. */
   private static readonly RIGHT_RAIL_COLLAPSED_WIDTH_PX = 48;
 
+  /** logout 完了待ちローダーの上限（失敗検知漏れの安全弁）。 */
+  private static readonly LOGOUT_PENDING_TIMEOUT_MS = 30_000;
+
   private connectionVm = inject(SerialConnectionViewModelFacade);
   private shellReadiness = inject(PiZeroShellReadinessService);
   private notifications = inject(SerialNotificationService);
@@ -74,6 +79,9 @@ export class ConsoleShellComponent implements OnInit, OnDestroy {
 
   /** Web Serial の接続可否（単一ビューモデル {@link SerialConnectionViewModelFacade#vm} を参照）。 */
   readonly connected = computed(() => this.connectionVm.vm().isConnected);
+
+  /** logout / exit 送信後〜切断完了までの入力ブロック用ローダー。 */
+  readonly logoutPending = this.shellReadiness.logoutPending;
 
   readonly activePanel = this.shellStore.activePanel;
   readonly leftNavOpen = this.shellStore.leftNavOpen;
@@ -107,6 +115,9 @@ export class ConsoleShellComponent implements OnInit, OnDestroy {
   private lastConnected = false;
   private lastLogoutCompletedEpoch = 0;
   private logoutDisconnectInFlight = false;
+  private lastLogoutPending = false;
+  private logoutPendingTimedOut = false;
+  private logoutPendingTimeoutId: ReturnType<typeof setTimeout> | null = null;
 
   constructor() {
     effect(() => {
@@ -122,6 +133,7 @@ export class ConsoleShellComponent implements OnInit, OnDestroy {
           void this.router.navigate(['terminal'], { relativeTo: this.route });
         } else if (prev && !next) {
           this.logoutDisconnectInFlight = false;
+          this.clearLogoutPendingTimeout();
           this.shellStore.resetLayoutAfterDisconnect();
           void this.router.navigate(['terminal'], { relativeTo: this.route });
         }
@@ -145,6 +157,36 @@ export class ConsoleShellComponent implements OnInit, OnDestroy {
         this.shellStore.closeDialog();
         this.dialogService.closeAll();
         this.connectionVm.disconnect();
+      });
+    });
+
+    effect(() => {
+      const pending = this.shellReadiness.logoutPending();
+      const wasPending = this.lastLogoutPending;
+      this.lastLogoutPending = pending;
+      untracked(() => {
+        this.clearLogoutPendingTimeout();
+        if (!pending) {
+          if (
+            wasPending &&
+            this.connectionVm.vm().isConnected &&
+            !this.logoutDisconnectInFlight &&
+            !this.logoutPendingTimedOut
+          ) {
+            // 切断前に pending が消えた = logout 失敗でシェルへ戻った
+            this.notifications.notifyLogoutCancelled('failed');
+          }
+          this.logoutPendingTimedOut = false;
+          return;
+        }
+        this.logoutPendingTimeoutId = setTimeout(() => {
+          if (!this.shellReadiness.logoutPending()) {
+            return;
+          }
+          this.logoutPendingTimedOut = true;
+          this.shellReadiness.clearLogoutPending();
+          this.notifications.notifyLogoutCancelled('timeout');
+        }, ConsoleShellComponent.LOGOUT_PENDING_TIMEOUT_MS);
       });
     });
   }
@@ -172,7 +214,15 @@ export class ConsoleShellComponent implements OnInit, OnDestroy {
   }
 
   ngOnDestroy() {
+    this.clearLogoutPendingTimeout();
     this.subscriptions.unsubscribe();
+  }
+
+  private clearLogoutPendingTimeout(): void {
+    if (this.logoutPendingTimeoutId !== null) {
+      clearTimeout(this.logoutPendingTimeoutId);
+      this.logoutPendingTimeoutId = null;
+    }
   }
 
   onConnect() {
@@ -192,6 +242,10 @@ export class ConsoleShellComponent implements OnInit, OnDestroy {
   }
 
   onToolbarAction(action: ToolbarAction): void {
+    if (this.logoutPending()) {
+      return;
+    }
+
     if (
       action === 'terminal' ||
       action === 'editor' ||

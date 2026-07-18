@@ -1,6 +1,7 @@
 @let isConnected = connected();
+@let isLogoutPending = logoutPending();
 
-<div class="flex h-[100dvh] min-h-0 flex-col overflow-hidden">
+<div class="relative flex h-[100dvh] min-h-0 flex-col overflow-hidden">
   <div
     class="shrink-0"
     [class.border-b]="isConnected"
@@ -51,4 +52,23 @@
       <lib-connect-page />
     }
   </div>
+
+  @if (isLogoutPending) {
+    <div
+      class="absolute inset-0 z-50 flex flex-col items-center justify-center gap-4 bg-black/40"
+      role="alertdialog"
+      aria-modal="true"
+      aria-busy="true"
+      aria-label="ログアウト処理中"
+    >
+      <mat-progress-spinner
+        mode="indeterminate"
+        diameter="64"
+        aria-label="ログアウト処理中"
+      />
+      <p class="rounded bg-white px-4 py-2 text-sm text-gray-800 shadow">
+        ログアウト処理中です。完了までお待ちください…
+      </p>
+    </div>
+  }
 </div>
