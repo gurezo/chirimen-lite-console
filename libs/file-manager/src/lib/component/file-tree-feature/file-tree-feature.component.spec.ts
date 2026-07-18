@@ -120,6 +120,58 @@ describe('FileTreeFeatureComponent', () => {
     expect(fixture.componentInstance.nodes.length).toBe(2);
   });
 
+  it('emits currentPathChange and reloads when a directory is selected', async () => {
+    const fixture = await compileAndCreate();
+    fixture.detectChanges();
+    vmSignal.set({
+      ...baseVm,
+      isConnected: true,
+      isLoggedIn: true,
+      setupStatus: 'ready',
+    });
+    await vi.waitFor(() => {
+      expect(listTreeMock).toHaveBeenCalledWith('.');
+    });
+
+    const emitSpy = vi.spyOn(
+      fixture.componentInstance.currentPathChange,
+      'emit',
+    );
+    listTreeMock.mockClear();
+
+    await fixture.componentInstance.onDirectorySelected({
+      name: 'docs',
+      path: './docs',
+      isDirectory: true,
+    });
+
+    expect(emitSpy).toHaveBeenCalledWith('./docs');
+    expect(listTreeMock).toHaveBeenCalledWith('./docs');
+  });
+
+  it('reloads when currentPath input changes after initial load', async () => {
+    const fixture = await compileAndCreate();
+    fixture.detectChanges();
+    vmSignal.set({
+      ...baseVm,
+      isConnected: true,
+      isLoggedIn: true,
+      setupStatus: 'ready',
+    });
+    await vi.waitFor(() => {
+      expect(listTreeMock).toHaveBeenCalledWith('.');
+    });
+
+    listTreeMock.mockClear();
+    fixture.componentRef.setInput('currentPath', './docs');
+    fixture.detectChanges();
+    TestBed.flushEffects();
+
+    await vi.waitFor(() => {
+      expect(listTreeMock).toHaveBeenCalledWith('./docs');
+    });
+  });
+
   it('does not skip initial load when setupStatus advances to ready', async () => {
     const fixture = await compileAndCreate();
     fixture.detectChanges();
