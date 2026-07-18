@@ -102,14 +102,14 @@ export class FileTreeFeatureComponent {
 
     effect(() => {
       const path = this.currentPath();
-      const vm = this.connectionVm.vm();
-      if (!vm.isConnected || !this.canLoadTree(vm) || !this.loadedForLogin) {
-        return;
-      }
-      if (path === this.lastLoadedPath) {
-        return;
-      }
       untracked(() => {
+        const vm = this.connectionVm.vm();
+        if (!vm.isConnected || !this.canLoadTree(vm) || !this.loadedForLogin) {
+          return;
+        }
+        if (path === this.lastLoadedPath) {
+          return;
+        }
         queueMicrotask(() => void this.loadAt(path));
       });
     });
