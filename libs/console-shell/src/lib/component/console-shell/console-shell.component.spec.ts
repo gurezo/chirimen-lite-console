@@ -47,9 +47,14 @@ function createConnectionFacadeMock(initialConnected = false) {
 
 function createShellReadinessMock(initialEpoch = 0) {
   const logoutCompletedEpochSignal = signal(initialEpoch);
+  const logoutPendingSignal = signal(false);
   return {
     logoutCompletedEpoch: logoutCompletedEpochSignal.asReadonly(),
     logoutCompletedEpochSignal,
+    logoutPending: logoutPendingSignal.asReadonly(),
+    logoutPendingSignal,
+    clearLogoutPending: vi.fn(() => logoutPendingSignal.set(false)),
+    beginLogoutPending: vi.fn(() => logoutPendingSignal.set(true)),
   };
 }
 
@@ -61,6 +66,7 @@ describe('ConsoleShellComponent', () => {
   let sendCommand: ReturnType<typeof vi.fn>;
   let vmSignal: ReturnType<typeof signal<SerialConnectionViewModel>>;
   let logoutCompletedEpochSignal: ReturnType<typeof signal<number>>;
+  let logoutPendingSignal: ReturnType<typeof signal<boolean>>;
   let openDialog: ReturnType<typeof vi.fn>;
   let closeAllDialog: ReturnType<typeof vi.fn>;
   let setActivePanel: ReturnType<typeof vi.fn>;
@@ -69,6 +75,7 @@ describe('ConsoleShellComponent', () => {
   let applyConnectedLayout: ReturnType<typeof vi.fn>;
   let resetLayoutAfterDisconnect: ReturnType<typeof vi.fn>;
   let notifyLogoutDetected: ReturnType<typeof vi.fn>;
+  let notifyLogoutCancelled: ReturnType<typeof vi.fn>;
   let navigateSpy: ReturnType<typeof vi.fn>;
   let activatedRouteMock: ActivatedRoute;
 
@@ -82,12 +89,14 @@ describe('ConsoleShellComponent', () => {
     const shellReadiness = createShellReadinessMock();
     vmSignal = vm;
     logoutCompletedEpochSignal = shellReadiness.logoutCompletedEpochSignal;
+    logoutPendingSignal = shellReadiness.logoutPendingSignal;
     connect = facade.connect;
     disconnect = facade.disconnect;
     sendCommand = facade.sendCommand;
     applyConnectedLayout = vi.fn();
     resetLayoutAfterDisconnect = vi.fn();
     notifyLogoutDetected = vi.fn();
+    notifyLogoutCancelled = vi.fn();
 
     openDialog = vi.fn().mockReturnValue({ closed: of(undefined) });
     closeAllDialog = vi.fn();
@@ -113,7 +122,7 @@ describe('ConsoleShellComponent', () => {
         },
         {
           provide: SerialNotificationService,
-          useValue: { notifyLogoutDetected },
+          useValue: { notifyLogoutDetected, notifyLogoutCancelled },
         },
         {
           provide: DialogService,
@@ -267,6 +276,50 @@ describe('ConsoleShellComponent', () => {
     TestBed.flushEffects();
     expect(disconnect).not.toHaveBeenCalled();
   });
+
+  it('shows a blocking logout loader while logoutPending is true', () => {
+    vmSignal.set(vmDefaults({ isConnected: true }));
+    fixture.detectChanges();
+
+    expect(
+      fixture.nativeElement.querySelector('[aria-label="ログアウト処理中"]'),
+    ).toBeNull();
+
+    logoutPendingSignal.set(true);
+    fixture.detectChanges();
+
+    const overlay = fixture.nativeElement.querySelector(
+      '[aria-label="ログアウト処理中"]',
+    ) as HTMLElement | null;
+    expect(overlay).toBeTruthy();
+    expect(overlay?.textContent).toContain('ログアウト処理中');
+    expect(fixture.nativeElement.querySelector('mat-progress-spinner')).toBeTruthy();
+  });
+
+  it('blocks toolbar actions while logoutPending is true', () => {
+    vmSignal.set(vmDefaults({ isConnected: true }));
+    TestBed.flushEffects();
+    logoutPendingSignal.set(true);
+    TestBed.flushEffects();
+    navigateSpy.mockClear();
+
+    component.onToolbarAction('editor');
+
+    expect(navigateSpy).not.toHaveBeenCalled();
+  });
+
+  it('notifies cancelled when logoutPending clears while still connected', () => {
+    vmSignal.set(vmDefaults({ isConnected: true }));
+    TestBed.flushEffects();
+    notifyLogoutCancelled.mockClear();
+
+    logoutPendingSignal.set(true);
+    TestBed.flushEffects();
+    logoutPendingSignal.set(false);
+    TestBed.flushEffects();
+
+    expect(notifyLogoutCancelled).toHaveBeenCalledWith('failed');
+  });
 });
 
 describe('ConsoleShellComponent gridTemplateColumns when right nav closed', () => {
@@ -297,7 +350,10 @@ describe('ConsoleShellComponent gridTemplateColumns when right nav closed', () =
         },
         {
           provide: SerialNotificationService,
-          useValue: { notifyLogoutDetected: vi.fn() },
+          useValue: {
+            notifyLogoutDetected: vi.fn(),
+            notifyLogoutCancelled: vi.fn(),
+          },
         },
         {
           provide: DialogService,
@@ -364,7 +420,10 @@ describe('ConsoleShellComponent layout DOM (connected vs disconnected)', () => {
         },
         {
           provide: SerialNotificationService,
-          useValue: { notifyLogoutDetected: vi.fn() },
+          useValue: {
+            notifyLogoutDetected: vi.fn(),
+            notifyLogoutCancelled: vi.fn(),
+          },
         },
         ConsoleShellStore,
         {
