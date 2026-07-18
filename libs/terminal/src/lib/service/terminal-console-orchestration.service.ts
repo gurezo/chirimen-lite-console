@@ -1,9 +1,10 @@
 import { Injectable, inject } from '@angular/core';
 import {
   PiZeroSessionService,
+  PiZeroShellReadinessService,
   SerialFacadeService,
 } from '@libs-web-serial';
-import { coerceLsForSerialListing } from '../functions';
+import { coerceLsForSerialListing, isShellLogoutCommand } from '../functions';
 import {
   EMPTY,
   Observable,
@@ -28,11 +29,13 @@ export interface TerminalConsoleSink {
 export class TerminalConsoleOrchestrationService {
   private readonly serial = inject(SerialFacadeService);
   private readonly piZeroSession = inject(PiZeroSessionService);
+  private readonly shellReadiness = inject(PiZeroShellReadinessService);
 
   readonly isConnected = this.serial.isConnected;
   readonly connectionEpoch = this.serial.connectionEpoch;
 
   async runInteractiveCommand(command: string): Promise<string> {
+    this.markLogoutPendingIfNeeded(command);
     const payload = `${coerceLsForSerialListing(command)}\n`;
     await firstValueFrom(this.serial.send$(payload));
     return '';
@@ -47,6 +50,7 @@ export class TerminalConsoleOrchestrationService {
       return { status: 'not_connected' };
     }
     try {
+      this.markLogoutPendingIfNeeded(cmd);
       const payload = `${coerceLsForSerialListing(cmd)}\n`;
       await firstValueFrom(this.serial.send$(payload));
       return { status: 'success', output: '' };
@@ -79,6 +83,12 @@ export class TerminalConsoleOrchestrationService {
       }),
       shareReplay({ bufferSize: 1, refCount: true }),
     );
+  }
+
+  private markLogoutPendingIfNeeded(command: string): void {
+    if (isShellLogoutCommand(command)) {
+      this.shellReadiness.beginLogoutPending();
+    }
   }
 
   private writeConsoleLine(sink: TerminalConsoleSink, line: string): void {
