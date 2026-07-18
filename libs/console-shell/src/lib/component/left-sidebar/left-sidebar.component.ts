@@ -5,6 +5,7 @@ import { MatIcon } from '@angular/material/icon';
 import {
   ConsoleShellLayoutMode,
   ConsoleShellStore,
+  LEFT_PANE_WIDTH,
 } from '../../service';
 import { FileTreeFeatureComponent } from '@libs-file-manager';
 
@@ -19,9 +20,15 @@ import { FileTreeFeatureComponent } from '@libs-file-manager';
 export class LeftSidebarComponent {
   leftNavOpen = input<boolean>(true);
   layoutMode = input<ConsoleShellLayoutMode>('docked');
+  paneWidthPx = input<number>(LEFT_PANE_WIDTH.wide);
   toggleLeftSidebar = output<void>();
+  paneResizeStart = output<PointerEvent>();
 
   readonly isOverlay = computed(() => this.layoutMode() === 'overlay');
+
+  readonly overlayPaneWidth = computed(
+    () => `min(${this.paneWidthPx()}px, 85vw)`,
+  );
 
   readonly shellStore = inject(ConsoleShellStore);
   private router = inject(Router);
@@ -35,5 +42,9 @@ export class LeftSidebarComponent {
   onFileSelected(path: string): void {
     this.shellStore.setSelectedFilePath(path);
     void this.router.navigate(['editor'], { relativeTo: this.route });
+  }
+
+  onResizePointerDown(event: PointerEvent): void {
+    this.paneResizeStart.emit(event);
   }
 }
