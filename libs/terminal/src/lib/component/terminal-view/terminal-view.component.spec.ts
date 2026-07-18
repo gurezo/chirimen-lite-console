@@ -47,10 +47,11 @@ vi.mock('@xterm/addon-fit', () => ({
 }));
 import {
   PiZeroSessionService,
+  PiZeroShellReadinessService,
   SerialFacadeService,
+  TerminalCommandRequestService,
 } from '@libs-web-serial';
 import { coerceLsForSerialListing } from '../../functions';
-import { TerminalCommandRequestService } from '@libs-web-serial';
 import { TerminalViewComponent } from './terminal-view.component';
 
 describe('TerminalViewComponent', () => {
@@ -61,6 +62,7 @@ describe('TerminalViewComponent', () => {
   let terminalTextSignal: ReturnType<typeof signal<string>>;
   let isConnectedSignal: ReturnType<typeof signal<boolean>>;
   let connectionEpochSignal: ReturnType<typeof signal<number>>;
+  let logoutPendingSignal: ReturnType<typeof signal<boolean>>;
 
   function typeCommand(command: string): void {
     const terminal = fixture.componentInstance.xterminal as unknown as {
@@ -102,6 +104,7 @@ describe('TerminalViewComponent', () => {
     terminalTextSignal = signal('');
     isConnectedSignal = signal(true);
     connectionEpochSignal = signal(1);
+    logoutPendingSignal = signal(false);
     shouldRunAfterConnectMock = vi.fn(() => of(true));
     runAfterConnectMock = vi.fn(() => of(undefined));
     await TestBed.configureTestingModule({
@@ -120,6 +123,13 @@ describe('TerminalViewComponent', () => {
         useValue: {
           shouldRunAfterConnect$: shouldRunAfterConnectMock,
           runAfterConnect$: runAfterConnectMock,
+        },
+      })
+      .overrideProvider(PiZeroShellReadinessService, {
+        useValue: {
+          logoutPending: logoutPendingSignal.asReadonly(),
+          beginLogoutPending: vi.fn(() => logoutPendingSignal.set(true)),
+          clearLogoutPending: vi.fn(() => logoutPendingSignal.set(false)),
         },
       })
       .compileComponents();

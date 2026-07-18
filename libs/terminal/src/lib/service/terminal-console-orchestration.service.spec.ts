@@ -10,6 +10,7 @@ import {
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   PiZeroSessionService,
+  PiZeroShellReadinessService,
   SerialFacadeService,
 } from '@libs-web-serial';
 import { coerceLsForSerialListing } from '../functions';
@@ -18,11 +19,13 @@ import { TerminalConsoleOrchestrationService } from './terminal-console-orchestr
 describe('TerminalConsoleOrchestrationService', () => {
   let sendMock: ReturnType<typeof vi.fn>;
   let execMock: ReturnType<typeof vi.fn>;
+  let beginLogoutPending: ReturnType<typeof vi.fn>;
   let isConnectedSignal: ReturnType<typeof signal<boolean>>;
 
   beforeEach(() => {
     sendMock = vi.fn().mockReturnValue(of(undefined));
     execMock = vi.fn();
+    beginLogoutPending = vi.fn();
     isConnectedSignal = signal(true);
     TestBed.configureTestingModule({
       providers: [
@@ -44,6 +47,10 @@ describe('TerminalConsoleOrchestrationService', () => {
             runAfterConnect$: () => of(undefined),
           },
         },
+        {
+          provide: PiZeroShellReadinessService,
+          useValue: { beginLogoutPending },
+        },
       ],
     });
   });
@@ -56,6 +63,21 @@ describe('TerminalConsoleOrchestrationService', () => {
     const svc = TestBed.inject(TerminalConsoleOrchestrationService);
     await svc.runInteractiveCommand('uname');
     expect(sendMock).toHaveBeenCalledWith('uname\n');
+    expect(beginLogoutPending).not.toHaveBeenCalled();
+  });
+
+  it('marks logout pending before sending logout', async () => {
+    const svc = TestBed.inject(TerminalConsoleOrchestrationService);
+    await svc.runInteractiveCommand('logout');
+    expect(beginLogoutPending).toHaveBeenCalledTimes(1);
+    expect(sendMock).toHaveBeenCalledWith('logout\n');
+  });
+
+  it('marks logout pending before sending exit', async () => {
+    const svc = TestBed.inject(TerminalConsoleOrchestrationService);
+    await svc.runInteractiveCommand('exit');
+    expect(beginLogoutPending).toHaveBeenCalledTimes(1);
+    expect(sendMock).toHaveBeenCalledWith('exit\n');
   });
 
   it('runInteractiveCommand returns empty string (no stdout capture)', async () => {

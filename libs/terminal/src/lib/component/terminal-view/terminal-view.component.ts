@@ -12,9 +12,12 @@ import {
 import { firstValueFrom } from 'rxjs';
 import { FitAddon } from '@xterm/addon-fit';
 import { Terminal } from '@xterm/xterm';
-import { SerialFacadeService } from '@libs-web-serial';
+import {
+  PiZeroShellReadinessService,
+  SerialFacadeService,
+  TerminalCommandRequestService,
+} from '@libs-web-serial';
 import { xtermConsoleConfigOptions } from '../../functions';
-import { TerminalCommandRequestService } from '@libs-web-serial';
 import {
   TerminalConsoleOrchestrationService,
   type TerminalConsoleSink,
@@ -38,6 +41,7 @@ export class TerminalViewComponent implements AfterViewInit, OnDestroy {
 
   private console = inject(TerminalConsoleOrchestrationService);
   private serial = inject(SerialFacadeService);
+  private shellReadiness = inject(PiZeroShellReadinessService);
   private commandRequests = inject(TerminalCommandRequestService);
   private destroyRef = inject(DestroyRef);
 
@@ -60,7 +64,8 @@ export class TerminalViewComponent implements AfterViewInit, OnDestroy {
   constructor() {
     effect(() => {
       const connected = this.serial.isConnected();
-      this.serialInputEnabled = connected;
+      const logoutPending = this.shellReadiness.logoutPending();
+      this.serialInputEnabled = connected && !logoutPending;
       if (!connected) {
         this.lastTerminalText = '';
       }
