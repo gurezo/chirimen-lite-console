@@ -14,8 +14,8 @@
   <choh-monaco-editor
     class="min-h-0 min-w-0 flex-1"
     [code]="code()"
-    (codeChange)="code.set($event)"
+    (codeChange)="onCodeChange($event)"
     (editorInitialized)="onEditorInitialized($event)"
-    (contentEdited)="isDirty.set(true)"
+    (contentEdited)="onContentEdited()"
   />
 </div>
