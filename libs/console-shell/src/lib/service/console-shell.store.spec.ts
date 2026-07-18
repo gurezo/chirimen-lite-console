@@ -15,10 +15,16 @@ describe('ConsoleShellStore', () => {
     expect(store.state()).toEqual(DEFAULT_CONSOLE_SHELL_STATE);
   });
 
+  it('setFileManagerCurrentPath updates fileManagerCurrentPath', () => {
+    store.setFileManagerCurrentPath('./home/pi');
+    expect(store.fileManagerCurrentPath()).toBe('./home/pi');
+  });
+
   it('applyConnectedLayout should reset to default layout', () => {
     store.setActivePanel('editor');
     store.closeRightNav();
     store.setSelectedFilePath('/foo');
+    store.setFileManagerCurrentPath('./home/pi');
     store.openDialog('setup');
 
     store.applyConnectedLayout();
@@ -30,6 +36,7 @@ describe('ConsoleShellStore', () => {
     store.setActivePanel('example');
     store.toggleLeftNav();
     store.closeRightNav();
+    store.setFileManagerCurrentPath('./docs');
 
     store.resetLayoutAfterDisconnect();
 
