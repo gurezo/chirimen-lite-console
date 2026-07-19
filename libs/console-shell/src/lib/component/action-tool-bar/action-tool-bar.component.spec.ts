@@ -1,5 +1,7 @@
 /// <reference types="vitest/globals" />
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { MatTooltip } from '@angular/material/tooltip';
+import { By } from '@angular/platform-browser';
 import { provideRouter } from '@angular/router';
 import { ActionToolBarComponent } from './action-tool-bar.component';
 
@@ -25,7 +27,7 @@ describe('ActionToolBarComponent', () => {
 
   it('should not render toolbar action buttons when disconnected', () => {
     expect(
-      fixture.nativeElement.querySelector('button[aria-label="editor"]'),
+      fixture.nativeElement.querySelector('button[aria-label="Editor"]'),
     ).toBeNull();
   });
 
@@ -35,10 +37,23 @@ describe('ActionToolBarComponent', () => {
 
     const emitSpy = vi.spyOn(component.toolbarAction, 'emit');
     const editorButton: HTMLButtonElement | null =
-      fixture.nativeElement.querySelector('button[aria-label="editor"]');
+      fixture.nativeElement.querySelector('button[aria-label="Editor"]');
 
     editorButton?.click();
 
     expect(emitSpy).toHaveBeenCalledWith('editor');
+  });
+
+  it('should set tooltip and aria-label on action buttons when connected', () => {
+    fixture.componentRef.setInput('connected', true);
+    fixture.detectChanges();
+
+    const editorButton = fixture.debugElement.query(
+      By.css('button[aria-label="Editor"]'),
+    );
+    expect(editorButton).not.toBeNull();
+
+    const tooltip = editorButton.injector.get(MatTooltip);
+    expect(tooltip.message).toBe('Editor');
   });
 });
