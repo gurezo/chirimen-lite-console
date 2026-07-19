@@ -20,10 +20,17 @@ describe('WifiPageComponent', () => {
   const scanNetworks = vi.fn();
   const postConnectRebootRun = vi.fn().mockResolvedValue(undefined);
   const rebootFlowInProgress = signal(false);
+  const notify = {
+    success: vi.fn(),
+    error: vi.fn(),
+    warning: vi.fn(),
+    info: vi.fn(),
+  };
 
   let dialogClosed: ReturnType<typeof of>;
 
   beforeEach(async () => {
+    scanNetworks.mockClear();
     scanNetworks.mockResolvedValue({
       wifiInfos: [] as WiFiInfo[],
       rawData: [] as string[],
@@ -31,6 +38,10 @@ describe('WifiPageComponent', () => {
     dialogClosed = of(undefined);
     postConnectRebootRun.mockClear().mockResolvedValue(undefined);
     rebootFlowInProgress.set(false);
+    notify.success.mockClear();
+    notify.error.mockClear();
+    notify.warning.mockClear();
+    notify.info.mockClear();
 
     await TestBed.configureTestingModule({
       imports: [WifiPageComponent],
@@ -43,12 +54,7 @@ describe('WifiPageComponent', () => {
         },
         {
           provide: NotificationService,
-          useValue: {
-            success: vi.fn(),
-            error: vi.fn(),
-            warning: vi.fn(),
-            info: vi.fn(),
-          },
+          useValue: notify,
         },
         {
           provide: SerialFacadeService,
@@ -89,10 +95,15 @@ describe('WifiPageComponent', () => {
     fixture = TestBed.createComponent(WifiPageComponent);
     component = fixture.componentInstance;
     fixture.detectChanges();
+    await fixture.whenStable();
   });
 
   it('should create', () => {
     expect(component).toBeTruthy();
+  });
+
+  it('auto-scans networks when the page initializes', () => {
+    expect(scanNetworks).toHaveBeenCalled();
   });
 
   it('runWifiScan fills wifiInfoList when serial is connected', async () => {
@@ -222,6 +233,78 @@ describe('WifiPageComponent', () => {
     scanNetworks.mockRejectedValueOnce(new Error('scan failed'));
     await component.runWifiScan();
     expect(component.scanError()).toBe('scan failed');
+  });
+});
+
+describe('WifiPageComponent when serial is not connected', () => {
+  const scanNetworks = vi.fn();
+  const notify = {
+    success: vi.fn(),
+    error: vi.fn(),
+    warning: vi.fn(),
+    info: vi.fn(),
+  };
+
+  beforeEach(async () => {
+    TestBed.resetTestingModule();
+    scanNetworks.mockClear();
+    notify.warning.mockClear();
+
+    await TestBed.configureTestingModule({
+      imports: [WifiPageComponent],
+      providers: [
+        {
+          provide: Dialog,
+          useValue: {
+            open: vi.fn().mockReturnValue({ closed: of(undefined) }),
+          },
+        },
+        {
+          provide: NotificationService,
+          useValue: notify,
+        },
+        {
+          provide: SerialFacadeService,
+          useValue: {
+            isConnected: computed(() => false),
+          },
+        },
+        {
+          provide: WifiScanService,
+          useValue: {
+            scanNetworks,
+            getWifiStatus: vi.fn(),
+            checkChirimenTutorialReachability: vi.fn(),
+          },
+        },
+        {
+          provide: WifiRebootFlowService,
+          useValue: {
+            restartWifiService: vi.fn(),
+            rebootDevice: vi.fn(),
+          },
+        },
+        {
+          provide: WifiPostConnectRebootFlowService,
+          useValue: {
+            inProgress: signal(false).asReadonly(),
+            run: vi.fn(),
+          },
+        },
+      ],
+    }).compileComponents();
+
+    const fixture = TestBed.createComponent(WifiPageComponent);
+    fixture.detectChanges();
+    await fixture.whenStable();
+  });
+
+  it('warns and skips scan on init when serial is disconnected', () => {
+    expect(scanNetworks).not.toHaveBeenCalled();
+    expect(notify.warning).toHaveBeenCalledWith(
+      'WiFi',
+      'シリアル接続してください',
+    );
   });
 });
 
