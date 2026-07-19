@@ -1,8 +1,9 @@
 import { Component, inject, OnInit, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { DIALOG_DATA, DialogRef } from '@angular/cdk/dialog';
-import { MatButtonModule } from '@angular/material/button';
+import { MatButtonModule, MatIconButton } from '@angular/material/button';
 import { MatFormFieldModule } from '@angular/material/form-field';
+import { MatIcon } from '@angular/material/icon';
 import { MatInputModule } from '@angular/material/input';
 import { NotificationService } from '@libs-shared';
 import type { WifiConnectDialogData } from '../../models';
@@ -10,7 +11,14 @@ import { WifiConfigService } from '../../service';
 
 @Component({
   selector: 'choh-wifi-connect-dialog',
-  imports: [FormsModule, MatFormFieldModule, MatInputModule, MatButtonModule],
+  imports: [
+    FormsModule,
+    MatFormFieldModule,
+    MatInputModule,
+    MatButtonModule,
+    MatIconButton,
+    MatIcon,
+  ],
   templateUrl: './wifi-connect-dialog.component.html',
 })
 export class WifiConnectDialogComponent implements OnInit {
@@ -24,9 +32,14 @@ export class WifiConnectDialogComponent implements OnInit {
   ssid = '';
   password = '';
   readonly connecting = signal(false);
+  readonly passwordVisible = signal(false);
 
   ngOnInit(): void {
     this.ssid = this.data?.initialSsid?.trim() ?? '';
+  }
+
+  togglePasswordVisibility(): void {
+    this.passwordVisible.update((v) => !v);
   }
 
   cancel(): void {

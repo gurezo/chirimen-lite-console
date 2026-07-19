@@ -9,12 +9,27 @@
       <mat-label>パスワード</mat-label>
       <input
         matInput
-        type="password"
+        [type]="passwordVisible() ? 'text' : 'password'"
         name="password"
         [(ngModel)]="password"
         [disabled]="connecting()"
         autocomplete="off"
       />
+      <button
+        mat-icon-button
+        matSuffix
+        type="button"
+        (click)="togglePasswordVisibility()"
+        [disabled]="connecting()"
+        [attr.aria-label]="
+          passwordVisible() ? 'パスワードを隠す' : 'パスワードを表示'
+        "
+        [attr.aria-pressed]="passwordVisible()"
+      >
+        <mat-icon>{{
+          passwordVisible() ? 'visibility_off' : 'visibility'
+        }}</mat-icon>
+      </button>
     </mat-form-field>
     <div class="flex justify-end gap-2">
       <button
