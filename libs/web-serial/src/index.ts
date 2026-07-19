@@ -5,7 +5,10 @@ export type {
   CommandExecutionConfig,
   CommandResult,
 } from './lib/models';
+export type { FileContentInfo } from './lib/models/file-content.types';
 export type { SerialCommandEnqueueOptions } from './lib/service/serial-command/serial-command-pipeline.service';
+export * from './lib/service/file-content.service';
+export * from './lib/functions/file.utils';
 export * from './lib/service/pi-zero-prompt-detector.service';
 export * from './lib/service/pi-zero-session.service';
 export * from './lib/service/pi-zero-serial-bootstrap.service';

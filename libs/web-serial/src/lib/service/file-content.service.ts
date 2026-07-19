@@ -1,18 +1,15 @@
 import { Injectable, inject } from '@angular/core';
-import { SerialFacadeService } from '@libs-web-serial';
-import {
-  PI_ZERO_PROMPT,
-  SERIAL_TIMEOUT,
-  wrapSerialError,
-} from '@libs-web-serial';
 import { firstValueFrom } from 'rxjs';
-import { FileUtils } from '../functions';
-import type { FileContentInfo } from '../models';
+import { PI_ZERO_PROMPT, SERIAL_TIMEOUT } from '../constants';
+import { FileUtils } from '../functions/file.utils';
+import { wrapSerialError } from '../functions/serial-error-wrap';
+import type { FileContentInfo } from '../models/file-content.types';
+import { SerialFacadeService } from './serial-facade.service';
 
 /**
  * ファイルコンテンツサービス
  *
- * ファイルの読み書きを担当（WiFi 設定等で利用）
+ * シリアル経由でファイルの読み書きを担当
  */
 @Injectable({
   providedIn: 'root',

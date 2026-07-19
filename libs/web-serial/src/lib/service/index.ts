@@ -1,3 +1,4 @@
+export * from './file-content.service';
 export * from './pi-zero-prompt-detector.service';
 export * from './pi-zero-serial-bootstrap.service';
 export * from './pi-zero-session.service';
