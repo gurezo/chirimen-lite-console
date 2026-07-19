@@ -138,6 +138,10 @@ export class SerialTransportService {
             usbProductId: RASPBERRY_PI_ZERO_INFO.usbProductId,
           },
         ],
+        // xterm の ITheme / ANSI 色を効かせるため、表示用バッファでは ANSI を残す
+        terminalBuffer: {
+          stripAnsi: false,
+        },
       });
       this.active = session;
       this.activeSession$.next(session);
