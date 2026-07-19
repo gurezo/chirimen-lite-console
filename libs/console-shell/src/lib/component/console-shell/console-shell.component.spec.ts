@@ -6,6 +6,7 @@ import { ActivatedRoute, Router } from '@angular/router';
 import {
   PiZeroShellReadinessService,
   SerialConnectionViewModelFacade,
+  SerialExpectedDisconnectService,
   SerialNotificationService,
   type SerialConnectionViewModel,
 } from '@libs-web-serial';
@@ -63,6 +64,20 @@ function createShellReadinessMock(initialEpoch = 0) {
     logoutPendingSignal,
     clearLogoutPending: vi.fn(() => logoutPendingSignal.set(false)),
     beginLogoutPending: vi.fn(() => logoutPendingSignal.set(true)),
+  };
+}
+
+function createExpectedDisconnectMock() {
+  const rebootPendingSignal = signal(false);
+  return {
+    rebootPending: rebootPendingSignal.asReadonly(),
+    rebootPendingSignal,
+    beginRebootPending: vi.fn(() => rebootPendingSignal.set(true)),
+    clearRebootPending: vi.fn(() => rebootPendingSignal.set(false)),
+    beginExpectedDisconnect: vi.fn(),
+    clearExpectedDisconnect: vi.fn(),
+    isExpectedDisconnect: vi.fn(() => false),
+    reason: signal(null).asReadonly(),
   };
 }
 
@@ -131,6 +146,7 @@ describe('ConsoleShellComponent', () => {
   let vmSignal: ReturnType<typeof signal<SerialConnectionViewModel>>;
   let logoutCompletedEpochSignal: ReturnType<typeof signal<number>>;
   let logoutPendingSignal: ReturnType<typeof signal<boolean>>;
+  let rebootPendingSignal: ReturnType<typeof signal<boolean>>;
   let openDialog: ReturnType<typeof vi.fn>;
   let closeAllDialog: ReturnType<typeof vi.fn>;
   let setActivePanel: ReturnType<typeof vi.fn>;
@@ -152,9 +168,11 @@ describe('ConsoleShellComponent', () => {
 
     const { facade, vmSignal: vm } = createConnectionFacadeMock(false);
     const shellReadiness = createShellReadinessMock();
+    const expectedDisconnect = createExpectedDisconnectMock();
     vmSignal = vm;
     logoutCompletedEpochSignal = shellReadiness.logoutCompletedEpochSignal;
     logoutPendingSignal = shellReadiness.logoutPendingSignal;
+    rebootPendingSignal = expectedDisconnect.rebootPendingSignal;
     connect = facade.connect;
     disconnect = facade.disconnect;
     sendCommand = facade.sendCommand;
@@ -187,6 +205,10 @@ describe('ConsoleShellComponent', () => {
         {
           provide: PiZeroShellReadinessService,
           useValue: shellReadiness,
+        },
+        {
+          provide: SerialExpectedDisconnectService,
+          useValue: expectedDisconnect,
         },
         {
           provide: SerialNotificationService,
@@ -262,6 +284,18 @@ describe('ConsoleShellComponent', () => {
     vmSignal.set(vmDefaults({ isConnected: true }));
     TestBed.flushEffects();
     logoutPendingSignal.set(true);
+    TestBed.flushEffects();
+    disconnect.mockClear();
+
+    component.onDisConnect();
+
+    expect(disconnect).not.toHaveBeenCalled();
+  });
+
+  it('does not disconnect when onDisConnect is called while rebootPending', () => {
+    vmSignal.set(vmDefaults({ isConnected: true }));
+    TestBed.flushEffects();
+    rebootPendingSignal.set(true);
     TestBed.flushEffects();
     disconnect.mockClear();
 
@@ -433,6 +467,37 @@ describe('ConsoleShellComponent', () => {
     expect(navigateSpy).not.toHaveBeenCalled();
   });
 
+  it('shows a blocking reboot loader while rebootPending is true', () => {
+    vmSignal.set(vmDefaults({ isConnected: true }));
+    fixture.detectChanges();
+
+    expect(
+      fixture.nativeElement.querySelector('[aria-label="再起動処理中"]'),
+    ).toBeNull();
+
+    rebootPendingSignal.set(true);
+    fixture.detectChanges();
+
+    const overlay = fixture.nativeElement.querySelector(
+      '[aria-label="再起動処理中"]',
+    ) as HTMLElement | null;
+    expect(overlay).toBeTruthy();
+    expect(overlay?.textContent).toContain('再起動処理中');
+    expect(fixture.nativeElement.querySelector('mat-progress-spinner')).toBeTruthy();
+  });
+
+  it('blocks toolbar actions while rebootPending is true', () => {
+    vmSignal.set(vmDefaults({ isConnected: true }));
+    TestBed.flushEffects();
+    rebootPendingSignal.set(true);
+    TestBed.flushEffects();
+    navigateSpy.mockClear();
+
+    component.onToolbarAction('editor');
+
+    expect(navigateSpy).not.toHaveBeenCalled();
+  });
+
   it('shows a blocking connect loader while isConnecting is true', () => {
     expect(
       fixture.nativeElement.querySelector('[aria-label="オートログイン中"]'),
@@ -537,6 +602,10 @@ describe('ConsoleShellComponent gridTemplateColumns when right nav closed', () =
           useValue: createShellReadinessMock(),
         },
         {
+          provide: SerialExpectedDisconnectService,
+          useValue: createExpectedDisconnectMock(),
+        },
+        {
           provide: SerialNotificationService,
           useValue: {
             notifyLogoutDetected: vi.fn(),
@@ -627,6 +696,10 @@ describe('ConsoleShellComponent responsive layout', () => {
         {
           provide: PiZeroShellReadinessService,
           useValue: createShellReadinessMock(),
+        },
+        {
+          provide: SerialExpectedDisconnectService,
+          useValue: createExpectedDisconnectMock(),
         },
         {
           provide: SerialNotificationService,
@@ -799,6 +872,10 @@ describe('ConsoleShellComponent layout DOM (connected vs disconnected)', () => {
         {
           provide: PiZeroShellReadinessService,
           useValue: createShellReadinessMock(),
+        },
+        {
+          provide: SerialExpectedDisconnectService,
+          useValue: createExpectedDisconnectMock(),
         },
         {
           provide: SerialNotificationService,

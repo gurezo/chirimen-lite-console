@@ -31,6 +31,7 @@ import { RemotePageComponent } from '@libs-remote';
 import {
   PiZeroShellReadinessService,
   SerialConnectionViewModelFacade,
+  SerialExpectedDisconnectService,
   SerialNotificationService,
 } from '@libs-web-serial';
 import { DialogService } from '@libs-dialogs';
@@ -61,6 +62,7 @@ export class ConsoleShellComponent implements OnInit, OnDestroy {
 
   private connectionVm = inject(SerialConnectionViewModelFacade);
   private shellReadiness = inject(PiZeroShellReadinessService);
+  private expectedDisconnect = inject(SerialExpectedDisconnectService);
   private notifications = inject(SerialNotificationService);
   private shellStore = inject(ConsoleShellStore);
   private dialogService = inject(DialogService);
@@ -73,6 +75,11 @@ export class ConsoleShellComponent implements OnInit, OnDestroy {
 
   /** logout / exit 送信後〜切断完了までの入力ブロック用ローダー。 */
   readonly logoutPending = this.shellReadiness.logoutPending;
+
+  /**
+   * デバイス再起動コマンド〜切断クリーンアップ完了までの入力ブロック用ローダー（#754）。
+   */
+  readonly rebootPending = this.expectedDisconnect.rebootPending;
 
   /**
    * Web Serial 接続〜シェル準備完了までの入力ブロック用ローダー（issue #755）。
@@ -280,6 +287,7 @@ export class ConsoleShellComponent implements OnInit, OnDestroy {
     if (
       this.logoutDisconnectInFlight ||
       this.logoutPending() ||
+      this.rebootPending() ||
       this.connectionBusy() ||
       !this.connectionVm.vm().isConnected
     ) {
@@ -360,7 +368,7 @@ export class ConsoleShellComponent implements OnInit, OnDestroy {
   }
 
   onToolbarAction(action: ToolbarAction): void {
-    if (this.logoutPending() || this.connectionBusy()) {
+    if (this.logoutPending() || this.rebootPending() || this.connectionBusy()) {
       return;
     }
 
