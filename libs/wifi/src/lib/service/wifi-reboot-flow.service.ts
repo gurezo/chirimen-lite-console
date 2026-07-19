@@ -7,6 +7,9 @@ import {
 } from '@libs-web-serial';
 import { firstValueFrom } from 'rxjs';
 
+/** デバイス再起動コマンドの結果（#732）。 */
+export type WifiRebootDeviceResult = 'ok' | 'failed';
+
 /**
  * WiFi 再起動・有効/無効のフローを担当
  */
@@ -64,9 +67,12 @@ export class WifiRebootFlowService {
   }
 
   /**
-   * デバイスを再起動（プロンプトが返らない場合があるため短めのタイムアウト）
+   * デバイスを再起動する。
+   *
+   * 再起動でシリアルが切れるとタイムアウトや切断エラーになり得る。
+   * 切断されていれば成功、接続が残っていればコマンド失敗とみなす。
    */
-  async rebootDevice(): Promise<void> {
+  async rebootDevice(): Promise<WifiRebootDeviceResult> {
     try {
       await firstValueFrom(this.serial.exec$('sudo reboot', {
         prompt: PI_ZERO_PROMPT,
@@ -75,5 +81,10 @@ export class WifiRebootFlowService {
     } catch {
       // 再起動でシリアルが切れるとタイムアウトや切断エラーになり得る
     }
+
+    if (!this.serial.isConnected()) {
+      return 'ok';
+    }
+    return 'failed';
   }
 }

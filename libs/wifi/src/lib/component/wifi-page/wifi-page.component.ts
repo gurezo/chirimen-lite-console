@@ -1,5 +1,5 @@
 import { Dialog } from '@angular/cdk/dialog';
-import { Component, inject, signal } from '@angular/core';
+import { Component, computed, inject, signal } from '@angular/core';
 import { MatDividerModule } from '@angular/material/divider';
 import { ConfirmDialogComponent } from '@libs-dialogs';
 import type { WiFiInfo } from '@libs-shared';
@@ -8,7 +8,11 @@ import { SerialFacadeService } from '@libs-web-serial';
 import { firstValueFrom } from 'rxjs';
 import { parseConnectedSsid } from '../../functions';
 import type { WifiConnectDialogData } from '../../models';
-import { WifiRebootFlowService, WifiScanService } from '../../service';
+import {
+  WifiPostConnectRebootFlowService,
+  WifiRebootFlowService,
+  WifiScanService,
+} from '../../service';
 import { WifiConnectDialogComponent } from '../wifi-connect-dialog/wifi-connect-dialog.component';
 import { WifiListComponent } from '../wifi-list/wifi-list.component';
 
@@ -38,6 +42,12 @@ export class WifiPageComponent {
   private readonly serial = inject(SerialFacadeService);
   private readonly wifiScan = inject(WifiScanService);
   private readonly wifiReboot = inject(WifiRebootFlowService);
+  private readonly postConnectReboot = inject(WifiPostConnectRebootFlowService);
+
+  /** 通常アクションまたは再起動フロー中は操作をロックする（#732）。 */
+  readonly busy = computed(
+    () => this.actionInProgress() || this.postConnectReboot.inProgress(),
+  );
 
   private async ensureSerial(): Promise<boolean> {
     const ok = this.serial.isConnected();
@@ -94,6 +104,9 @@ export class WifiPageComponent {
       const ok = await firstValueFrom(ref.closed);
       if (ok) {
         await this.refreshAfterConnect();
+        await this.postConnectReboot.run({
+          afterReconnect: () => this.refreshAfterConnect(),
+        });
       }
     })();
   }
@@ -187,28 +200,9 @@ export class WifiPageComponent {
     if (!(await this.ensureSerial())) {
       return;
     }
-    const ref = this.dialog.open(ConfirmDialogComponent, {
-      data: {
-        title: 'デバイスを再起動',
-        message: 'シリアル接続が切れる場合があります。続行しますか？',
-        confirmLabel: '再起動',
-        cancelLabel: 'キャンセル',
-      },
+    await this.postConnectReboot.run({
+      afterReconnect: () => this.refreshAfterConnect(),
     });
-    const confirmed = await firstValueFrom(ref.closed);
-    if (!confirmed) {
-      return;
-    }
-    this.actionInProgress.set(true);
-    try {
-      await this.wifiReboot.rebootDevice();
-      this.notify.info('WiFi', '再起動を送信しました');
-    } catch (e: unknown) {
-      const msg = e instanceof Error ? e.message : '再起動に失敗しました';
-      this.notify.error('WiFi', msg);
-    } finally {
-      this.actionInProgress.set(false);
-    }
   }
 
   async checkConnectivity(): Promise<void> {
