@@ -1,0 +1,31 @@
+<div
+  class="flex min-w-[280px] flex-col gap-4 rounded-lg bg-white p-4 text-gray-900 shadow-lg"
+>
+  <h2 class="m-0 text-lg font-medium">{{ title }}</h2>
+  <form
+    class="flex flex-col gap-3"
+    (ngSubmit)="$event.preventDefault(); submit()"
+  >
+    <mat-form-field appearance="outline">
+      <mat-label>{{ label }}</mat-label>
+      <input
+        matInput
+        name="fileName"
+        [(ngModel)]="name"
+        autocomplete="off"
+        (input)="validationError.set(null)"
+      />
+    </mat-form-field>
+    @if (validationError(); as err) {
+      <p class="m-0 text-sm text-red-700" role="alert">{{ err }}</p>
+    }
+    <div class="flex justify-end gap-2">
+      <button mat-stroked-button type="button" (click)="cancel()">
+        キャンセル
+      </button>
+      <button mat-flat-button color="primary" type="submit">
+        {{ confirmLabel }}
+      </button>
+    </div>
+  </form>
+</div>
