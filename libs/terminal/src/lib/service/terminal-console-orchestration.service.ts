@@ -34,11 +34,18 @@ export class TerminalConsoleOrchestrationService {
   readonly isConnected = this.serial.isConnected;
   readonly connectionEpoch = this.serial.connectionEpoch;
 
-  async runInteractiveCommand(command: string): Promise<string> {
+  /**
+   * 対話キーストロークをそのままシリアルへ送る（表示は terminalText 側）。
+   */
+  sendInteractiveData(data: string): void {
+    void firstValueFrom(this.serial.send$(data));
+  }
+
+  /**
+   * Enter 確定時の副作用のみ（logout 検知など）。行内容の再送はしない。
+   */
+  notifyInteractiveCommand(command: string): void {
     this.markLogoutPendingIfNeeded(command);
-    const payload = `${coerceLsForSerialListing(command)}\n`;
-    await firstValueFrom(this.serial.send$(payload));
-    return '';
   }
 
   async runToolbarCommand(cmd: string): Promise<
