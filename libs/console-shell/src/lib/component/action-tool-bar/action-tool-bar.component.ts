@@ -22,12 +22,12 @@ export class ActionToolBarComponent {
   toolbarAction = output<ToolbarAction>();
 
   readonly toolbarActions = [
-    { name: 'terminal', icon: 'terminal', tooltip: 'Terminal' },
+    { name: 'terminal', icon: 'terminal', tooltip: 'ターミナル' },
     { name: 'wifi', icon: 'signal_wifi_4_bar', tooltip: 'WiFi' },
-    { name: 'editor', icon: 'text_ad', tooltip: 'Editor' },
-    { name: 'example', icon: 'javascript', tooltip: 'Example' },
+    { name: 'editor', icon: 'text_ad', tooltip: 'エディター' },
+    { name: 'example', icon: 'javascript', tooltip: 'サンプル' },
     { name: 'i2c', icon: 'lan', tooltip: 'I2C' },
-    { name: 'setup', icon: 'settings', tooltip: 'Setup' },
-    { name: 'remote', icon: 'sync', tooltip: 'Remote' },
+    { name: 'setup', icon: 'settings', tooltip: 'セットアップ' },
+    { name: 'remote', icon: 'sync', tooltip: 'リモート' },
   ] as const;
 }

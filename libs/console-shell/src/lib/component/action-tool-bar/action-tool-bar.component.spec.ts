@@ -27,7 +27,7 @@ describe('ActionToolBarComponent', () => {
 
   it('should not render toolbar action buttons when disconnected', () => {
     expect(
-      fixture.nativeElement.querySelector('button[aria-label="Editor"]'),
+      fixture.nativeElement.querySelector('button[aria-label="エディター"]'),
     ).toBeNull();
   });
 
@@ -37,7 +37,7 @@ describe('ActionToolBarComponent', () => {
 
     const emitSpy = vi.spyOn(component.toolbarAction, 'emit');
     const editorButton: HTMLButtonElement | null =
-      fixture.nativeElement.querySelector('button[aria-label="Editor"]');
+      fixture.nativeElement.querySelector('button[aria-label="エディター"]');
 
     editorButton?.click();
 
@@ -49,11 +49,11 @@ describe('ActionToolBarComponent', () => {
     fixture.detectChanges();
 
     const editorButton = fixture.debugElement.query(
-      By.css('button[aria-label="Editor"]'),
+      By.css('button[aria-label="エディター"]'),
     );
     expect(editorButton).not.toBeNull();
 
     const tooltip = editorButton.injector.get(MatTooltip);
-    expect(tooltip.message).toBe('Editor');
+    expect(tooltip.message).toBe('エディター');
   });
 });
