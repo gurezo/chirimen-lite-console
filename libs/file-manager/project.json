@@ -10,7 +10,6 @@
   ],
   "implicitDependencies": [
     "libs-web-serial",
-    "libs-wifi",
     "libs-dialogs"
   ],
   "targets": {
