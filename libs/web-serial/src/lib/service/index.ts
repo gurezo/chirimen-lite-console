@@ -7,6 +7,7 @@ export * from './serial-command/serial-command-pipeline.service';
 export * from './serial-command/serial-prompt-match';
 export * from './serial-connection-orchestration.service';
 export * from './serial-connection-view-model.facade';
+export * from './serial-expected-disconnect.service';
 export * from './serial-facade.service';
 export * from './serial-notification.service';
 export * from './serial-transport.service';

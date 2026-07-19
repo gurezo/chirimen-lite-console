@@ -1,12 +1,16 @@
 /** Full rewrite (#606). Toasts only; I/O stays in {@link SerialFacadeService}. */
 import { inject, Injectable } from '@angular/core';
 import { ToastrService } from 'ngx-toastr';
+import { SerialExpectedDisconnectService } from './serial-expected-disconnect.service';
 
 @Injectable({
   providedIn: 'root',
 })
 export class SerialNotificationService {
   private toastr = inject(ToastrService);
+  private readonly expectedDisconnect = inject(
+    SerialExpectedDisconnectService,
+  );
 
   /**
    * Web Serial接続成功時の通知
@@ -22,6 +26,10 @@ export class SerialNotificationService {
    * @param errorMessage エラーメッセージ
    */
   notifyConnectionError(errorMessage: string): void {
+    // 再起動など意図した切断中はエラー扱いしない（#732）
+    if (this.expectedDisconnect.isExpectedDisconnect()) {
+      return;
+    }
     this.toastr.error(
       `Web Serial接続エラー: ${errorMessage}`,
       '接続エラー',

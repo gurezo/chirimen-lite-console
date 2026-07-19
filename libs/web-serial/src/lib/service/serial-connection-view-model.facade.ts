@@ -14,6 +14,7 @@ import { firstValueFrom } from 'rxjs';
 import { PiZeroSessionService } from './pi-zero-session.service';
 import { PiZeroShellReadinessService } from './pi-zero-shell-readiness.service';
 import type { SerialSetupStatus } from '../models';
+import { SerialExpectedDisconnectService } from './serial-expected-disconnect.service';
 import { SerialFacadeService } from './serial-facade.service';
 import { SerialNotificationService } from './serial-notification.service';
 
@@ -46,6 +47,9 @@ export class SerialConnectionViewModelFacade {
   private readonly piZero = inject(PiZeroSessionService);
   private readonly shellReadiness = inject(PiZeroShellReadinessService);
   private readonly notifications = inject(SerialNotificationService);
+  private readonly expectedDisconnect = inject(
+    SerialExpectedDisconnectService,
+  );
   private readonly terminalCommandRequests = inject(
     TerminalCommandRequestService,
   );
@@ -118,6 +122,8 @@ export class SerialConnectionViewModelFacade {
       const result = await firstValueFrom(this.serial.connect$(baudRate));
       if (result.ok) {
         this.errorMessageSignal.set(null);
+        // 再接続成功で想定切断フラグを解除（#732）
+        this.expectedDisconnect.clearExpectedDisconnect();
         this.notifications.notifyConnectionSuccess();
       } else {
         this.errorMessageSignal.set(result.errorMessage);
