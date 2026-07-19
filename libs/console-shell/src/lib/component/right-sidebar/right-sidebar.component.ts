@@ -5,7 +5,7 @@ import { PinAssignComponent } from '@libs-pin-assign-panel';
 import {
   ConsoleShellLayoutMode,
   RIGHT_DIAGRAM_WIDTH,
-} from '../../service';
+} from '@libs-shared';
 
 @Component({
   selector: 'lib-right-sidebar',

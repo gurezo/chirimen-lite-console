@@ -10,7 +10,7 @@ import {
 import { signal } from '@angular/core';
 import { EMPTY } from 'rxjs';
 import { LeftSidebarComponent } from './left-sidebar.component';
-import { ConsoleShellStore } from '../../service';
+import { ConsoleShellStore } from '@libs-shared';
 
 const baseVm: SerialConnectionViewModel = {
   isBrowserSupported: true,

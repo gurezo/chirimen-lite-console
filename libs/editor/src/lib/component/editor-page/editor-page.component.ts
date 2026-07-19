@@ -6,7 +6,7 @@ import {
   OnInit,
   signal,
 } from '@angular/core';
-import { ConsoleShellStore } from '@libs-console-shell';
+import { ConsoleShellStore } from '@libs-shared';
 import type { editor } from 'monaco-editor';
 import { EditorDraftService, EditorService } from '../../service';
 import { EditorToolbarComponent } from '../editor-toolbar/editor-toolbar.component';

@@ -1,4 +1,4 @@
-import type { ConsoleShellState } from '../service';
+import type { ConsoleShellState } from '@libs-shared';
 
 export interface BreadcrumbSegment {
   label: string;
