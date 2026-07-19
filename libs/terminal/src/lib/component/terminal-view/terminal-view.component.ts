@@ -14,6 +14,7 @@ import { FitAddon } from '@xterm/addon-fit';
 import { Terminal } from '@xterm/xterm';
 import {
   PiZeroShellReadinessService,
+  SerialConnectionViewModelFacade,
   SerialFacadeService,
   TerminalCommandRequestService,
 } from '@libs-web-serial';
@@ -42,6 +43,7 @@ export class TerminalViewComponent implements AfterViewInit, OnDestroy {
   private console = inject(TerminalConsoleOrchestrationService);
   private serial = inject(SerialFacadeService);
   private shellReadiness = inject(PiZeroShellReadinessService);
+  private connectionVm = inject(SerialConnectionViewModelFacade);
   private commandRequests = inject(TerminalCommandRequestService);
   private destroyRef = inject(DestroyRef);
 
@@ -65,7 +67,12 @@ export class TerminalViewComponent implements AfterViewInit, OnDestroy {
     effect(() => {
       const connected = this.serial.isConnected();
       const logoutPending = this.shellReadiness.logoutPending();
-      this.serialInputEnabled = connected && !logoutPending;
+      const vm = this.connectionVm.vm();
+      const connectionBusy =
+        vm.isConnecting ||
+        (vm.isConnected && !vm.isLoggedIn && vm.setupStatus !== 'failed');
+      this.serialInputEnabled =
+        connected && !logoutPending && !connectionBusy;
       if (!connected) {
         this.lastTerminalText = '';
       }

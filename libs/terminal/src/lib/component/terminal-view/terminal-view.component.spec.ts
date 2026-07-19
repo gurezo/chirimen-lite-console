@@ -48,8 +48,10 @@ vi.mock('@xterm/addon-fit', () => ({
 import {
   PiZeroSessionService,
   PiZeroShellReadinessService,
+  SerialConnectionViewModelFacade,
   SerialFacadeService,
   TerminalCommandRequestService,
+  type SerialConnectionViewModel,
 } from '@libs-web-serial';
 import { coerceLsForSerialListing } from '../../functions';
 import { TerminalViewComponent } from './terminal-view.component';
@@ -63,6 +65,22 @@ describe('TerminalViewComponent', () => {
   let isConnectedSignal: ReturnType<typeof signal<boolean>>;
   let connectionEpochSignal: ReturnType<typeof signal<number>>;
   let logoutPendingSignal: ReturnType<typeof signal<boolean>>;
+  let connectionVmSignal: ReturnType<typeof signal<SerialConnectionViewModel>>;
+
+  function vmDefaults(
+    overrides: Partial<SerialConnectionViewModel> = {},
+  ): SerialConnectionViewModel {
+    return {
+      isBrowserSupported: true,
+      isConnected: true,
+      isConnecting: false,
+      isLoggedIn: true,
+      isInitializing: false,
+      setupStatus: 'ready',
+      errorMessage: null,
+      ...overrides,
+    };
+  }
 
   function typeCommand(command: string): void {
     const terminal = fixture.componentInstance.xterminal as unknown as {
@@ -105,6 +123,7 @@ describe('TerminalViewComponent', () => {
     isConnectedSignal = signal(true);
     connectionEpochSignal = signal(1);
     logoutPendingSignal = signal(false);
+    connectionVmSignal = signal(vmDefaults());
     shouldRunAfterConnectMock = vi.fn(() => of(true));
     runAfterConnectMock = vi.fn(() => of(undefined));
     await TestBed.configureTestingModule({
@@ -130,6 +149,11 @@ describe('TerminalViewComponent', () => {
           logoutPending: logoutPendingSignal.asReadonly(),
           beginLogoutPending: vi.fn(() => logoutPendingSignal.set(true)),
           clearLogoutPending: vi.fn(() => logoutPendingSignal.set(false)),
+        },
+      })
+      .overrideProvider(SerialConnectionViewModelFacade, {
+        useValue: {
+          vm: computed(() => connectionVmSignal()),
         },
       })
       .compileComponents();
