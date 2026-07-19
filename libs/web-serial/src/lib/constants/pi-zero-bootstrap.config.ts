@@ -26,6 +26,11 @@ export const PI_ZERO_TZ_ENV = PI_ZERO_TIMEZONE;
 export const PI_ZERO_ENVIRONMENT_STEPS: readonly PiZeroEnvironmentStep[] = [
   {
     statusMessage:
+      '[コンソール] 端末種別 TERM=xterm-256color を設定しています...',
+    command: 'export TERM=xterm-256color',
+  },
+  {
+    statusMessage:
       `[コンソール] 言語環境変数 LANG=${PI_ZERO_LANG} / LC_ALL=${PI_ZERO_LC_ALL} を設定しています...`,
     command: `export LANG=${PI_ZERO_LANG} LC_ALL=${PI_ZERO_LC_ALL}`,
   },

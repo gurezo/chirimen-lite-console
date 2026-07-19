@@ -44,7 +44,7 @@ describe('PiZeroSerialBootstrapService', () => {
     expect(send$).toHaveBeenCalledWith(`${PI_ZERO_LOGIN_USER}\r\n`);
     expect(send$).toHaveBeenCalledWith(`${PI_ZERO_LOGIN_PASSWORD}\r\n`);
     expect(logs.some((l) => l.includes('シェルプロンプトを待機中'))).toBe(true);
-    expect(exec).toHaveBeenCalledTimes(6); // environment setup steps
+    expect(exec).toHaveBeenCalledTimes(7); // environment setup steps
   });
 
   it('skips login send when shell already visible after flush', async () => {

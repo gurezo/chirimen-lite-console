@@ -28,7 +28,8 @@ vi.mock('@gurezo/web-serial-rxjs', async (importOriginal) => {
     await importOriginal<typeof import('@gurezo/web-serial-rxjs')>();
   return {
     ...actual,
-    createSerialSession: () => mockCreateSerialSession(),
+    createSerialSession: (...args: unknown[]) =>
+      mockCreateSerialSession(...args),
   };
 });
 
@@ -105,6 +106,20 @@ describe('SerialTransportService', () => {
     expect(service.isConnected()).toBe(true);
     expect(service.getPortInfo()).toEqual(portInfo);
     expect(session.connect$).toHaveBeenCalledTimes(1);
+  });
+
+  it('creates session with stripAnsi disabled so xterm can render colors', async () => {
+    mockCreateSerialSession.mockReturnValue(
+      buildMockSession({} as SerialPortInfo),
+    );
+
+    await firstValueFrom(service.connect$());
+
+    expect(mockCreateSerialSession).toHaveBeenCalledWith(
+      expect.objectContaining({
+        terminalBuffer: { stripAnsi: false },
+      }),
+    );
   });
 
   it('should clear session and return to idle after disconnect', async () => {

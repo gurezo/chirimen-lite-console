@@ -368,11 +368,12 @@ describe('PiZeroSessionService', () => {
       const service = createSession(serial, createShellReadinessMock());
       await firstValueFrom(service.setupEnvironment$());
 
-      expect(exec).toHaveBeenCalledTimes(6);
-      expect(exec.mock.calls[0]?.[0]).toContain('export LANG=');
-      expect(exec.mock.calls[2]?.[0]).toContain('timedatectl set-timezone');
-      expect(exec.mock.calls[3]?.[0]).toBe('timedatectl status');
-      expect(exec.mock.calls[4]?.[0]).toContain('export TZ=');
+      expect(exec).toHaveBeenCalledTimes(7);
+      expect(exec.mock.calls[0]?.[0]).toBe('export TERM=xterm-256color');
+      expect(exec.mock.calls[1]?.[0]).toContain('export LANG=');
+      expect(exec.mock.calls[3]?.[0]).toContain('timedatectl set-timezone');
+      expect(exec.mock.calls[4]?.[0]).toBe('timedatectl status');
+      expect(exec.mock.calls[5]?.[0]).toContain('export TZ=');
     });
   });
 
