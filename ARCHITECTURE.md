@@ -32,15 +32,39 @@
 | 基盤 | web-serial | Web Serial API のラップ・状態管理 |
 | その他 | page-not-found, unsupported-browser | 404・非対応ブラウザ表示 |
 
+現行のプロジェクト一覧は `pnpm nx show projects` で確認できる。
+
 ## Web Serial と外部ライブラリの境界
 
 汎用パッケージ [@gurezo/web-serial-rxjs](https://www.npmjs.com/package/@gurezo/web-serial-rxjs) と本リポジトリの役割分担、`terminalText$` / `lines$` を中心とした受信ストリームの使い分け、新機能の置き場所の目安は [docs/serial-architecture.md](docs/serial-architecture.md) を参照する。実装レイヤの詳細は [libs/web-serial/README.md](libs/web-serial/README.md) にある。
 
 ## 依存関係
 
+![Nx project dependency graph](graph.png)
+
+`npx nx graph` で生成したプロジェクト依存関係グラフ。アプリ・shell・feature・共有 lib の関係を示す。
+
+層構造の目安:
+
+- **アプリ** (`apps/console`) → `console-shell`、画面系（`page-not-found` / `unsupported-browser`）、必要に応じて `shared`
+- **シェル** (`console-shell`) → 各 feature lib（多くは lazy route 向けの `implicitDependencies`）
+- **feature**（`example` / `wifi` / `editor` / `file-manager` / `terminal` / `remote` / `pin-assign-panel` など）→ `shared` や `web-serial` などの共有・基盤層
+- **セットアップ系**: `chirimen-setup` → `connect` など、接続フローに沿った依存チェーン
+
+その他:
+
 - アプリ (`apps/console`) は必要な lib を `tsconfig.base.json` の path エイリアス（`@libs-<domain>`）でインポートする。
 - lib 間の依存は Nx の `project.json` の `implicitDependencies` とビルド順で管理される。
 - 詳細な path 一覧は `tsconfig.base.json` の `compilerOptions.paths` を参照。
+
+### グラフの再生成
+
+構成が大きく変わったときは、次の手順で `graph.png` を差し替える。
+
+1. `npx nx graph` でプロジェクトグラフを開く
+2. 画像としてエクスポートする
+3. リポジトリルートの `graph.png` を上書きする
+4. 本ファイルの説明がグラフとずれていれば合わせて更新する
 
 ## ビルド・テスト
 
