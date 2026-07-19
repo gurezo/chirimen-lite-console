@@ -23,4 +23,31 @@ describe('SerialExpectedDisconnectService', () => {
     expect(service.isExpectedDisconnect()).toBe(false);
     expect(service.reason()).toBeNull();
   });
+
+  it('beginRebootPending and clearRebootPending toggle ui block flag', () => {
+    const service = new SerialExpectedDisconnectService();
+
+    expect(service.rebootPending()).toBe(false);
+
+    service.beginRebootPending();
+    expect(service.rebootPending()).toBe(true);
+
+    service.clearRebootPending();
+    expect(service.rebootPending()).toBe(false);
+  });
+
+  it('rebootPending is independent from expected disconnect reason', () => {
+    const service = new SerialExpectedDisconnectService();
+
+    service.beginExpectedDisconnect('reboot');
+    expect(service.rebootPending()).toBe(false);
+
+    service.beginRebootPending();
+    service.clearExpectedDisconnect();
+    expect(service.rebootPending()).toBe(true);
+    expect(service.isExpectedDisconnect()).toBe(false);
+
+    service.clearRebootPending();
+    expect(service.rebootPending()).toBe(false);
+  });
 });
