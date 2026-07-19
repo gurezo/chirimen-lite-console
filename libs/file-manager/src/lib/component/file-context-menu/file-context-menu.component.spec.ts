@@ -18,7 +18,17 @@ describe('FileContextMenuComponent', () => {
 
   function menuLabels(): string[] {
     return Array.from(
-      document.querySelectorAll('.mat-mdc-menu-panel button[mat-menu-item]'),
+      document.querySelectorAll(
+        '.mat-mdc-menu-panel button[mat-menu-item] > span',
+      ),
+    ).map((el) => (el as HTMLElement).textContent?.trim() ?? '');
+  }
+
+  function menuIcons(): string[] {
+    return Array.from(
+      document.querySelectorAll(
+        '.mat-mdc-menu-panel button[mat-menu-item] mat-icon',
+      ),
     ).map((el) => (el as HTMLElement).textContent?.trim() ?? '');
   }
 
@@ -44,6 +54,12 @@ describe('FileContextMenuComponent', () => {
       '新規ディレクトリ',
       '名前変更',
       '削除',
+    ]);
+    expect(menuIcons()).toEqual([
+      'note_add',
+      'create_new_folder',
+      'drive_file_rename_outline',
+      'delete',
     ]);
   });
 
@@ -75,6 +91,7 @@ describe('FileContextMenuComponent', () => {
     await openMenu();
 
     expect(menuLabels()).toEqual(['新規ファイル', '新規ディレクトリ']);
+    expect(menuIcons()).toEqual(['note_add', 'create_new_folder']);
   });
 
   it('emits menuAction when an item is selected', () => {

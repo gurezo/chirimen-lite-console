@@ -4,13 +4,14 @@ import {
   output,
   viewChild,
 } from '@angular/core';
+import { MatIcon } from '@angular/material/icon';
 import { MatMenu, MatMenuItem, MatMenuTrigger } from '@angular/material/menu';
 import type { FileContextMenuAction } from '../../models/file-context-menu.types';
 import type { FileTreeNode } from '../../models/file-tree.model';
 
 @Component({
   selector: 'lib-file-context-menu',
-  imports: [MatMenu, MatMenuItem, MatMenuTrigger],
+  imports: [MatIcon, MatMenu, MatMenuItem, MatMenuTrigger],
   templateUrl: './file-context-menu.component.html',
 })
 export class FileContextMenuComponent {
