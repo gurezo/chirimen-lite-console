@@ -16,13 +16,43 @@ export interface ConfirmDialogData {
   styles: [
     `
       .dialog-content {
-        padding: 1rem;
+        min-width: 280px;
+        max-width: 100%;
+        padding: 1.25rem 1.5rem;
+        background: #fff;
+        color: rgba(0, 0, 0, 0.87);
+        border-radius: 8px;
+        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.18);
+      }
+      .dialog-content h2 {
+        margin: 0 0 0.75rem;
+        font-size: 1.125rem;
+        font-weight: 500;
+        line-height: 1.4;
+      }
+      .dialog-content p {
+        margin: 0;
+        white-space: pre-wrap;
+        word-break: break-word;
+        line-height: 1.5;
       }
       .dialog-actions {
         display: flex;
         gap: 0.5rem;
-        margin-top: 1rem;
+        margin-top: 1.25rem;
         justify-content: flex-end;
+      }
+      .dialog-actions button {
+        padding: 0.4rem 0.85rem;
+        border: 1px solid rgba(0, 0, 0, 0.24);
+        border-radius: 4px;
+        background: #fff;
+        color: inherit;
+        cursor: pointer;
+        font: inherit;
+      }
+      .dialog-actions button:hover {
+        background: rgba(0, 0, 0, 0.04);
       }
     `,
   ],
