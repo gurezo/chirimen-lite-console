@@ -3,6 +3,7 @@ import { Dialog } from '@angular/cdk/dialog';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { of, Subject } from 'rxjs';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { ConfirmDialogComponent } from '@libs-dialogs';
 import { NotificationService } from '@libs-shared';
 import {
   WifiPostConnectRebootFlowService,
@@ -18,6 +19,7 @@ describe('WifiPageComponent', () => {
   let fixture: ComponentFixture<WifiPageComponent>;
 
   const scanNetworks = vi.fn();
+  const restartWifiService = vi.fn().mockResolvedValue(undefined);
   const postConnectRebootRun = vi.fn().mockResolvedValue(undefined);
   const rebootFlowInProgress = signal(false);
   const notify = {
@@ -36,6 +38,7 @@ describe('WifiPageComponent', () => {
       rawData: [] as string[],
     });
     dialogClosed = of(undefined);
+    restartWifiService.mockClear().mockResolvedValue(undefined);
     postConnectRebootRun.mockClear().mockResolvedValue(undefined);
     rebootFlowInProgress.set(false);
     notify.success.mockClear();
@@ -78,7 +81,7 @@ describe('WifiPageComponent', () => {
         {
           provide: WifiRebootFlowService,
           useValue: {
-            restartWifiService: vi.fn().mockResolvedValue(undefined),
+            restartWifiService,
             rebootDevice: vi.fn().mockResolvedValue('ok'),
           },
         },
@@ -208,6 +211,56 @@ describe('WifiPageComponent', () => {
     expect(postConnectRebootRun).toHaveBeenCalledWith({
       afterReconnect: expect.any(Function),
     });
+  });
+
+  it('resetWifi opens confirm dialog and restarts wifi when confirmed', async () => {
+    const closed$ = new Subject<boolean | undefined>();
+    const dialog = TestBed.inject(Dialog);
+    const openSpy = vi.spyOn(dialog, 'open').mockReturnValue({
+      closed: closed$.asObservable(),
+    } as ReturnType<Dialog['open']>);
+
+    const resetPromise = component.resetWifi();
+    await vi.waitFor(() => {
+      expect(openSpy).toHaveBeenCalledWith(
+        ConfirmDialogComponent,
+        expect.objectContaining({
+          data: expect.objectContaining({
+            title: 'WiFi をリセット',
+            confirmLabel: 'リセット',
+          }),
+        }),
+      );
+    });
+    closed$.next(true);
+    closed$.complete();
+    await resetPromise;
+
+    expect(restartWifiService).toHaveBeenCalled();
+    expect(notify.success).toHaveBeenCalledWith(
+      'WiFi',
+      'WiFi サービスを再起動しました',
+    );
+  });
+
+  it('resetWifi does not restart wifi when confirm dialog is cancelled', async () => {
+    const closed$ = new Subject<boolean | undefined>();
+    const dialog = TestBed.inject(Dialog);
+    const openSpy = vi.spyOn(dialog, 'open').mockReturnValue({
+      closed: closed$.asObservable(),
+    } as ReturnType<Dialog['open']>);
+    notify.success.mockClear();
+
+    const resetPromise = component.resetWifi();
+    await vi.waitFor(() => {
+      expect(openSpy).toHaveBeenCalled();
+    });
+    closed$.next(false);
+    closed$.complete();
+    await resetPromise;
+
+    expect(restartWifiService).not.toHaveBeenCalled();
+    expect(notify.success).not.toHaveBeenCalled();
   });
 
   it('does not refresh scan when connect dialog is cancelled', async () => {
