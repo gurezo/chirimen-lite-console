@@ -160,6 +160,21 @@ export class FileTreeFeatureComponent {
     this.contextMenu()?.openAt(event.clientX, event.clientY);
   }
 
+  onBackgroundContextMenu(event: MouseEvent): void {
+    event.preventDefault();
+    if (this.contextMenuDisabled) {
+      return;
+    }
+    this.contextTarget = {
+      name: this.currentPath(),
+      path: this.currentPath(),
+      isDirectory: true,
+      virtual: true,
+    };
+    this.cdr.markForCheck();
+    this.contextMenu()?.openAt(event.clientX, event.clientY);
+  }
+
   onMenuAction(action: FileContextMenuAction): void {
     if (this.contextMenuDisabled) {
       return;
@@ -203,9 +218,6 @@ export class FileTreeFeatureComponent {
   }
 
   private async createFile(target: FileTreeNode): Promise<void> {
-    if (!target.isDirectory) {
-      return;
-    }
     const name = await this.promptName({
       title: '新規ファイル',
       confirmLabel: '作成',
@@ -214,14 +226,12 @@ export class FileTreeFeatureComponent {
     if (!name) {
       return;
     }
-    await this.file.touch(joinPath(target.path, name));
-    await this.reload();
+    const parent = this.createParentPath(target);
+    await this.file.touch(joinPath(parent, name));
+    await this.refreshAfterCreate(parent);
   }
 
   private async createDirectory(target: FileTreeNode): Promise<void> {
-    if (!target.isDirectory) {
-      return;
-    }
     const name = await this.promptName({
       title: '新規ディレクトリ',
       confirmLabel: '作成',
@@ -230,8 +240,28 @@ export class FileTreeFeatureComponent {
     if (!name) {
       return;
     }
-    await this.file.mkdir(joinPath(target.path, name));
-    await this.reload();
+    const parent = this.createParentPath(target);
+    await this.file.mkdir(joinPath(parent, name));
+    await this.refreshAfterCreate(parent);
+  }
+
+  /**
+   * Directory node → create inside it.
+   * File / current-directory virtual target → create in the listing path.
+   */
+  private createParentPath(target: FileTreeNode): string {
+    if (target.virtual || !target.isDirectory) {
+      return this.currentPath();
+    }
+    return target.path;
+  }
+
+  private async refreshAfterCreate(parentPath: string): Promise<void> {
+    if (parentPath === this.currentPath()) {
+      await this.reload();
+      return;
+    }
+    await this.navigateTo(parentPath);
   }
 
   private async renameNode(target: FileTreeNode): Promise<void> {
