@@ -1,28 +1,39 @@
-<div class="flex min-h-0 h-full justify-center items-center overflow-hidden">
+<div
+  class="flex min-h-0 h-full w-full flex-col items-stretch overflow-hidden p-3 sm:p-4"
+>
   <div
-    class="bg-white flex flex-col gap-4 justify-center items-center p-5 shadow-lg max-h-full min-h-0 w-[95%] overflow-auto"
+    class="flex min-h-0 w-full flex-1 flex-col gap-3 overflow-hidden rounded bg-white p-3 shadow-lg sm:p-5"
   >
-    <choh-wifi-list
-      [wifiInfoList]="wifiInfoList"
-      (networkSelected)="onNetworkSelected($event)"
-    />
-    <mat-divider />
-    <div class="flex flex-wrap gap-2 justify-center w-full">
+    <div class="flex flex-wrap items-center justify-between gap-2">
       <choh-button
-        [label]="'手動で接続'"
-        type="button"
-        (clickEvent)="openConnectDialog()"
-        [disabled]="actionInProgress()"
-      />
-    </div>
-    <mat-divider />
-    <div class="flex flex-wrap gap-2 justify-between w-full">
-      <choh-button
-        [label]="scanInProgress() ? 'スキャン中…' : 'Wifi Scan'"
+        [label]="scanInProgress() ? 'スキャン中…' : '再スキャン'"
         type="button"
         (clickEvent)="runWifiScan()"
         [disabled]="scanInProgress() || actionInProgress()"
       />
+      <choh-button
+        [label]="'手動で接続'"
+        type="button"
+        (clickEvent)="openManualConnectDialog()"
+        [disabled]="actionInProgress()"
+      />
+    </div>
+
+    <choh-wifi-list
+      class="flex min-h-0 flex-1 flex-col"
+      [wifiInfoList]="wifiInfoList()"
+      [scanInProgress]="scanInProgress()"
+      [scanError]="scanError()"
+      [selectedAddress]="selectedAddress()"
+      [connectedSsid]="connectedSsid()"
+      [connectDisabled]="scanInProgress() || actionInProgress()"
+      (networkSelected)="onNetworkSelected($event)"
+      (networkConnect)="onNetworkConnect($event)"
+    />
+
+    <mat-divider />
+
+    <div class="flex flex-wrap gap-2 justify-start w-full">
       <choh-button
         [label]="'Wifi Info'"
         type="button"

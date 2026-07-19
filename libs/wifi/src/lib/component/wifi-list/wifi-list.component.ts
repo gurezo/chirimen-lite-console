@@ -9,6 +9,9 @@ import { WifiInfoComponent } from '../wifi-info/wifi-info.component';
   selector: 'choh-wifi-list',
   imports: [WifiInfoComponent],
   templateUrl: './wifi-list.component.html',
+  host: {
+    class: 'flex min-h-0 flex-1 flex-col',
+  },
 })
 export class WifiListComponent {
   readonly wifiInfoList = input<WiFiInfo[]>([]);

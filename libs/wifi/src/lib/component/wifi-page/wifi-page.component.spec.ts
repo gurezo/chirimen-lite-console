@@ -94,7 +94,8 @@ describe('WifiPageComponent', () => {
       wifiInfos,
     });
     await component.runWifiScan();
-    expect(component.wifiInfoList.length).toBe(1);
-    expect(component.wifiInfoList[0]?.ssid).toBe('x');
+    expect(component.wifiInfoList().length).toBe(1);
+    expect(component.wifiInfoList()[0]?.ssid).toBe('x');
   });
 });
+
