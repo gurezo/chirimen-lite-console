@@ -370,17 +370,17 @@ describe('ConsoleShellComponent', () => {
 
   it('shows a blocking connect loader while isConnecting is true', () => {
     expect(
-      fixture.nativeElement.querySelector('[aria-label="Web Serial 接続中"]'),
+      fixture.nativeElement.querySelector('[aria-label="オートログイン中"]'),
     ).toBeNull();
 
     vmSignal.set(vmDefaults({ isConnecting: true }));
     fixture.detectChanges();
 
     const overlay = fixture.nativeElement.querySelector(
-      '[aria-label="Web Serial 接続中"]',
+      '[aria-label="オートログイン中"]',
     ) as HTMLElement | null;
     expect(overlay).toBeTruthy();
-    expect(overlay?.textContent).toContain('Web Serial 接続中');
+    expect(overlay?.textContent).toContain('オートログイン中');
     expect(fixture.nativeElement.querySelector('mat-progress-spinner')).toBeTruthy();
   });
 
@@ -395,7 +395,7 @@ describe('ConsoleShellComponent', () => {
     fixture.detectChanges();
 
     const overlay = fixture.nativeElement.querySelector(
-      '[aria-label="Web Serial 接続中"]',
+      '[aria-label="オートログイン中"]',
     ) as HTMLElement | null;
     expect(overlay).toBeTruthy();
   });
@@ -411,7 +411,7 @@ describe('ConsoleShellComponent', () => {
     fixture.detectChanges();
 
     expect(
-      fixture.nativeElement.querySelector('[aria-label="Web Serial 接続中"]'),
+      fixture.nativeElement.querySelector('[aria-label="オートログイン中"]'),
     ).toBeNull();
   });
 
