@@ -140,6 +140,7 @@ describe('ConsoleShellComponent', () => {
   let resetLayoutAfterDisconnect: ReturnType<typeof vi.fn>;
   let notifyLogoutDetected: ReturnType<typeof vi.fn>;
   let notifyLogoutCancelled: ReturnType<typeof vi.fn>;
+  let notifyManualDisconnect: ReturnType<typeof vi.fn>;
   let navigateSpy: ReturnType<typeof vi.fn>;
   let activatedRouteMock: ActivatedRoute;
 
@@ -161,6 +162,7 @@ describe('ConsoleShellComponent', () => {
     resetLayoutAfterDisconnect = vi.fn();
     notifyLogoutDetected = vi.fn();
     notifyLogoutCancelled = vi.fn();
+    notifyManualDisconnect = vi.fn();
 
     openDialog = vi.fn().mockReturnValue({ closed: of(undefined) });
     closeAllDialog = vi.fn();
@@ -188,7 +190,11 @@ describe('ConsoleShellComponent', () => {
         },
         {
           provide: SerialNotificationService,
-          useValue: { notifyLogoutDetected, notifyLogoutCancelled },
+          useValue: {
+            notifyLogoutDetected,
+            notifyLogoutCancelled,
+            notifyManualDisconnect,
+          },
         },
         {
           provide: DialogService,
@@ -223,10 +229,69 @@ describe('ConsoleShellComponent', () => {
     expect(connect).toHaveBeenCalledTimes(1);
   });
 
-  it('should call facade disconnect when onDisConnect is called', () => {
+  it('closes dialogs and disconnects when onDisConnect is called while connected', () => {
+    vmSignal.set(vmDefaults({ isConnected: true }));
+    TestBed.flushEffects();
     disconnect.mockClear();
+    closeDialog.mockClear();
+    closeAllDialog.mockClear();
+    notifyManualDisconnect.mockClear();
+    notifyLogoutDetected.mockClear();
+
     component.onDisConnect();
+
+    expect(notifyManualDisconnect).toHaveBeenCalledTimes(1);
+    expect(notifyLogoutDetected).not.toHaveBeenCalled();
+    expect(closeDialog).toHaveBeenCalledTimes(1);
+    expect(closeAllDialog).toHaveBeenCalledTimes(1);
     expect(disconnect).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not disconnect again when onDisConnect is called while disconnect is in flight', () => {
+    vmSignal.set(vmDefaults({ isConnected: true }));
+    TestBed.flushEffects();
+    disconnect.mockClear();
+
+    component.onDisConnect();
+    component.onDisConnect();
+
+    expect(disconnect).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not disconnect when onDisConnect is called while logoutPending', () => {
+    vmSignal.set(vmDefaults({ isConnected: true }));
+    TestBed.flushEffects();
+    logoutPendingSignal.set(true);
+    TestBed.flushEffects();
+    disconnect.mockClear();
+
+    component.onDisConnect();
+
+    expect(disconnect).not.toHaveBeenCalled();
+  });
+
+  it('does not disconnect when onDisConnect is called while connectionBusy', () => {
+    vmSignal.set(
+      vmDefaults({
+        isConnected: true,
+        isLoggedIn: false,
+        setupStatus: 'waiting-shell',
+      }),
+    );
+    TestBed.flushEffects();
+    disconnect.mockClear();
+
+    component.onDisConnect();
+
+    expect(disconnect).not.toHaveBeenCalled();
+  });
+
+  it('does not disconnect when onDisConnect is called while disconnected', () => {
+    disconnect.mockClear();
+
+    component.onDisConnect();
+
+    expect(disconnect).not.toHaveBeenCalled();
   });
 
   it('should switch pane when editor action is clicked', () => {
@@ -476,6 +541,7 @@ describe('ConsoleShellComponent gridTemplateColumns when right nav closed', () =
           useValue: {
             notifyLogoutDetected: vi.fn(),
             notifyLogoutCancelled: vi.fn(),
+            notifyManualDisconnect: vi.fn(),
           },
         },
         {
@@ -567,6 +633,7 @@ describe('ConsoleShellComponent responsive layout', () => {
           useValue: {
             notifyLogoutDetected: vi.fn(),
             notifyLogoutCancelled: vi.fn(),
+            notifyManualDisconnect: vi.fn(),
           },
         },
         {
@@ -738,6 +805,7 @@ describe('ConsoleShellComponent layout DOM (connected vs disconnected)', () => {
           useValue: {
             notifyLogoutDetected: vi.fn(),
             notifyLogoutCancelled: vi.fn(),
+            notifyManualDisconnect: vi.fn(),
           },
         },
         ConsoleShellStore,
