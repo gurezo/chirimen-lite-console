@@ -194,6 +194,20 @@ export class WifiPageComponent implements OnInit {
     if (!(await this.ensureSerial())) {
       return;
     }
+    const ref = this.dialog.open(ConfirmDialogComponent, {
+      width: '480px',
+      data: {
+        title: 'WiFi をリセット',
+        message:
+          'WiFi サービスを再起動します。接続中のネットワークが一時的に切断される場合があります。続行しますか？',
+        confirmLabel: 'リセット',
+        cancelLabel: 'キャンセル',
+      },
+    });
+    const confirmed = await firstValueFrom(ref.closed);
+    if (confirmed !== true) {
+      return;
+    }
     this.actionInProgress.set(true);
     try {
       await this.wifiReboot.restartWifiService();
