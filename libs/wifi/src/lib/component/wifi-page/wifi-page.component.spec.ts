@@ -97,5 +97,47 @@ describe('WifiPageComponent', () => {
     expect(component.wifiInfoList().length).toBe(1);
     expect(component.wifiInfoList()[0]?.ssid).toBe('x');
   });
+
+  it('onNetworkSelected sets selectedAddress without opening dialog', () => {
+    const dialog = TestBed.inject(Dialog);
+    const openSpy = vi.spyOn(dialog, 'open');
+
+    component.onNetworkSelected({
+      ssid: 'home',
+      address: 'AA:BB:CC:DD:EE:FF',
+      channel: 1,
+      frequency: '2.4',
+      quality: '50',
+      spec: 'WPA2',
+    });
+
+    expect(component.selectedAddress()).toBe('AA:BB:CC:DD:EE:FF');
+    expect(openSpy).not.toHaveBeenCalled();
+  });
+
+  it('onNetworkConnect opens connect dialog with ssid', async () => {
+    const dialog = TestBed.inject(Dialog);
+    const openSpy = vi.spyOn(dialog, 'open');
+
+    component.onNetworkConnect({
+      ssid: 'home',
+      address: 'AA:BB:CC:DD:EE:FF',
+      channel: 1,
+      frequency: '2.4',
+      quality: '50',
+      spec: 'WPA2',
+    });
+
+    expect(component.selectedAddress()).toBe('AA:BB:CC:DD:EE:FF');
+    await fixture.whenStable();
+    expect(openSpy).toHaveBeenCalled();
+  });
+
+  it('runWifiScan sets scanError when scan fails', async () => {
+    scanNetworks.mockRejectedValueOnce(new Error('scan failed'));
+    await component.runWifiScan();
+    expect(component.scanError()).toBe('scan failed');
+  });
 });
+
 
