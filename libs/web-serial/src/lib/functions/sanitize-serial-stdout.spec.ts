@@ -61,7 +61,7 @@ describe('sanitizeSerialStdout', () => {
       '合計 36\n       drwx------ 5 pi pi 4096 .\npi@raspberrypi:';
     const out = sanitizeSerialStdout(
       raw,
-      "LC_ALL=C LANG=C TERM=dumb LS_COLORS= ls -1 -la </dev/null 2>&1 | sed 's/^[[:blank:]]*//' | cat",
+      "LC_ALL=C LANG=C TERM=xterm-256color ls --color=always -1 -la </dev/null 2>&1 | sed 's/^[[:blank:]]*//' | cat",
       'pi@raspberrypi:',
     );
     expect(out).toBe('合計 36\ndrwx------ 5 pi pi 4096 .');
@@ -69,11 +69,11 @@ describe('sanitizeSerialStdout', () => {
 
   it('strips coerced ls even when UART splits the echoed command across line breaks', () => {
     const cmd =
-      "LC_ALL=C LANG=C TERM=dumb LS_COLORS= ls -1 -la </dev/null 2>&1 | sed 's/^[[:blank:]]*//' | cat";
+      "LC_ALL=C LANG=C TERM=xterm-256color ls --color=always -1 -la </dev/null 2>&1 | sed 's/^[[:blank:]]*//' | cat";
     const raw =
       'stale block before echo\ntotal 36\njunk\n' +
-      'LC_ALL=C LANG=C TERM=dumb\n' +
-      'LS_COLORS= ls -1 -la </dev/null 2>&1\n' +
+      'LC_ALL=C LANG=C TERM=xterm-256color\n' +
+      'ls --color=always -1 -la </dev/null 2>&1\n' +
       "| sed 's/^[[:blank:]]*//' | cat\n" +
       'total 36\ndrwx------ 5 pi\npi@raspberrypi:~$ ';
     const out = sanitizeSerialStdout(raw, cmd, 'pi@raspberrypi:~$ ');
@@ -97,7 +97,7 @@ describe('sanitizeSerialStdout', () => {
 
   it('trims leading spaces on every ls output line (CR jitter stairs)', () => {
     const cmd =
-      "LC_ALL=C LANG=C TERM=dumb LS_COLORS= ls -1 -la </dev/null 2>&1 | sed 's/^[[:blank:]]*//' | cat";
+      "LC_ALL=C LANG=C TERM=xterm-256color ls --color=always -1 -la </dev/null 2>&1 | sed 's/^[[:blank:]]*//' | cat";
     const raw =
       'total 40\n' +
       '        drwx------ 5 pi pi 4096 .\n' +
@@ -111,7 +111,7 @@ describe('sanitizeSerialStdout', () => {
 
   it('collapses intra-line \\r for ls before trim (TTY column redraw)', () => {
     const cmd =
-      "LC_ALL=C LANG=C TERM=dumb LS_COLORS= ls -1 -la </dev/null 2>&1 | sed 's/^[[:blank:]]*//' | cat";
+      "LC_ALL=C LANG=C TERM=xterm-256color ls --color=always -1 -la </dev/null 2>&1 | sed 's/^[[:blank:]]*//' | cat";
     const raw =
       'total 40\n' +
       '     drwx------\r        drwx------ 5 pi pi 4096 .\n' +
