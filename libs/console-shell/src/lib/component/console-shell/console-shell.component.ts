@@ -174,11 +174,7 @@ export class ConsoleShellComponent implements OnInit, OnDestroy {
       }
       this.lastLogoutCompletedEpoch = logoutEpoch;
       untracked(() => {
-        this.logoutDisconnectInFlight = true;
-        this.notifications.notifyLogoutDetected();
-        this.shellStore.closeDialog();
-        this.dialogService.closeAll();
-        this.connectionVm.disconnect();
+        this.endSessionAndReturnToConnect('logout');
       });
     });
 
@@ -258,12 +254,38 @@ export class ConsoleShellComponent implements OnInit, OnDestroy {
     }
   }
 
+  /**
+   * ログアウト検出・手動 DisConnect 共通のセッション終了（#725 / #753）。
+   * ダイアログを閉じたうえで Web Serial を切断し、未接続 UI へ戻す。
+   */
+  private endSessionAndReturnToConnect(
+    reason: 'logout' | 'manual-disconnect',
+  ): void {
+    this.logoutDisconnectInFlight = true;
+    if (reason === 'logout') {
+      this.notifications.notifyLogoutDetected();
+    } else {
+      this.notifications.notifyManualDisconnect();
+    }
+    this.shellStore.closeDialog();
+    this.dialogService.closeAll();
+    this.connectionVm.disconnect();
+  }
+
   onConnect() {
     this.connectionVm.connect();
   }
 
   onDisConnect() {
-    this.connectionVm.disconnect();
+    if (
+      this.logoutDisconnectInFlight ||
+      this.logoutPending() ||
+      this.connectionBusy() ||
+      !this.connectionVm.vm().isConnected
+    ) {
+      return;
+    }
+    this.endSessionAndReturnToConnect('manual-disconnect');
   }
 
   onToggleLeftSidebar() {
