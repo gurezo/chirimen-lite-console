@@ -1,7 +1,8 @@
 import { Injectable, inject } from '@angular/core';
 import { firstValueFrom } from 'rxjs';
-import { PI_ZERO_PROMPT, SERIAL_TIMEOUT } from '../constants';
+import { PI_ZERO_PROMPT } from '../constants/pi-zero.const';
 import { FileUtils } from '../functions/file.utils';
+import { SERIAL_TIMEOUT } from '../functions/serial-timeout';
 import { wrapSerialError } from '../functions/serial-error-wrap';
 import type { FileContentInfo } from '../models/file-content.types';
 import { SerialFacadeService } from './serial-facade.service';
