@@ -49,6 +49,7 @@ import {
   PiZeroSessionService,
   PiZeroShellReadinessService,
   SerialConnectionViewModelFacade,
+  SerialExpectedDisconnectService,
   SerialFacadeService,
   TerminalCommandRequestService,
   type SerialConnectionViewModel,
@@ -65,6 +66,7 @@ describe('TerminalViewComponent', () => {
   let isConnectedSignal: ReturnType<typeof signal<boolean>>;
   let connectionEpochSignal: ReturnType<typeof signal<number>>;
   let logoutPendingSignal: ReturnType<typeof signal<boolean>>;
+  let rebootPendingSignal: ReturnType<typeof signal<boolean>>;
   let connectionVmSignal: ReturnType<typeof signal<SerialConnectionViewModel>>;
 
   function vmDefaults(
@@ -123,6 +125,7 @@ describe('TerminalViewComponent', () => {
     isConnectedSignal = signal(true);
     connectionEpochSignal = signal(1);
     logoutPendingSignal = signal(false);
+    rebootPendingSignal = signal(false);
     connectionVmSignal = signal(vmDefaults());
     shouldRunAfterConnectMock = vi.fn(() => of(true));
     runAfterConnectMock = vi.fn(() => of(undefined));
@@ -149,6 +152,13 @@ describe('TerminalViewComponent', () => {
           logoutPending: logoutPendingSignal.asReadonly(),
           beginLogoutPending: vi.fn(() => logoutPendingSignal.set(true)),
           clearLogoutPending: vi.fn(() => logoutPendingSignal.set(false)),
+        },
+      })
+      .overrideProvider(SerialExpectedDisconnectService, {
+        useValue: {
+          rebootPending: rebootPendingSignal.asReadonly(),
+          beginRebootPending: vi.fn(() => rebootPendingSignal.set(true)),
+          clearRebootPending: vi.fn(() => rebootPendingSignal.set(false)),
         },
       })
       .overrideProvider(SerialConnectionViewModelFacade, {
@@ -208,6 +218,17 @@ describe('TerminalViewComponent', () => {
         setupStatus: 'waiting-login',
       }),
     );
+    TestBed.flushEffects();
+    sendMock.mockClear();
+
+    typeCommand('pwd');
+
+    await Promise.resolve();
+    expect(sendMock).not.toHaveBeenCalled();
+  });
+
+  it('ignores typed input while rebootPending is true', async () => {
+    rebootPendingSignal.set(true);
     TestBed.flushEffects();
     sendMock.mockClear();
 
