@@ -21,7 +21,7 @@ import {
       'grid w-full grid-cols-[minmax(0,2fr)_minmax(0,1fr)_auto_auto] items-center gap-2 border-b border-gray-100 px-3 py-2 text-left hover:bg-gray-50 focus-visible:ring-2 focus-visible:outline-none sm:grid-cols-[minmax(0,2fr)_minmax(0,1fr)_minmax(0,1fr)_auto_auto]',
     '[class.bg-blue-50]': 'selected()',
     '[attr.aria-selected]': 'selected()',
-    '(click)': 'onRowActivate()',
+    '(click)': 'onHostClick($event)',
     '(keydown.enter)': 'onRowActivate()',
     '(keydown.space)': 'onRowSpace($event)',
   },
@@ -48,6 +48,14 @@ export class WifiInfoComponent {
     const ssid = this.wifiInfo().ssid?.trim();
     return ssid && ssid.length > 0 ? ssid : '（非公開）';
   });
+
+  onHostClick(event: MouseEvent): void {
+    const target = event.target as HTMLElement | null;
+    if (target?.closest('button')) {
+      return;
+    }
+    this.onRowActivate();
+  }
 
   onRowActivate(): void {
     this.selectNetwork.emit(this.wifiInfo());

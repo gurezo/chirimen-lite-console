@@ -1,4 +1,4 @@
-import { computed, signal } from '@angular/core';
+import { computed } from '@angular/core';
 import { Dialog } from '@angular/cdk/dialog';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { of } from 'rxjs';
