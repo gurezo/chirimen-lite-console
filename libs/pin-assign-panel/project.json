@@ -8,10 +8,6 @@
     "type:ui",
     "domain:pin-assign-panel"
   ],
-  "implicitDependencies": [
-    "libs-dialogs",
-    "libs-shared"
-  ],
   "targets": {
     "build": {
       "dependsOn": [
