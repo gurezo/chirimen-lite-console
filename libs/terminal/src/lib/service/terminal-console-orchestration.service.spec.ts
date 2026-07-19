@@ -59,39 +59,36 @@ describe('TerminalConsoleOrchestrationService', () => {
     TestBed.resetTestingModule();
   });
 
-  it('delegates interactive input to send$ with newline', async () => {
+  it('sendInteractiveData forwards keystrokes to send$', () => {
     const svc = TestBed.inject(TerminalConsoleOrchestrationService);
-    await svc.runInteractiveCommand('uname');
-    expect(sendMock).toHaveBeenCalledWith('uname\n');
+    svc.sendInteractiveData('l');
+    svc.sendInteractiveData('\t');
+    svc.sendInteractiveData('\x1b[A');
+    expect(sendMock).toHaveBeenCalledWith('l');
+    expect(sendMock).toHaveBeenCalledWith('\t');
+    expect(sendMock).toHaveBeenCalledWith('\x1b[A');
     expect(beginLogoutPending).not.toHaveBeenCalled();
   });
 
-  it('marks logout pending before sending logout', async () => {
+  it('notifyInteractiveCommand marks logout pending for logout', () => {
     const svc = TestBed.inject(TerminalConsoleOrchestrationService);
-    await svc.runInteractiveCommand('logout');
+    svc.notifyInteractiveCommand('logout');
     expect(beginLogoutPending).toHaveBeenCalledTimes(1);
-    expect(sendMock).toHaveBeenCalledWith('logout\n');
+    expect(sendMock).not.toHaveBeenCalled();
   });
 
-  it('marks logout pending before sending exit', async () => {
+  it('notifyInteractiveCommand marks logout pending for exit', () => {
     const svc = TestBed.inject(TerminalConsoleOrchestrationService);
-    await svc.runInteractiveCommand('exit');
+    svc.notifyInteractiveCommand('exit');
     expect(beginLogoutPending).toHaveBeenCalledTimes(1);
-    expect(sendMock).toHaveBeenCalledWith('exit\n');
+    expect(sendMock).not.toHaveBeenCalled();
   });
 
-  it('runInteractiveCommand returns empty string (no stdout capture)', async () => {
+  it('notifyInteractiveCommand does not mark logout for other commands', () => {
     const svc = TestBed.inject(TerminalConsoleOrchestrationService);
-    const out = await svc.runInteractiveCommand('uname -a');
-    expect(out).toBe('');
-  });
-
-  it('coerces ls to dumb TERM and single-column for serial send', async () => {
-    const svc = TestBed.inject(TerminalConsoleOrchestrationService);
-    await svc.runInteractiveCommand('ls -la');
-    expect(sendMock).toHaveBeenCalledWith(
-      "LC_ALL=C LANG=C TERM=dumb LS_COLORS= ls -1 -la </dev/null 2>&1 | sed 's/^[[:blank:]]*//' | cat\n",
-    );
+    svc.notifyInteractiveCommand('uname');
+    expect(beginLogoutPending).not.toHaveBeenCalled();
+    expect(sendMock).not.toHaveBeenCalled();
   });
 
   it('runToolbarCommand reports not_connected when serial is down', async () => {
