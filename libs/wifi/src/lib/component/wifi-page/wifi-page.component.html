@@ -9,13 +9,13 @@
         [label]="scanInProgress() ? 'スキャン中…' : '再スキャン'"
         type="button"
         (clickEvent)="runWifiScan()"
-        [disabled]="scanInProgress() || actionInProgress()"
+        [disabled]="scanInProgress() || busy()"
       />
       <choh-button
         [label]="'手動で接続'"
         type="button"
         (clickEvent)="openManualConnectDialog()"
-        [disabled]="actionInProgress()"
+        [disabled]="busy()"
       />
     </div>
 
@@ -26,7 +26,7 @@
       [scanError]="scanError()"
       [selectedAddress]="selectedAddress()"
       [connectedSsid]="connectedSsid()"
-      [connectDisabled]="scanInProgress() || actionInProgress()"
+      [connectDisabled]="scanInProgress() || busy()"
       (networkSelected)="onNetworkSelected($event)"
       (networkConnect)="onNetworkConnect($event)"
     />
@@ -38,25 +38,25 @@
         [label]="'Wifi Info'"
         type="button"
         (clickEvent)="showWifiInfo()"
-        [disabled]="scanInProgress() || actionInProgress()"
+        [disabled]="scanInProgress() || busy()"
       />
       <choh-button
         [label]="'疎通確認'"
         type="button"
         (clickEvent)="checkConnectivity()"
-        [disabled]="scanInProgress() || actionInProgress()"
+        [disabled]="scanInProgress() || busy()"
       />
       <choh-button
         [label]="'Reset Wifi'"
         type="button"
         (clickEvent)="resetWifi()"
-        [disabled]="scanInProgress() || actionInProgress()"
+        [disabled]="scanInProgress() || busy()"
       />
       <choh-button
         [label]="'Reboot'"
         type="button"
         (clickEvent)="rebootDevice()"
-        [disabled]="scanInProgress() || actionInProgress()"
+        [disabled]="scanInProgress() || busy()"
       />
     </div>
   </div>
