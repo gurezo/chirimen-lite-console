@@ -6,6 +6,9 @@ import { ExampleItemComponent } from '../example-item/example-item.component';
   selector: 'choh-example-list',
   imports: [ExampleItemComponent],
   templateUrl: './example-list.component.html',
+  host: {
+    class: 'flex min-h-0 flex-1 flex-col',
+  },
 })
 export class ExampleListComponent {
   readonly gpioExample = input.required<ExampleItem[]>();

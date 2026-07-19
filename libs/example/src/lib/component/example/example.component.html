@@ -1,19 +1,20 @@
 <div
-  class="flex min-h-0 h-full justify-center items-center overflow-hidden"
+  class="flex min-h-0 h-full w-full flex-col items-stretch overflow-hidden p-3 sm:p-4"
 >
   <div
-    class="bg-white flex flex-col gap-4 items-center p-5 shadow-lg w-[95%] min-h-0 max-h-[min(600px,100%)] overflow-auto"
+    class="flex min-h-0 w-full flex-1 flex-col gap-3 overflow-hidden rounded bg-white p-3 shadow-lg sm:p-5"
   >
     <!-- <iframe src="https://tutorial.chirimen.org/pizero/esm-examples/"></iframe> -->
     @if (example$ | async; as example) {
       <choh-example-list
+        class="flex min-h-0 flex-1 flex-col"
         [gpioExample]="example[0]"
         [i2cExample]="example[1]"
         [remoteExample]="example[2]"
         (saveExample)="onSaveExample($event)"
       />
     }
-    <div class="flex justify-end w-full">
+    <div class="flex shrink-0 justify-end w-full">
       <choh-button
         [label]="'閉じる'"
         type="button"
