@@ -9,7 +9,6 @@
     "domain:editor"
   ],
   "implicitDependencies": [
-    "libs-wifi",
     "libs-console-shell"
   ],
   "targets": {

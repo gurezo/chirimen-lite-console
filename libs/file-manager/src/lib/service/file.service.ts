@@ -1,5 +1,5 @@
 import { Injectable, inject } from '@angular/core';
-import { FileContentService, FileUtils } from '@libs-wifi';
+import { FileContentService, FileUtils } from '@libs-web-serial';
 import {
   createPiZeroShellExecOptions,
   PiZeroPromptDetectorService,
