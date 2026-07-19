@@ -11,12 +11,15 @@
   "implicitDependencies": [
     "libs-chirimen-setup",
     "libs-connect",
+    "libs-editor",
+    "libs-example",
     "libs-file-manager",
     "libs-pin-assign-panel",
     "libs-remote",
     "libs-shared",
     "libs-terminal",
-    "libs-web-serial"
+    "libs-web-serial",
+    "libs-wifi"
   ],
   "targets": {
     "build": {

@@ -8,6 +8,9 @@
     "type:shared",
     "domain:shared"
   ],
+  "implicitDependencies": [
+    "libs-web-serial"
+  ],
   "targets": {
     "build": {
       "dependsOn": [
