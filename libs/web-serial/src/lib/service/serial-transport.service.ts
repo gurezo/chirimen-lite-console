@@ -65,7 +65,10 @@ export class SerialTransportService {
     concat(of({ status: SerialSessionStatus.Idle }), NEVER),
   ).pipe(distinctUntilChanged());
 
-  private readonly linesSource$ = this.fromSession((s) => s.lines$, NEVER);
+  private readonly linesSource$ = this.fromSession(
+    (s) => s.lines$,
+    concat(of(''), NEVER),
+  );
 
   /**
    * {@link SerialSession.receive$}（UTF-8 デコード済みの生チャンク）。
@@ -76,7 +79,7 @@ export class SerialTransportService {
 
   private readonly terminalTextSource$ = this.fromSession(
     (s) => s.terminalText$,
-    NEVER,
+    concat(of(''), NEVER),
   );
 
   private readonly errorsSource$ = this.fromSession(
