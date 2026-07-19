@@ -53,19 +53,24 @@ export class WifiPostConnectRebootFlowService {
       }
 
       this.expectedDisconnect.beginExpectedDisconnect('reboot');
+      this.expectedDisconnect.beginRebootPending();
+      try {
+        const result = await this.wifiReboot.rebootDevice();
+        if (result === 'failed') {
+          this.expectedDisconnect.clearExpectedDisconnect();
+          this.notify.error(
+            'WiFi',
+            '再起動コマンドの実行に失敗しました。シリアル接続を確認してください',
+          );
+          return;
+        }
 
-      const result = await this.wifiReboot.rebootDevice();
-      if (result === 'failed') {
-        this.expectedDisconnect.clearExpectedDisconnect();
-        this.notify.error(
-          'WiFi',
-          '再起動コマンドの実行に失敗しました。シリアル接続を確認してください',
-        );
-        return;
+        await this.cleanupSerialAfterReboot();
+        this.notify.info('WiFi', '再起動を送信しました');
+      } finally {
+        // 再接続案内中は Connect 操作を妨げないよう、切断完了時点で UI ブロックを解除する（#754）
+        this.expectedDisconnect.clearRebootPending();
       }
-
-      await this.cleanupSerialAfterReboot();
-      this.notify.info('WiFi', '再起動を送信しました');
 
       await this.showInfoDialog(
         'デバイス再起動中',

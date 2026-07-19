@@ -79,6 +79,7 @@ describe('WifiPostConnectRebootFlowService', () => {
 
     expect(rebootDevice).not.toHaveBeenCalled();
     expect(expectedDisconnect.isExpectedDisconnect()).toBe(false);
+    expect(expectedDisconnect.rebootPending()).toBe(false);
     expect(service.inProgress()).toBe(false);
   });
 
@@ -94,7 +95,40 @@ describe('WifiPostConnectRebootFlowService', () => {
       expect.stringContaining('再起動コマンド'),
     );
     expect(expectedDisconnect.isExpectedDisconnect()).toBe(false);
+    expect(expectedDisconnect.rebootPending()).toBe(false);
     expect(disconnect$).not.toHaveBeenCalled();
+  });
+
+  it('raises rebootPending during reboot cleanup and clears before guidance dialogs', async () => {
+    isConnectedSignal.set(true);
+    rebootDevice.mockImplementationOnce(async () => {
+      expect(expectedDisconnect.rebootPending()).toBe(true);
+      isConnectedSignal.set(false);
+      return 'ok' as const;
+    });
+    disconnect$.mockImplementationOnce(() => {
+      expect(expectedDisconnect.rebootPending()).toBe(true);
+      return of(undefined);
+    });
+
+    let sawPendingDuringGuidance = false;
+    let dialogCount = 0;
+    openSpy.mockImplementation(() => {
+      dialogCount += 1;
+      if (dialogCount >= 2) {
+        // confirm の後 = 案内ダイアログ。この時点では UI pending は解除済み。
+        sawPendingDuringGuidance = expectedDisconnect.rebootPending();
+        queueMicrotask(() => {
+          isConnectedSignal.set(true);
+        });
+      }
+      return { closed: of(true) };
+    });
+
+    await service.run();
+
+    expect(sawPendingDuringGuidance).toBe(false);
+    expect(expectedDisconnect.rebootPending()).toBe(false);
   });
 
   it('prevents double execution while a flow is in progress', async () => {
@@ -148,6 +182,7 @@ describe('WifiPostConnectRebootFlowService', () => {
     expect(notifyInfo).toHaveBeenCalledWith('WiFi', '再起動を送信しました');
     expect(afterReconnect).toHaveBeenCalled();
     expect(expectedDisconnect.isExpectedDisconnect()).toBe(false);
+    expect(expectedDisconnect.rebootPending()).toBe(false);
     expect(dialogCount).toBeGreaterThanOrEqual(3);
   });
 });
