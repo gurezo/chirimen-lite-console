@@ -9,7 +9,6 @@
     "domain:terminal"
   ],
   "implicitDependencies": [
-    "libs-dialogs",
     "libs-web-serial"
   ],
   "targets": {
