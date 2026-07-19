@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { parseLsLine, parseLsOutput } from './file-tree.util';
+import { parentPathOf, parseLsLine, parseLsOutput } from './file-tree.util';
 
 describe('file-tree util', () => {
   it('parses a file entry', () => {
@@ -36,5 +36,12 @@ describe('file-tree util', () => {
     );
 
     expect(output.map((entry) => entry.name)).toEqual(['dir', 'a.txt', 'b.txt']);
+  });
+
+  it('resolves parent paths', () => {
+    expect(parentPathOf('./main.ts')).toBe('.');
+    expect(parentPathOf('./docs')).toBe('.');
+    expect(parentPathOf('./docs/readme.md')).toBe('./docs');
+    expect(parentPathOf('.')).toBe('.');
   });
 });

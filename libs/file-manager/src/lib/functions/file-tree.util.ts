@@ -19,6 +19,20 @@ export function joinPath(basePath: string, name: string): string {
   return `${base}/${name}`;
 }
 
+/** Returns the parent directory path for a file or directory path. */
+export function parentPathOf(path: string): string {
+  const normalized = path.startsWith('./') ? path.slice(2) : path;
+  if (!normalized || normalized === '.') {
+    return '.';
+  }
+  const segments = normalized.split('/').filter(Boolean);
+  segments.pop();
+  if (segments.length === 0) {
+    return '.';
+  }
+  return joinPath('.', segments.join('/'));
+}
+
 export function parseLsLine(
   line: string,
   basePath: string,
