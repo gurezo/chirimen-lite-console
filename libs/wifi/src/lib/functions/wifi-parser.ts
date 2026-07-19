@@ -114,3 +114,74 @@ export function parseWifiIwconfigOutput(output: string): string {
 
   return wlInfo;
 }
+
+/**
+ * iwconfig 出力から接続中 ESSID を抽出する
+ *
+ * @param output iwconfigコマンドの出力（全体または wlan0 断片）
+ * @returns 接続中 SSID。未接続・不明時は null
+ */
+export function parseConnectedSsid(output: string): string | null {
+  const match = output.match(/ESSID:"([^"]*)"/);
+  if (!match) {
+    return null;
+  }
+  const ssid = match[1].trim();
+  if (!ssid || ssid === 'off/any') {
+    return null;
+  }
+  return ssid;
+}
+
+/**
+ * iwlist quality 行を短い Signal 表示に整形する
+ *
+ * @param quality 例: `Quality=53/70  Signal level=-57 dBm`
+ */
+export function formatWifiSignal(quality: string | undefined | null): string {
+  if (!quality?.trim()) {
+    return '—';
+  }
+  const signalMatch = quality.match(/Signal level=(-?\d+\s*dBm)/i);
+  if (signalMatch) {
+    return signalMatch[1].replace(/\s+/g, ' ').trim();
+  }
+  const qualityMatch = quality.match(/Quality=(\d+\/\d+)/i);
+  if (qualityMatch) {
+    return qualityMatch[1];
+  }
+  return quality.trim();
+}
+
+/**
+ * iwlist spec を短い Security 表示に整形する
+ *
+ * @param spec 例: `IEEE 802.11i/WPA2 Version 1,CCMP,CCMPPSK`
+ */
+export function formatWifiSecurity(spec: string | undefined | null): string {
+  if (!spec?.trim()) {
+    return 'Open';
+  }
+  const upper = spec.toUpperCase();
+  if (upper.includes('WPA3')) {
+    return 'WPA3';
+  }
+  if (upper.includes('WPA2')) {
+    return 'WPA2';
+  }
+  if (upper.includes('WPA')) {
+    return 'WPA';
+  }
+  if (upper.includes('WEP')) {
+    return 'WEP';
+  }
+  return 'Open';
+}
+
+/**
+ * 一覧表示用の SSID ラベル（空は非公開）
+ */
+export function formatWifiSsidLabel(ssid: string | undefined | null): string {
+  const trimmed = ssid?.trim() ?? '';
+  return trimmed.length > 0 ? trimmed : '（非公開）';
+}
