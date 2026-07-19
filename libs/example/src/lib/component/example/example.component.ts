@@ -1,8 +1,6 @@
 import { AsyncPipe } from '@angular/common';
 import { Component, inject, OnInit } from '@angular/core';
-import { Router } from '@angular/router';
 import { EditorService } from '@libs-editor';
-import { ButtonComponent } from '@libs-shared';
 import { BehaviorSubject, firstValueFrom, forkJoin } from 'rxjs';
 import { ExampleItem } from '../../models';
 import { ExampleDataService, ExampleService } from '../../service';
@@ -10,14 +8,13 @@ import { ExampleListComponent } from '../example-list/example-list.component';
 
 @Component({
   selector: 'choh-example',
-  imports: [ButtonComponent, ExampleListComponent, AsyncPipe],
+  imports: [ExampleListComponent, AsyncPipe],
   templateUrl: './example.component.html',
   host: {
     class: 'flex min-h-0 h-full w-full flex-col',
   },
 })
 export class ExampleComponent implements OnInit {
-  private router = inject(Router);
   private exampleDataService = inject(ExampleDataService);
   private exampleService = inject(ExampleService);
   private editorService = inject(EditorService);
@@ -33,10 +30,6 @@ export class ExampleComponent implements OnInit {
       this.exampleDataService.getI2CExampleList(),
       this.exampleDataService.getRemoteExampleList(),
     ]);
-  }
-
-  closeModal(): void {
-    void this.router.navigate(['/terminal']);
   }
 
   async onSaveExample(example: ExampleItem): Promise<void> {
