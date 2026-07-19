@@ -189,6 +189,31 @@ describe('SerialTransportService', () => {
     });
   });
 
+  it('should clear terminalText and lines after disconnect', async () => {
+    const terminalText$ = new BehaviorSubject('previous-session-output');
+    const lines$ = new BehaviorSubject('previous-line');
+    mockCreateSerialSession.mockReturnValue(
+      buildMockSession(
+        {} as SerialPortInfo,
+        lines$.asObservable(),
+        terminalText$.asObservable(),
+      ),
+    );
+
+    await firstValueFrom(service.connect$());
+    await vi.waitFor(() => {
+      expect(service.terminalText()).toBe('previous-session-output');
+      expect(service.lines()).toBe('previous-line');
+    });
+
+    await firstValueFrom(service.disconnect$());
+
+    await vi.waitFor(() => {
+      expect(service.terminalText()).toBe('');
+      expect(service.lines()).toBe('');
+    });
+  });
+
   it('send$ should delegate to session send$', async () => {
     const session = buildMockSession({} as SerialPortInfo);
     mockCreateSerialSession.mockReturnValue(session);
