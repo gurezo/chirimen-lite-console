@@ -3,6 +3,29 @@ import { SerialExpectedDisconnectService } from './serial-expected-disconnect.se
 import { SerialNotificationService } from './serial-notification.service';
 
 describe('SerialNotificationService', () => {
+  it('notifyManualDisconnect shows info toast', () => {
+    const info = vi.fn();
+    const service = Object.create(
+      SerialNotificationService.prototype,
+    ) as SerialNotificationService;
+    (service as unknown as { toastr: { info: typeof info } }).toastr = {
+      info,
+    };
+    (
+      service as unknown as {
+        expectedDisconnect: SerialExpectedDisconnectService;
+      }
+    ).expectedDisconnect = new SerialExpectedDisconnectService();
+
+    service.notifyManualDisconnect();
+
+    expect(info).toHaveBeenCalledWith(
+      'Web Serial 接続を切断しました',
+      '切断',
+      { timeOut: 4000 },
+    );
+  });
+
   it('notifyAutoLoginFailed shows error toast with message', () => {
     const error = vi.fn();
     const service = Object.create(

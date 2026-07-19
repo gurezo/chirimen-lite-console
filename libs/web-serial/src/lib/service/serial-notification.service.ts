@@ -53,6 +53,15 @@ export class SerialNotificationService {
   }
 
   /**
+   * ヘッダーの Web Serial DisConnect で接続前状態へ戻すときの通知（#753）。
+   */
+  notifyManualDisconnect(): void {
+    this.toastr.info('Web Serial 接続を切断しました', '切断', {
+      timeOut: 4000,
+    });
+  }
+
+  /**
    * logout / exit が完了せずシェルへ戻った、またはタイムアウトしたときの通知。
    */
   notifyLogoutCancelled(reason: 'failed' | 'timeout' = 'failed'): void {
