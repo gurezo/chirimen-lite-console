@@ -55,6 +55,15 @@ describe('WifiConnectDialogComponent', () => {
     expect(component.ssidReadonly()).toBe(true);
   });
 
+  it('renders opaque panel surface for CDK backdrop', () => {
+    const panel = fixture.nativeElement.querySelector(
+      ':scope > div',
+    ) as HTMLElement | null;
+    expect(panel).toBeTruthy();
+    expect(panel!.classList.contains('bg-white')).toBe(true);
+    expect(panel!.classList.contains('shadow-lg')).toBe(true);
+  });
+
   it('toggles password visibility', () => {
     expect(component.passwordVisible()).toBe(false);
     component.togglePasswordVisibility();
