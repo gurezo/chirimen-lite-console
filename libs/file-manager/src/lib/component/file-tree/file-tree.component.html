@@ -9,6 +9,7 @@
             type="button"
             class="inline-flex w-full items-center gap-1 text-left px-2 py-1 rounded hover:bg-gray-100"
             (click)="onSelect(node)"
+            (contextmenu)="onContextMenu($event, node)"
           >
             @if (node.isDirectory) {
               <mat-icon aria-hidden="true" class="shrink-0 text-amber-500">folder</mat-icon>

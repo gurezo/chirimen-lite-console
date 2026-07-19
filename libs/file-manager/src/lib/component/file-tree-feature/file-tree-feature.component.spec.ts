@@ -1,11 +1,14 @@
 /// <reference types="vitest/globals" />
-import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { computed, signal } from '@angular/core';
-import { FileTreeFeatureComponent } from './file-tree-feature.component';
+import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { By } from '@angular/platform-browser';
+import { NoopAnimationsModule } from '@angular/platform-browser/animations';
+import type { SerialConnectionViewModel } from '@libs-web-serial';
+import { SerialConnectionViewModelFacade } from '@libs-web-serial';
 import { FileTreeNode } from '../../models';
 import { FileService } from '../../service';
-import { SerialConnectionViewModelFacade } from '@libs-web-serial';
-import type { SerialConnectionViewModel } from '@libs-web-serial';
+import { FileContextMenuComponent } from '../file-context-menu/file-context-menu.component';
+import { FileTreeFeatureComponent } from './file-tree-feature.component';
 
 describe('FileTreeFeatureComponent', () => {
   const listTreeMock = vi.fn<() => Promise<FileTreeNode[]>>();
@@ -32,7 +35,7 @@ describe('FileTreeFeatureComponent', () => {
     vmSignal = signal<SerialConnectionViewModel>({ ...baseVm });
 
     await TestBed.configureTestingModule({
-      imports: [FileTreeFeatureComponent],
+      imports: [FileTreeFeatureComponent, NoopAnimationsModule],
       providers: [
         {
           provide: FileService,
@@ -198,5 +201,86 @@ describe('FileTreeFeatureComponent', () => {
 
     expect(listTreeMock).not.toHaveBeenCalled();
     expect(fixture.componentInstance.nodes.length).toBe(2);
+  });
+
+  it('does not open context menu when disconnected', async () => {
+    const fixture = await compileAndCreate();
+    fixture.detectChanges();
+    const menuDe = fixture.debugElement.query(
+      By.directive(FileContextMenuComponent),
+    );
+    const openAt = vi.spyOn(
+      menuDe.componentInstance as FileContextMenuComponent,
+      'openAt',
+    );
+
+    fixture.componentInstance.onNodeContextMenu({
+      node: treeNodes[0],
+      event: new MouseEvent('contextmenu', {
+        bubbles: true,
+        cancelable: true,
+        clientX: 1,
+        clientY: 2,
+      }),
+    });
+
+    expect(openAt).not.toHaveBeenCalled();
+    expect(fixture.componentInstance.contextTarget).toBeNull();
+  });
+
+  it('opens context menu when connected', async () => {
+    const fixture = await compileAndCreate();
+    fixture.detectChanges();
+    vmSignal.set({
+      ...baseVm,
+      isConnected: true,
+      isLoggedIn: true,
+      setupStatus: 'ready',
+    });
+    await vi.waitFor(() => {
+      expect(listTreeMock).toHaveBeenCalledWith('.');
+    });
+    fixture.detectChanges();
+
+    const menuDe = fixture.debugElement.query(
+      By.directive(FileContextMenuComponent),
+    );
+    const openAt = vi.spyOn(
+      menuDe.componentInstance as FileContextMenuComponent,
+      'openAt',
+    );
+
+    fixture.componentInstance.onNodeContextMenu({
+      node: treeNodes[1],
+      event: new MouseEvent('contextmenu', {
+        bubbles: true,
+        cancelable: true,
+        clientX: 10,
+        clientY: 20,
+      }),
+    });
+
+    expect(fixture.componentInstance.contextTarget).toEqual(treeNodes[1]);
+    expect(openAt).toHaveBeenCalledWith(10, 20);
+  });
+
+  it('reloads from context menu action', async () => {
+    const fixture = await compileAndCreate();
+    fixture.detectChanges();
+    vmSignal.set({
+      ...baseVm,
+      isConnected: true,
+      isLoggedIn: true,
+      setupStatus: 'ready',
+    });
+    await vi.waitFor(() => {
+      expect(listTreeMock).toHaveBeenCalledWith('.');
+    });
+    listTreeMock.mockClear();
+
+    fixture.componentInstance.onMenuAction('reload');
+    await vi.waitFor(() => {
+      expect(listTreeMock).toHaveBeenCalledWith('.');
+    });
   });
 });

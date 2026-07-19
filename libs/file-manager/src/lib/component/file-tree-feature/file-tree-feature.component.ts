@@ -6,17 +6,23 @@ import {
   input,
   output,
   untracked,
+  viewChild,
 } from '@angular/core';
 import { MatProgressSpinner } from '@angular/material/progress-spinner';
+import { SerialConnectionViewModelFacade } from '@libs-web-serial';
 import { joinPath } from '../../functions';
+import type { FileContextMenuAction } from '../../models/file-context-menu.types';
 import { FileTreeNode } from '../../models';
 import { FileService } from '../../service';
-import { FileTreeComponent } from '../file-tree/file-tree.component';
-import { SerialConnectionViewModelFacade } from '@libs-web-serial';
+import { FileContextMenuComponent } from '../file-context-menu/file-context-menu.component';
+import {
+  FileTreeComponent,
+  FileTreeContextMenuEvent,
+} from '../file-tree/file-tree.component';
 
 @Component({
   selector: 'lib-file-tree-feature',
-  imports: [FileTreeComponent, MatProgressSpinner],
+  imports: [FileTreeComponent, FileContextMenuComponent, MatProgressSpinner],
   host: {
     class: 'flex min-h-0 min-w-0 flex-1 flex-col',
   },
@@ -27,6 +33,8 @@ export class FileTreeFeatureComponent {
   private connectionVm = inject(SerialConnectionViewModelFacade);
   private cdr = inject(ChangeDetectorRef);
 
+  private readonly contextMenu = viewChild(FileContextMenuComponent);
+
   /** Bound from ConsoleShellStore via LeftSidebar (issue #727). */
   readonly currentPath = input<string>('.');
   readonly currentPathChange = output<string>();
@@ -35,6 +43,8 @@ export class FileTreeFeatureComponent {
   nodes: FileTreeNode[] = [];
   loading = false;
   errorMessage: string | null = null;
+  contextTarget: FileTreeNode | null = null;
+  operationBusy = false;
 
   private loadedForLogin = false;
   private lastVmKey = '';
@@ -69,6 +79,7 @@ export class FileTreeFeatureComponent {
           this.nodes = [];
           this.loadedForLogin = false;
           this.lastLoadedPath = null;
+          this.contextTarget = null;
           this.cdr.markForCheck();
           if (this.currentPath() !== '.') {
             this.currentPathChange.emit('.');
@@ -115,6 +126,10 @@ export class FileTreeFeatureComponent {
     });
   }
 
+  get contextMenuDisabled(): boolean {
+    return this.operationBusy || !this.connectionVm.vm().isConnected;
+  }
+
   async reload(): Promise<void> {
     this.loadedForLogin = false;
     await this.loadAt(this.currentPath());
@@ -127,6 +142,26 @@ export class FileTreeFeatureComponent {
 
   onFileSelected(node: FileTreeNode): void {
     this.fileSelected.emit(node.path);
+  }
+
+  onNodeContextMenu({ node, event }: FileTreeContextMenuEvent): void {
+    event.preventDefault();
+    event.stopPropagation();
+    if (this.contextMenuDisabled) {
+      return;
+    }
+    this.contextTarget = node;
+    this.cdr.markForCheck();
+    this.contextMenu()?.openAt(event.clientX, event.clientY);
+  }
+
+  onMenuAction(action: FileContextMenuAction): void {
+    if (this.contextMenuDisabled) {
+      return;
+    }
+    if (action === 'reload') {
+      void this.reload();
+    }
   }
 
   async goParent(): Promise<void> {

@@ -1,3 +1,54 @@
-<div class="file-context-menu">
-  TODO: ファイル用コンテキストメニューを表示します。
-</div>
+<div
+  class="pointer-events-none fixed h-0 w-0 overflow-hidden"
+  aria-hidden="true"
+  [style.left.px]="menuLeft"
+  [style.top.px]="menuTop"
+  [matMenuTriggerFor]="menu"
+></div>
+
+<mat-menu #menu="matMenu" class="file-context-menu">
+  @if (target(); as node) {
+    @if (node.isDirectory) {
+      <button
+        type="button"
+        mat-menu-item
+        [disabled]="disabled()"
+        (click)="onSelect('new-file')"
+      >
+        新規ファイル
+      </button>
+      <button
+        type="button"
+        mat-menu-item
+        [disabled]="disabled()"
+        (click)="onSelect('new-directory')"
+      >
+        新規ディレクトリ
+      </button>
+    }
+    <button
+      type="button"
+      mat-menu-item
+      [disabled]="disabled()"
+      (click)="onSelect('rename')"
+    >
+      名前変更
+    </button>
+    <button
+      type="button"
+      mat-menu-item
+      [disabled]="disabled()"
+      (click)="onSelect('delete')"
+    >
+      削除
+    </button>
+    <button
+      type="button"
+      mat-menu-item
+      [disabled]="disabled()"
+      (click)="onSelect('reload')"
+    >
+      再読み込み
+    </button>
+  }
+</mat-menu>
