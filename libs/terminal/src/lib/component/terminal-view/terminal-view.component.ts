@@ -74,8 +74,15 @@ export class TerminalViewComponent implements AfterViewInit, OnDestroy {
       const connectionBusy =
         vm.isConnecting ||
         (vm.isConnected && !vm.isLoggedIn && vm.setupStatus !== 'failed');
+      const wasEnabled = this.serialInputEnabled;
       this.serialInputEnabled =
         connected && !logoutPending && !rebootPending && !connectionBusy;
+      // オートログイン完了などで入力が解禁された直後に xterm へフォーカスする（#772）
+      if (!wasEnabled && this.serialInputEnabled) {
+        untracked(() => {
+          queueMicrotask(() => this.xterminal.focus());
+        });
+      }
       if (!connected) {
         this.lastTerminalText = '';
       }
