@@ -1,22 +1,37 @@
-<mat-card
-  appearance="outlined"
-  role="button"
-  tabindex="0"
-  class="w-[500px] max-h-[300px] overflow-y-auto cursor-pointer hover:bg-gray-50 focus-visible:ring-2"
-  (click)="onCardActivate()"
-  (keydown.enter)="onCardActivate()"
-  (keydown.space)="$event.preventDefault(); onCardActivate()"
+<div class="min-w-0">
+  <div class="truncate text-sm font-medium" [title]="fullSsidTitle()">
+    {{ ssidLabel() }}
+  </div>
+</div>
+
+<div class="truncate text-xs text-gray-700" [title]="wifiInfo().quality">
+  {{ signalLabel() }}
+</div>
+
+<div
+  class="hidden truncate text-xs text-gray-700 sm:block"
+  [title]="wifiInfo().spec"
 >
-  <mat-card-header>
-    <mat-card-title>SSID: {{ wifiInfo().ssid }}</mat-card-title>
-  </mat-card-header>
-  <mat-card-content>
-    <ul>
-      <li>address: {{ wifiInfo().address }}</li>
-      <li>channel: {{ wifiInfo().channel }}</li>
-      <li>frequency: {{ wifiInfo().frequency }}</li>
-      <li>quality: {{ wifiInfo().quality }}</li>
-      <li>spec: {{ wifiInfo().spec }}</li>
-    </ul>
-  </mat-card-content>
-</mat-card>
+  {{ securityLabel() }}
+</div>
+
+<div class="text-xs whitespace-nowrap">
+  @if (connected()) {
+    <span
+      class="rounded bg-green-100 px-1.5 py-0.5 font-medium text-green-800"
+    >
+      接続中
+    </span>
+  } @else {
+    <span class="text-gray-400">—</span>
+  }
+</div>
+
+<div class="justify-self-end" (click)="$event.stopPropagation()">
+  <choh-button
+    [label]="'接続'"
+    type="button"
+    [disabled]="connectDisabled()"
+    (clickEvent)="onConnectClick()"
+  />
+</div>
