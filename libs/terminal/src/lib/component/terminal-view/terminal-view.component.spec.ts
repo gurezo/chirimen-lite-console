@@ -84,6 +84,10 @@ describe('TerminalViewComponent', () => {
     };
   }
 
+  function expectSentKeystrokes(...chunks: string[]): void {
+    expect(sendMock.mock.calls.map((call) => call[0])).toEqual(chunks);
+  }
+
   function typeCommand(command: string): void {
     const terminal = fixture.componentInstance.xterminal as unknown as {
       keyHandler?: (event: {
@@ -93,6 +97,7 @@ describe('TerminalViewComponent', () => {
           metaKey: boolean;
           code: string;
           key: string;
+          preventDefault?: () => void;
         };
       }) => void;
     };
@@ -105,6 +110,7 @@ describe('TerminalViewComponent', () => {
           metaKey: false,
           code: key === ' ' ? 'Space' : 'Key',
           key,
+          preventDefault: vi.fn(),
         },
       });
     }
@@ -115,6 +121,7 @@ describe('TerminalViewComponent', () => {
         metaKey: false,
         code: 'Enter',
         key: 'Enter',
+        preventDefault: vi.fn(),
       },
     });
   }
@@ -199,13 +206,14 @@ describe('TerminalViewComponent', () => {
 
     await vi.waitFor(() => {
       expect(clearSpy).toHaveBeenCalledTimes(1);
-      expect(sendMock).toHaveBeenCalledWith('clear\n');
+      expectSentKeystrokes(' ', 'c', 'l', 'e', 'a', 'r', ' ', '\r');
     });
 
+    sendMock.mockClear();
     typeCommand('pwd');
 
     await vi.waitFor(() => {
-      expect(sendMock).toHaveBeenCalledWith('pwd\n');
+      expectSentKeystrokes('p', 'w', 'd', '\r');
     });
     expect(clearSpy).toHaveBeenCalledTimes(1);
   });
@@ -252,7 +260,7 @@ describe('TerminalViewComponent', () => {
     typeCommand('pwd');
 
     await vi.waitFor(() => {
-      expect(sendMock).toHaveBeenCalledWith('pwd\n');
+      expectSentKeystrokes('p', 'w', 'd', '\r');
     });
   });
 
@@ -262,7 +270,19 @@ describe('TerminalViewComponent', () => {
     typeCommand('clear logs');
 
     await vi.waitFor(() => {
-      expect(sendMock).toHaveBeenCalledWith('clear logs\n');
+      expectSentKeystrokes(
+        'c',
+        'l',
+        'e',
+        'a',
+        'r',
+        ' ',
+        'l',
+        'o',
+        'g',
+        's',
+        '\r',
+      );
     });
     expect(clearSpy).not.toHaveBeenCalled();
   });
@@ -276,7 +296,9 @@ describe('TerminalViewComponent', () => {
     );
 
     typeCommand('clear');
-    await vi.waitFor(() => expect(sendMock).toHaveBeenCalledWith('clear\n'));
+    await vi.waitFor(() =>
+      expectSentKeystrokes('c', 'l', 'e', 'a', 'r', '\r'),
+    );
     writeSpy.mockClear();
 
     terminalTextSignal.set('previous outputnext output');

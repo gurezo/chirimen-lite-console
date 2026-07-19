@@ -35,12 +35,12 @@ export function attachTerminalInput(
     }
 
     if (ev.code === 'ArrowLeft' || ev.code === 'ArrowRight') {
-      ev.preventDefault();
+      ev.preventDefault?.();
       return;
     }
 
     if (ev.code === 'ArrowUp') {
-      ev.preventDefault();
+      ev.preventDefault?.();
       // Remote shell owns the line after history/completion; drop local tracking.
       inputBuffer = '';
       send(CSI_ARROW_UP);
@@ -48,21 +48,21 @@ export function attachTerminalInput(
     }
 
     if (ev.code === 'ArrowDown') {
-      ev.preventDefault();
+      ev.preventDefault?.();
       inputBuffer = '';
       send(CSI_ARROW_DOWN);
       return;
     }
 
     if (ev.code === 'Tab') {
-      ev.preventDefault();
+      ev.preventDefault?.();
       inputBuffer = '';
       send('\t');
       return;
     }
 
     if (ev.code === 'Enter') {
-      ev.preventDefault();
+      ev.preventDefault?.();
       const command = inputBuffer.trim();
       inputBuffer = '';
       send('\r');
@@ -73,7 +73,7 @@ export function attachTerminalInput(
     }
 
     if (ev.code === 'Backspace') {
-      ev.preventDefault();
+      ev.preventDefault?.();
       if (inputBuffer.length > 0) {
         inputBuffer = inputBuffer.slice(0, -1);
       }
