@@ -1,17 +1,19 @@
-<div>
-  <choh-example-item
-    [label]="'GPIO'"
-    [exampleItem]="gpioExample()"
-    (saveExample)="saveExample.emit($event)"
-  />
-  <choh-example-item
-    [label]="'I2C'"
-    [exampleItem]="i2cExample()"
-    (saveExample)="saveExample.emit($event)"
-  />
-  <choh-example-item
-    [label]="'Remote'"
-    [exampleItem]="remoteExample()"
-    (saveExample)="saveExample.emit($event)"
-  />
+<div class="flex min-h-0 w-full flex-1 flex-col">
+  <div class="min-h-0 flex-1 overflow-y-auto overflow-x-auto w-full min-w-0">
+    <choh-example-item
+      [label]="'GPIO'"
+      [exampleItem]="gpioExample()"
+      (saveExample)="saveExample.emit($event)"
+    />
+    <choh-example-item
+      [label]="'I2C'"
+      [exampleItem]="i2cExample()"
+      (saveExample)="saveExample.emit($event)"
+    />
+    <choh-example-item
+      [label]="'Remote'"
+      [exampleItem]="remoteExample()"
+      (saveExample)="saveExample.emit($event)"
+    />
+  </div>
 </div>

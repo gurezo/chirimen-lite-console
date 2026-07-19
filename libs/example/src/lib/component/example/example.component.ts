@@ -13,7 +13,7 @@ import { ExampleListComponent } from '../example-list/example-list.component';
   imports: [ButtonComponent, ExampleListComponent, AsyncPipe],
   templateUrl: './example.component.html',
   host: {
-    class: 'block h-full min-h-0 min-w-0',
+    class: 'flex min-h-0 h-full w-full flex-col',
   },
 })
 export class ExampleComponent implements OnInit {
