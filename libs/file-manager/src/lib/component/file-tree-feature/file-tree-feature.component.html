@@ -38,6 +38,7 @@
       class="min-h-0 flex-1 overflow-y-auto overflow-x-hidden"
       role="region"
       aria-label="File list"
+      (contextmenu)="onBackgroundContextMenu($event)"
     >
       <lib-file-tree
         [nodes]="nodes"

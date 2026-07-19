@@ -297,18 +297,59 @@ describe('FileTreeFeatureComponent', () => {
     expect(openAt).toHaveBeenCalledWith(10, 20);
   });
 
-  it('creates a file from context menu action', async () => {
+  it('creates a file inside a directory and navigates into it', async () => {
     dialogOpen.mockReturnValue({ closed: of('new.txt') });
     const fixture = await compileAndCreate();
     await connectReady(fixture);
+    const emitSpy = vi.spyOn(
+      fixture.componentInstance.currentPathChange,
+      'emit',
+    );
     listTreeMock.mockClear();
 
     fixture.componentInstance.onMenuAction('new-file');
     await vi.waitFor(() => {
       expect(touchMock).toHaveBeenCalledWith('./docs/new.txt');
     });
-    expect(listTreeMock).toHaveBeenCalledWith('.');
+    expect(emitSpy).toHaveBeenCalledWith('./docs');
+    expect(listTreeMock).toHaveBeenCalledWith('./docs');
     expect(fixture.componentInstance.operationBusy).toBe(false);
+  });
+
+  it('creates a file in the current path when target is a file', async () => {
+    dialogOpen.mockReturnValue({ closed: of('sibling.txt') });
+    const fixture = await compileAndCreate();
+    await connectReady(fixture);
+    fixture.componentInstance.contextTarget = treeNodes[1];
+    listTreeMock.mockClear();
+
+    fixture.componentInstance.onMenuAction('new-file');
+    await vi.waitFor(() => {
+      expect(touchMock).toHaveBeenCalledWith('./sibling.txt');
+    });
+    expect(listTreeMock).toHaveBeenCalledWith('.');
+  });
+
+  it('creates a file in the current path from background menu', async () => {
+    dialogOpen.mockReturnValue({ closed: of('root.txt') });
+    const fixture = await compileAndCreate();
+    await connectReady(fixture);
+    fixture.componentInstance.onBackgroundContextMenu(
+      new MouseEvent('contextmenu', {
+        bubbles: true,
+        cancelable: true,
+        clientX: 3,
+        clientY: 4,
+      }),
+    );
+    expect(fixture.componentInstance.contextTarget?.virtual).toBe(true);
+    listTreeMock.mockClear();
+
+    fixture.componentInstance.onMenuAction('new-file');
+    await vi.waitFor(() => {
+      expect(touchMock).toHaveBeenCalledWith('./root.txt');
+    });
+    expect(listTreeMock).toHaveBeenCalledWith('.');
   });
 
   it('does not create a file when name dialog is cancelled', async () => {
@@ -324,7 +365,7 @@ describe('FileTreeFeatureComponent', () => {
     expect(listTreeMock).not.toHaveBeenCalled();
   });
 
-  it('creates a directory from context menu action', async () => {
+  it('creates a directory inside a folder and navigates into it', async () => {
     dialogOpen.mockReturnValue({ closed: of('src') });
     const fixture = await compileAndCreate();
     await connectReady(fixture);
@@ -333,6 +374,7 @@ describe('FileTreeFeatureComponent', () => {
     await vi.waitFor(() => {
       expect(mkdirMock).toHaveBeenCalledWith('./docs/src');
     });
+    expect(listTreeMock).toHaveBeenCalledWith('./docs');
   });
 
   it('renames a node from context menu action', async () => {

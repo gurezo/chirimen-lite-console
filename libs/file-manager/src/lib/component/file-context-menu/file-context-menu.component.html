@@ -8,40 +8,40 @@
 
 <mat-menu #menu="matMenu" class="file-context-menu">
   @if (target(); as node) {
-    @if (node.isDirectory) {
+    <button
+      type="button"
+      mat-menu-item
+      [disabled]="disabled()"
+      (click)="onSelect('new-file')"
+    >
+      新規ファイル
+    </button>
+    <button
+      type="button"
+      mat-menu-item
+      [disabled]="disabled()"
+      (click)="onSelect('new-directory')"
+    >
+      新規ディレクトリ
+    </button>
+    @if (!node.virtual) {
       <button
         type="button"
         mat-menu-item
         [disabled]="disabled()"
-        (click)="onSelect('new-file')"
+        (click)="onSelect('rename')"
       >
-        新規ファイル
+        名前変更
       </button>
       <button
         type="button"
         mat-menu-item
         [disabled]="disabled()"
-        (click)="onSelect('new-directory')"
+        (click)="onSelect('delete')"
       >
-        新規ディレクトリ
+        削除
       </button>
     }
-    <button
-      type="button"
-      mat-menu-item
-      [disabled]="disabled()"
-      (click)="onSelect('rename')"
-    >
-      名前変更
-    </button>
-    <button
-      type="button"
-      mat-menu-item
-      [disabled]="disabled()"
-      (click)="onSelect('delete')"
-    >
-      削除
-    </button>
     <button
       type="button"
       mat-menu-item
