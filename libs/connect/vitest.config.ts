@@ -25,7 +25,6 @@ export default defineConfig({
     alias: {
       '@libs-connect': resolve(__dirname, './src/index.ts'),
       '@libs-web-serial': resolve(__dirname, '../web-serial/src/index.ts'),
-      '@libs-terminal': resolve(__dirname, '../terminal/src/index.ts'),
     },
   },
   esbuild: {

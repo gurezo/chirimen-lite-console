@@ -7,7 +7,6 @@ export default defineConfig({
   plugins: [angular({ tsconfig: resolve(__dirname, 'tsconfig.spec.json') })],
   resolve: {
     alias: {
-      '@libs-terminal': resolve(__dirname, '../terminal/src/index.ts'),
       '@libs-web-serial': resolve(__dirname, './src/index.ts'),
     },
   },
