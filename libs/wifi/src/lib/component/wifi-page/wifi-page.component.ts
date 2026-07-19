@@ -86,11 +86,35 @@ export class WifiPageComponent {
       if (!(await this.ensureSerial())) {
         return;
       }
-      this.dialog.open(WifiConnectDialogComponent, {
+      const ref = this.dialog.open(WifiConnectDialogComponent, {
         width: '400px',
         data: { initialSsid } satisfies WifiConnectDialogData,
       });
+      const ok = await firstValueFrom(ref.closed);
+      if (ok) {
+        await this.refreshAfterConnect();
+      }
     })();
+  }
+
+  /**
+   * 接続成功後に一覧と接続中 SSID を更新する（成功トーストはダイアログ側）。
+   */
+  private async refreshAfterConnect(): Promise<void> {
+    this.scanInProgress.set(true);
+    this.scanError.set(null);
+    try {
+      const { wifiInfos } = await this.wifiScan.scanNetworks();
+      this.wifiInfoList.set(wifiInfos);
+      await this.refreshConnectedSsid();
+    } catch (e: unknown) {
+      const msg =
+        e instanceof Error ? e.message : '接続後の一覧更新に失敗しました';
+      this.scanError.set(msg);
+      this.notify.error('WiFi', msg);
+    } finally {
+      this.scanInProgress.set(false);
+    }
   }
 
   onNetworkSelected(info: WiFiInfo): void {
