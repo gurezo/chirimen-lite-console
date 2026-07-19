@@ -425,24 +425,16 @@ describe('FileTreeFeatureComponent', () => {
   });
 
   it('ignores menu actions while busy', async () => {
+    dialogOpen.mockReturnValue({ closed: of('busy.txt') });
     const fixture = await compileAndCreate();
     await connectReady(fixture);
     fixture.componentInstance.operationBusy = true;
-
-    fixture.componentInstance.onMenuAction('reload');
-    await fixture.whenStable();
-
-    expect(listTreeMock).toHaveBeenCalledTimes(1);
-  });
-
-  it('reloads from context menu action', async () => {
-    const fixture = await compileAndCreate();
-    await connectReady(fixture);
     listTreeMock.mockClear();
 
-    fixture.componentInstance.onMenuAction('reload');
-    await vi.waitFor(() => {
-      expect(listTreeMock).toHaveBeenCalledWith('.');
-    });
+    fixture.componentInstance.onMenuAction('new-file');
+    await fixture.whenStable();
+
+    expect(touchMock).not.toHaveBeenCalled();
+    expect(listTreeMock).not.toHaveBeenCalled();
   });
 });

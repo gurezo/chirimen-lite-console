@@ -191,11 +191,6 @@ export class FileTreeFeatureComponent {
   }
 
   private async runMenuAction(action: FileContextMenuAction): Promise<void> {
-    if (action === 'reload') {
-      await this.withBusy(() => this.reload());
-      return;
-    }
-
     const target = this.contextTarget;
     if (!target) {
       return;
