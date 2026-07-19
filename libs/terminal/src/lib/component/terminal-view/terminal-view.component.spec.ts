@@ -200,6 +200,41 @@ describe('TerminalViewComponent', () => {
     expect(clearSpy).toHaveBeenCalledTimes(1);
   });
 
+  it('ignores typed input while connected but shell is not ready', async () => {
+    connectionVmSignal.set(
+      vmDefaults({
+        isConnected: true,
+        isLoggedIn: false,
+        setupStatus: 'waiting-login',
+      }),
+    );
+    TestBed.flushEffects();
+    sendMock.mockClear();
+
+    typeCommand('pwd');
+
+    await Promise.resolve();
+    expect(sendMock).not.toHaveBeenCalled();
+  });
+
+  it('accepts typed input again after setup fails', async () => {
+    connectionVmSignal.set(
+      vmDefaults({
+        isConnected: true,
+        isLoggedIn: false,
+        setupStatus: 'failed',
+      }),
+    );
+    TestBed.flushEffects();
+    sendMock.mockClear();
+
+    typeCommand('pwd');
+
+    await vi.waitFor(() => {
+      expect(sendMock).toHaveBeenCalledWith('pwd\n');
+    });
+  });
+
   it('does not clear the display for commands containing clear', async () => {
     const clearSpy = vi.spyOn(fixture.componentInstance.xterminal, 'clear');
 
