@@ -22,7 +22,6 @@ export default defineConfig({
       '@': resolve(__dirname, './src'),
       '@libs-shared': resolve(__dirname, './src/index.ts'),
       '@libs-web-serial': resolve(__dirname, '../web-serial/src/index.ts'),
-      '@libs-terminal': resolve(__dirname, '../terminal/src/index.ts'),
     },
   },
   esbuild: {

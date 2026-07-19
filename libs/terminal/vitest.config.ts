@@ -33,7 +33,6 @@ export default defineConfig({
   resolve: {
     alias: {
       '@libs-terminal': resolve(__dirname, './src/index.ts'),
-      '@libs-dialogs': resolve(__dirname, '../dialogs/src/index.ts'),
       '@libs-web-serial': resolve(__dirname, '../web-serial/src/index.ts'),
     },
   },
