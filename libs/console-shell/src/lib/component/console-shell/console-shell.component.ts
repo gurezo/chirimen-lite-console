@@ -37,7 +37,7 @@ import {
 import { DialogService } from '@libs-dialogs';
 import { filter, Subscription } from 'rxjs';
 import { buildConsoleShellBreadcrumbSegments } from '../../functions';
-import { ConsoleShellStore, RAIL_WIDTH_PX } from '../../service';
+import { ConsoleShellStore, RAIL_WIDTH_PX } from '@libs-shared';
 
 @Component({
   selector: 'lib-console-shell',

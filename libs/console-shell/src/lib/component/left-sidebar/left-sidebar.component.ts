@@ -7,7 +7,7 @@ import {
   ConsoleShellStore,
   LEFT_PANE_WIDTH,
   RAIL_WIDTH_PX,
-} from '../../service';
+} from '@libs-shared';
 import { FileTreeFeatureComponent } from '@libs-file-manager';
 
 @Component({

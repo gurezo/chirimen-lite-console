@@ -1,6 +1,6 @@
 /// <reference types="vitest/globals" />
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { ConsoleShellStore } from '@libs-console-shell';
+import { ConsoleShellStore } from '@libs-shared';
 import { provideMonacoEditor } from 'ngx-monaco-editor-v2';
 import { EditorDraftService, EditorService } from '../../service';
 import { EditorPageComponent } from './editor-page.component';

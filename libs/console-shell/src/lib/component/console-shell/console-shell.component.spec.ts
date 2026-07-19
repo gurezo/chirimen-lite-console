@@ -11,7 +11,7 @@ import {
   type SerialConnectionViewModel,
 } from '@libs-web-serial';
 import { DialogService } from '@libs-dialogs';
-import { ConsoleShellStore } from '../../service';
+import { ConsoleShellStore } from '@libs-shared';
 import { BehaviorSubject, EMPTY, of } from 'rxjs';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { ConsoleShellComponent } from './console-shell.component';
