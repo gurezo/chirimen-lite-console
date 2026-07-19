@@ -151,6 +151,15 @@ describe('FileService', () => {
       );
       expectShellExecOptions(exec.mock.calls[0]?.[1], SERIAL_TIMEOUT.DEFAULT);
     });
+
+    it('runs rm -r when recursive is true', async () => {
+      await svc.remove('./docs', { recursive: true });
+      expect(exec).toHaveBeenCalledWith(
+        `rm -r -- ${FileUtils.escapePath('./docs')}`,
+        expect.objectContaining({ timeout: SERIAL_TIMEOUT.DEFAULT }),
+      );
+      expectShellExecOptions(exec.mock.calls[0]?.[1], SERIAL_TIMEOUT.DEFAULT);
+    });
   });
 
   describe('read', () => {

@@ -73,10 +73,16 @@ export class FileService {
     );
   }
 
-  async remove(path: string): Promise<void> {
+  async remove(
+    path: string,
+    options?: { recursive?: boolean },
+  ): Promise<void> {
     const escaped = FileUtils.escapePath(path);
+    const command = options?.recursive
+      ? `rm -r -- ${escaped}`
+      : `rm -- ${escaped}`;
     await firstValueFrom(
-      this.serial.exec$(`rm -- ${escaped}`, this.shellExecOptions()),
+      this.serial.exec$(command, this.shellExecOptions()),
     );
   }
 
