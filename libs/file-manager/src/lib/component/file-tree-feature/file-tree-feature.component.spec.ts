@@ -3,8 +3,10 @@ import { computed, signal } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { By } from '@angular/platform-browser';
 import { NoopAnimationsModule } from '@angular/platform-browser/animations';
+import { DialogService } from '@libs-dialogs';
 import type { SerialConnectionViewModel } from '@libs-web-serial';
 import { SerialConnectionViewModelFacade } from '@libs-web-serial';
+import { of } from 'rxjs';
 import { FileTreeNode } from '../../models';
 import { FileService } from '../../service';
 import { FileContextMenuComponent } from '../file-context-menu/file-context-menu.component';
@@ -12,6 +14,11 @@ import { FileTreeFeatureComponent } from './file-tree-feature.component';
 
 describe('FileTreeFeatureComponent', () => {
   const listTreeMock = vi.fn<() => Promise<FileTreeNode[]>>();
+  const touchMock = vi.fn<() => Promise<void>>();
+  const mkdirMock = vi.fn<() => Promise<void>>();
+  const moveMock = vi.fn<() => Promise<void>>();
+  const removeMock = vi.fn<() => Promise<void>>();
+  const dialogOpen = vi.fn();
   let vmSignal: ReturnType<typeof signal<SerialConnectionViewModel>>;
 
   const treeNodes: FileTreeNode[] = [
@@ -39,11 +46,21 @@ describe('FileTreeFeatureComponent', () => {
       providers: [
         {
           provide: FileService,
-          useValue: { listTree: listTreeMock },
+          useValue: {
+            listTree: listTreeMock,
+            touch: touchMock,
+            mkdir: mkdirMock,
+            move: moveMock,
+            remove: removeMock,
+          },
         },
         {
           provide: SerialConnectionViewModelFacade,
           useValue: { vm: computed(() => vmSignal()) },
+        },
+        {
+          provide: DialogService,
+          useValue: { open: dialogOpen },
         },
       ],
     }).compileComponents();
@@ -51,9 +68,35 @@ describe('FileTreeFeatureComponent', () => {
     return TestBed.createComponent(FileTreeFeatureComponent);
   }
 
+  async function connectReady(
+    fixture: ComponentFixture<FileTreeFeatureComponent>,
+  ): Promise<void> {
+    fixture.detectChanges();
+    vmSignal.set({
+      ...baseVm,
+      isConnected: true,
+      isLoggedIn: true,
+      setupStatus: 'ready',
+    });
+    await vi.waitFor(() => {
+      expect(listTreeMock).toHaveBeenCalledWith('.');
+    });
+    fixture.componentInstance.contextTarget = treeNodes[0];
+    fixture.detectChanges();
+  }
+
   beforeEach(() => {
     listTreeMock.mockReset();
     listTreeMock.mockResolvedValue(treeNodes);
+    touchMock.mockReset();
+    touchMock.mockResolvedValue(undefined);
+    mkdirMock.mockReset();
+    mkdirMock.mockResolvedValue(undefined);
+    moveMock.mockReset();
+    moveMock.mockResolvedValue(undefined);
+    removeMock.mockReset();
+    removeMock.mockResolvedValue(undefined);
+    dialogOpen.mockReset();
   });
 
   afterEach(() => {
@@ -230,17 +273,7 @@ describe('FileTreeFeatureComponent', () => {
 
   it('opens context menu when connected', async () => {
     const fixture = await compileAndCreate();
-    fixture.detectChanges();
-    vmSignal.set({
-      ...baseVm,
-      isConnected: true,
-      isLoggedIn: true,
-      setupStatus: 'ready',
-    });
-    await vi.waitFor(() => {
-      expect(listTreeMock).toHaveBeenCalledWith('.');
-    });
-    fixture.detectChanges();
+    await connectReady(fixture);
 
     const menuDe = fixture.debugElement.query(
       By.directive(FileContextMenuComponent),
@@ -264,18 +297,105 @@ describe('FileTreeFeatureComponent', () => {
     expect(openAt).toHaveBeenCalledWith(10, 20);
   });
 
+  it('creates a file from context menu action', async () => {
+    dialogOpen.mockReturnValue({ closed: of('new.txt') });
+    const fixture = await compileAndCreate();
+    await connectReady(fixture);
+    listTreeMock.mockClear();
+
+    fixture.componentInstance.onMenuAction('new-file');
+    await vi.waitFor(() => {
+      expect(touchMock).toHaveBeenCalledWith('./docs/new.txt');
+    });
+    expect(listTreeMock).toHaveBeenCalledWith('.');
+    expect(fixture.componentInstance.operationBusy).toBe(false);
+  });
+
+  it('does not create a file when name dialog is cancelled', async () => {
+    dialogOpen.mockReturnValue({ closed: of(null) });
+    const fixture = await compileAndCreate();
+    await connectReady(fixture);
+    listTreeMock.mockClear();
+
+    fixture.componentInstance.onMenuAction('new-file');
+    await fixture.whenStable();
+
+    expect(touchMock).not.toHaveBeenCalled();
+    expect(listTreeMock).not.toHaveBeenCalled();
+  });
+
+  it('creates a directory from context menu action', async () => {
+    dialogOpen.mockReturnValue({ closed: of('src') });
+    const fixture = await compileAndCreate();
+    await connectReady(fixture);
+
+    fixture.componentInstance.onMenuAction('new-directory');
+    await vi.waitFor(() => {
+      expect(mkdirMock).toHaveBeenCalledWith('./docs/src');
+    });
+  });
+
+  it('renames a node from context menu action', async () => {
+    dialogOpen.mockReturnValue({ closed: of('app.ts') });
+    const fixture = await compileAndCreate();
+    await connectReady(fixture);
+    fixture.componentInstance.contextTarget = treeNodes[1];
+
+    fixture.componentInstance.onMenuAction('rename');
+    await vi.waitFor(() => {
+      expect(moveMock).toHaveBeenCalledWith('./main.ts', './app.ts');
+    });
+  });
+
+  it('deletes a directory recursively after confirm', async () => {
+    dialogOpen.mockReturnValue({ closed: of(true) });
+    const fixture = await compileAndCreate();
+    await connectReady(fixture);
+
+    fixture.componentInstance.onMenuAction('delete');
+    await vi.waitFor(() => {
+      expect(removeMock).toHaveBeenCalledWith('./docs', { recursive: true });
+    });
+  });
+
+  it('does not delete when confirm is cancelled', async () => {
+    dialogOpen.mockReturnValue({ closed: of(false) });
+    const fixture = await compileAndCreate();
+    await connectReady(fixture);
+
+    fixture.componentInstance.onMenuAction('delete');
+    await fixture.whenStable();
+
+    expect(removeMock).not.toHaveBeenCalled();
+  });
+
+  it('shows error message when an operation fails', async () => {
+    dialogOpen.mockReturnValue({ closed: of('x.txt') });
+    touchMock.mockRejectedValue(new Error('disk full'));
+    const fixture = await compileAndCreate();
+    await connectReady(fixture);
+
+    fixture.componentInstance.onMenuAction('new-file');
+    await vi.waitFor(() => {
+      expect(fixture.componentInstance.errorMessage).toBe('disk full');
+    });
+    expect(fixture.componentInstance.operationBusy).toBe(false);
+  });
+
+  it('ignores menu actions while busy', async () => {
+    const fixture = await compileAndCreate();
+    await connectReady(fixture);
+    fixture.componentInstance.operationBusy = true;
+
+    fixture.componentInstance.onMenuAction('reload');
+    await fixture.whenStable();
+
+    expect(listTreeMock).toHaveBeenCalledTimes(1);
+  });
+
   it('reloads from context menu action', async () => {
     const fixture = await compileAndCreate();
-    fixture.detectChanges();
-    vmSignal.set({
-      ...baseVm,
-      isConnected: true,
-      isLoggedIn: true,
-      setupStatus: 'ready',
-    });
-    await vi.waitFor(() => {
-      expect(listTreeMock).toHaveBeenCalledWith('.');
-    });
+    await connectReady(fixture);
     listTreeMock.mockClear();
 
     fixture.componentInstance.onMenuAction('reload');

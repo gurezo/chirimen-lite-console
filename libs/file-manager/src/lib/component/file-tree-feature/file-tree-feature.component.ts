@@ -9,12 +9,16 @@ import {
   viewChild,
 } from '@angular/core';
 import { MatProgressSpinner } from '@angular/material/progress-spinner';
+import { ConfirmDialogComponent, DialogService } from '@libs-dialogs';
 import { SerialConnectionViewModelFacade } from '@libs-web-serial';
-import { joinPath } from '../../functions';
+import { firstValueFrom } from 'rxjs';
+import { joinPath, parentPathOf } from '../../functions';
 import type { FileContextMenuAction } from '../../models/file-context-menu.types';
+import type { FileNameDialogData } from '../../models/file-name-dialog.types';
 import { FileTreeNode } from '../../models';
 import { FileService } from '../../service';
 import { FileContextMenuComponent } from '../file-context-menu/file-context-menu.component';
+import { FileNameDialogComponent } from '../file-name-dialog/file-name-dialog.component';
 import {
   FileTreeComponent,
   FileTreeContextMenuEvent,
@@ -31,6 +35,7 @@ import {
 export class FileTreeFeatureComponent {
   private file = inject(FileService);
   private connectionVm = inject(SerialConnectionViewModelFacade);
+  private dialog = inject(DialogService);
   private cdr = inject(ChangeDetectorRef);
 
   private readonly contextMenu = viewChild(FileContextMenuComponent);
@@ -159,9 +164,7 @@ export class FileTreeFeatureComponent {
     if (this.contextMenuDisabled) {
       return;
     }
-    if (action === 'reload') {
-      void this.reload();
-    }
+    void this.runMenuAction(action);
   }
 
   async goParent(): Promise<void> {
@@ -169,12 +172,134 @@ export class FileTreeFeatureComponent {
     if (path === '.') {
       return;
     }
-    const normalized = path.startsWith('./') ? path.slice(2) : path;
-    const segments = normalized.split('/').filter(Boolean);
-    segments.pop();
-    const parentPath =
-      segments.length === 0 ? '.' : joinPath('.', segments.join('/'));
-    await this.navigateTo(parentPath);
+    await this.navigateTo(parentPathOf(path));
+  }
+
+  private async runMenuAction(action: FileContextMenuAction): Promise<void> {
+    if (action === 'reload') {
+      await this.withBusy(() => this.reload());
+      return;
+    }
+
+    const target = this.contextTarget;
+    if (!target) {
+      return;
+    }
+
+    switch (action) {
+      case 'new-file':
+        await this.withBusy(() => this.createFile(target));
+        break;
+      case 'new-directory':
+        await this.withBusy(() => this.createDirectory(target));
+        break;
+      case 'rename':
+        await this.withBusy(() => this.renameNode(target));
+        break;
+      case 'delete':
+        await this.withBusy(() => this.deleteNode(target));
+        break;
+    }
+  }
+
+  private async createFile(target: FileTreeNode): Promise<void> {
+    if (!target.isDirectory) {
+      return;
+    }
+    const name = await this.promptName({
+      title: '新規ファイル',
+      confirmLabel: '作成',
+      label: 'ファイル名',
+    });
+    if (!name) {
+      return;
+    }
+    await this.file.touch(joinPath(target.path, name));
+    await this.reload();
+  }
+
+  private async createDirectory(target: FileTreeNode): Promise<void> {
+    if (!target.isDirectory) {
+      return;
+    }
+    const name = await this.promptName({
+      title: '新規ディレクトリ',
+      confirmLabel: '作成',
+      label: 'ディレクトリ名',
+    });
+    if (!name) {
+      return;
+    }
+    await this.file.mkdir(joinPath(target.path, name));
+    await this.reload();
+  }
+
+  private async renameNode(target: FileTreeNode): Promise<void> {
+    const name = await this.promptName({
+      title: '名前変更',
+      initialValue: target.name,
+      confirmLabel: '変更',
+      label: '新しい名前',
+    });
+    if (!name || name === target.name) {
+      return;
+    }
+    const destination = joinPath(parentPathOf(target.path), name);
+    await this.file.move(target.path, destination);
+    await this.reload();
+  }
+
+  private async deleteNode(target: FileTreeNode): Promise<void> {
+    const confirmed = await this.confirmDelete(target.name);
+    if (!confirmed) {
+      return;
+    }
+    await this.file.remove(target.path, {
+      recursive: target.isDirectory,
+    });
+    await this.reload();
+  }
+
+  private async promptName(
+    data: FileNameDialogData,
+  ): Promise<string | null> {
+    const ref = this.dialog.open(FileNameDialogComponent, {
+      width: '360px',
+      data,
+    });
+    const result = await firstValueFrom(ref.closed);
+    return typeof result === 'string' ? result : null;
+  }
+
+  private async confirmDelete(name: string): Promise<boolean> {
+    const ref = this.dialog.open(ConfirmDialogComponent, {
+      width: '400px',
+      data: {
+        title: '削除の確認',
+        message: `「${name}」を削除しますか？`,
+        confirmLabel: '削除',
+        cancelLabel: 'キャンセル',
+      },
+    });
+    return (await firstValueFrom(ref.closed)) === true;
+  }
+
+  private async withBusy(fn: () => Promise<void>): Promise<void> {
+    if (this.operationBusy) {
+      return;
+    }
+    this.operationBusy = true;
+    this.errorMessage = null;
+    this.cdr.markForCheck();
+    try {
+      await fn();
+    } catch (error: unknown) {
+      this.errorMessage =
+        error instanceof Error ? error.message : String(error);
+    } finally {
+      this.operationBusy = false;
+      this.cdr.markForCheck();
+    }
   }
 
   private async navigateTo(path: string): Promise<void> {
