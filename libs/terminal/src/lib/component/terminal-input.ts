@@ -1,63 +1,95 @@
 import { Terminal } from '@xterm/xterm';
 
-type CommandHandler = (command: string) => Promise<string>;
+type CommandHandler = (command: string) => void | Promise<void>;
 type InputEnabledHandler = () => boolean;
+type SendHandler = (data: string) => void;
+
+const CSI_ARROW_UP = '\x1b[A';
+const CSI_ARROW_DOWN = '\x1b[B';
+const DEL_BACKSPACE = '\x7f';
 
 /**
  * Attaches key input handling to an xterm Terminal instance.
- * Handles Enter, Backspace, and printable characters.
+ * Sends keystrokes via {@link onSend} for remote shell interaction (no local echo).
+ * Left/Right arrows are ignored per interactive console UX.
  */
 export function attachTerminalInput(
   terminal: Terminal,
   onCommand?: CommandHandler,
   isInputEnabled?: InputEnabledHandler,
+  onSend?: SendHandler,
 ): void {
   let inputBuffer = '';
+
+  const send = (data: string): void => {
+    onSend?.(data);
+  };
 
   terminal.onKey((e) => {
     const ev = e.domEvent;
     const inputEnabled = isInputEnabled ? isInputEnabled() : true;
-    const printable = !ev.altKey && !ev.ctrlKey && !ev.metaKey;
 
-    // 未接続時は入力を完全に無視する（xterm 側の入力も出さない）
     if (!inputEnabled) {
       inputBuffer = '';
       return;
     }
 
-    if (ev.code === 'Enter') {
-      const command = inputBuffer.trim();
-      terminal.write('\r\n');
+    if (ev.code === 'ArrowLeft' || ev.code === 'ArrowRight') {
+      ev.preventDefault();
+      return;
+    }
+
+    if (ev.code === 'ArrowUp') {
+      ev.preventDefault();
+      // Remote shell owns the line after history/completion; drop local tracking.
       inputBuffer = '';
+      send(CSI_ARROW_UP);
+      return;
+    }
 
-      if (!command) {
-        return;
+    if (ev.code === 'ArrowDown') {
+      ev.preventDefault();
+      inputBuffer = '';
+      send(CSI_ARROW_DOWN);
+      return;
+    }
+
+    if (ev.code === 'Tab') {
+      ev.preventDefault();
+      inputBuffer = '';
+      send('\t');
+      return;
+    }
+
+    if (ev.code === 'Enter') {
+      ev.preventDefault();
+      const command = inputBuffer.trim();
+      inputBuffer = '';
+      send('\r');
+      if (command && onCommand) {
+        void onCommand(command);
       }
+      return;
+    }
 
-      if (!onCommand) {
-        terminal.writeln('(No command handler)');
-        return;
-      }
-
-      void onCommand(command)
-        .then((stdout) => {
-          if (stdout) {
-            terminal.write(stdout);
-          }
-        })
-        .catch((error) => {
-          const message =
-            error instanceof Error ? error.message : String(error);
-          terminal.writeln(`\r\nCommand failed: ${message}`);
-        });
-    } else if (ev.code === 'Backspace') {
+    if (ev.code === 'Backspace') {
+      ev.preventDefault();
       if (inputBuffer.length > 0) {
         inputBuffer = inputBuffer.slice(0, -1);
       }
-      terminal.write('\b \b'); // erase one char
-    } else if (printable) {
+      send(DEL_BACKSPACE);
+      return;
+    }
+
+    const printable =
+      !ev.altKey &&
+      !ev.ctrlKey &&
+      !ev.metaKey &&
+      ev.key.length === 1;
+
+    if (printable) {
       inputBuffer += ev.key;
-      terminal.write(ev.key);
+      send(ev.key);
     }
   });
 }
