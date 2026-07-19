@@ -2,6 +2,7 @@ import { Component, computed, inject, input, output } from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
 import { MatIconButton } from '@angular/material/button';
 import { MatIcon } from '@angular/material/icon';
+import { MatTooltip } from '@angular/material/tooltip';
 import {
   ConsoleShellLayoutMode,
   ConsoleShellStore,
@@ -12,7 +13,7 @@ import { FileTreeFeatureComponent } from '@libs-file-manager';
 
 @Component({
   selector: 'lib-left-sidebar',
-  imports: [FileTreeFeatureComponent, MatIconButton, MatIcon],
+  imports: [FileTreeFeatureComponent, MatIconButton, MatIcon, MatTooltip],
   templateUrl: './left-sidebar.component.html',
   host: {
     class: 'flex h-full min-h-0 min-w-0 flex-1 flex-col overflow-hidden',
@@ -37,6 +38,10 @@ export class LeftSidebarComponent {
 
   readonly overlayWidth = computed(
     () => `min(${this.paneWidthPx()}px, 85vw)`,
+  );
+
+  readonly panelToggleLabel = computed(() =>
+    this.leftNavOpen() ? 'ファイツリー閉じる' : 'ファイツリー開く',
   );
 
   readonly shellStore = inject(ConsoleShellStore);

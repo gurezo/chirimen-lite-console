@@ -1,5 +1,7 @@
 /// <reference types="vitest/globals" />
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { MatTooltip } from '@angular/material/tooltip';
+import { By } from '@angular/platform-browser';
 import { ActivatedRoute, Router } from '@angular/router';
 import { provideMockStore } from '@ngrx/store/testing';
 import { FileService } from '@libs-file-manager';
@@ -105,5 +107,26 @@ describe('LeftSidebarComponent', () => {
 
     expect(store.fileManagerCurrentPath()).toBe('./home');
     expect(store.selectedFilePath()).toBeNull();
+  });
+
+  it('should set tooltip on panel toggle based on open state', () => {
+    const openButton = fixture.debugElement.query(
+      By.css('button[aria-label="ファイツリー閉じる"]'),
+    );
+    expect(openButton).not.toBeNull();
+    expect(openButton.injector.get(MatTooltip).message).toBe(
+      'ファイツリー閉じる',
+    );
+
+    fixture.componentRef.setInput('leftNavOpen', false);
+    fixture.detectChanges();
+
+    const closedButton = fixture.debugElement.query(
+      By.css('button[aria-label="ファイツリー開く"]'),
+    );
+    expect(closedButton).not.toBeNull();
+    expect(closedButton.injector.get(MatTooltip).message).toBe(
+      'ファイツリー開く',
+    );
   });
 });

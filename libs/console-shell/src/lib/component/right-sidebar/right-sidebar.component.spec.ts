@@ -1,5 +1,7 @@
 /// <reference types="vitest/globals" />
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { MatTooltip } from '@angular/material/tooltip';
+import { By } from '@angular/platform-browser';
 import { RightSidebarComponent } from './right-sidebar.component';
 
 describe('RightSidebarComponent', () => {
@@ -47,5 +49,22 @@ describe('RightSidebarComponent', () => {
     expect(
       fixture.nativeElement.querySelector('choh-pin-assign'),
     ).toBeNull();
+  });
+
+  it('should set tooltip on panel toggle based on open state', () => {
+    const openButton = fixture.debugElement.query(
+      By.css('button[aria-label="ピン配置閉じる"]'),
+    );
+    expect(openButton).not.toBeNull();
+    expect(openButton.injector.get(MatTooltip).message).toBe('ピン配置閉じる');
+
+    fixture.componentRef.setInput('rightNavOpen', false);
+    fixture.detectChanges();
+
+    const closedButton = fixture.debugElement.query(
+      By.css('button[aria-label="ピン配置開く"]'),
+    );
+    expect(closedButton).not.toBeNull();
+    expect(closedButton.injector.get(MatTooltip).message).toBe('ピン配置開く');
   });
 });
