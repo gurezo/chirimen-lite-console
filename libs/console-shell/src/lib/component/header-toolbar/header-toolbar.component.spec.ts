@@ -43,6 +43,6 @@ describe('HeaderToolbarComponent', () => {
     expect(disconnectButton).not.toBeNull();
 
     const tooltip = disconnectButton.injector.get(MatTooltip);
-    expect(tooltip.message).toBe('Web Serial DisConnect');
+    expect(tooltip.message).toBe('Web Serial の切断');
   });
 });
