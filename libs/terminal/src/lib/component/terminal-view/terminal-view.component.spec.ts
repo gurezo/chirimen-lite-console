@@ -12,6 +12,7 @@ vi.mock('@xterm/xterm', () => {
     write = vi.fn();
     clear = vi.fn();
     reset = vi.fn();
+    focus = vi.fn();
     keyHandler?: (event: {
       domEvent: {
         altKey: boolean;
@@ -233,6 +234,52 @@ describe('TerminalViewComponent', () => {
 
     await Promise.resolve();
     expect(sendMock).not.toHaveBeenCalled();
+  });
+
+  it('focuses xterm when serial input becomes enabled after login', async () => {
+    connectionVmSignal.set(
+      vmDefaults({
+        isConnected: true,
+        isLoggedIn: false,
+        setupStatus: 'waiting-login',
+      }),
+    );
+    TestBed.flushEffects();
+    await Promise.resolve();
+
+    const focusSpy = vi.spyOn(fixture.componentInstance.xterminal, 'focus');
+    focusSpy.mockClear();
+
+    connectionVmSignal.set(
+      vmDefaults({
+        isConnected: true,
+        isLoggedIn: true,
+        setupStatus: 'setting-timezone',
+      }),
+    );
+    TestBed.flushEffects();
+    await Promise.resolve();
+
+    expect(focusSpy).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not refocus xterm when serial input stays enabled', async () => {
+    await Promise.resolve();
+    const focusSpy = vi.spyOn(fixture.componentInstance.xterminal, 'focus');
+    focusSpy.mockClear();
+
+    connectionVmSignal.set(
+      vmDefaults({
+        isConnected: true,
+        isLoggedIn: true,
+        setupStatus: 'ready',
+        errorMessage: null,
+      }),
+    );
+    TestBed.flushEffects();
+    await Promise.resolve();
+
+    expect(focusSpy).not.toHaveBeenCalled();
   });
 
   it('ignores typed input while rebootPending is true', async () => {
