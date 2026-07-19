@@ -36,6 +36,7 @@ export class WifiConnectDialogComponent implements OnInit {
 
   ssid = '';
   password = '';
+  readonly ssidReadonly = signal(false);
   readonly connecting = signal(false);
   readonly passwordVisible = signal(false);
   readonly feedback = signal<{
@@ -45,6 +46,7 @@ export class WifiConnectDialogComponent implements OnInit {
 
   ngOnInit(): void {
     this.ssid = this.data?.initialSsid?.trim() ?? '';
+    this.ssidReadonly.set(Boolean(this.data?.ssidReadonly && this.ssid));
   }
 
   togglePasswordVisibility(): void {
@@ -52,6 +54,11 @@ export class WifiConnectDialogComponent implements OnInit {
   }
 
   cancel(): void {
+    if (this.connecting()) {
+      return;
+    }
+    this.password = '';
+    this.feedback.set(null);
     this.dialogRef.close(false);
   }
 
@@ -68,12 +75,14 @@ export class WifiConnectDialogComponent implements OnInit {
       return;
     }
     this.connecting.set(true);
+    this.dialogRef.disableClose = true;
     this.feedback.set(null);
     try {
       await this.wifiConfig.setWiFi(trimmed, this.password);
       const successMessage = '接続処理が完了しました';
       this.feedback.set({ kind: 'success', message: successMessage });
       this.notify.success('WiFi', successMessage);
+      this.password = '';
       this.dialogRef.close(true);
     } catch (e: unknown) {
       const wifiError =
@@ -83,6 +92,7 @@ export class WifiConnectDialogComponent implements OnInit {
       this.notify.error('WiFi', msg);
     } finally {
       this.connecting.set(false);
+      this.dialogRef.disableClose = false;
     }
   }
 }
