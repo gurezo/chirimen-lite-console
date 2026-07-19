@@ -12,7 +12,6 @@ export default [
           allow: [],
           ignoredCircularDependencies: [
             ['libs-terminal', 'libs-web-serial'],
-            ['libs-console-shell', 'libs-editor'],
             ['libs-console-shell', 'libs-example'],
           ],
           depConstraints: [

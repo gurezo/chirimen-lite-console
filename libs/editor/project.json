@@ -9,7 +9,8 @@
     "domain:editor"
   ],
   "implicitDependencies": [
-    "libs-console-shell"
+    "libs-shared",
+    "libs-web-serial"
   ],
   "targets": {
     "build": {
