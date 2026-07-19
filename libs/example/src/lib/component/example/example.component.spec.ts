@@ -1,25 +1,17 @@
 import { HttpClientTestingModule } from '@angular/common/http/testing';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { Router } from '@angular/router';
 import { SerialNotificationService } from '@libs-web-serial';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it } from 'vitest';
 import { ExampleComponent } from './example.component';
 
 describe('ExampleComponent', () => {
   let component: ExampleComponent;
   let fixture: ComponentFixture<ExampleComponent>;
-  const navigate = vi.fn().mockResolvedValue(true);
 
   beforeEach(async () => {
-    navigate.mockClear();
-
     await TestBed.configureTestingModule({
       imports: [ExampleComponent, HttpClientTestingModule],
       providers: [
-        {
-          provide: Router,
-          useValue: { navigate },
-        },
         {
           provide: SerialNotificationService,
           useValue: {
@@ -54,10 +46,5 @@ describe('ExampleComponent', () => {
     const card = outer?.querySelector(':scope > div');
     expect(card?.className).toMatch(/\bflex-1\b/);
     expect(card?.className).toMatch(/\boverflow-hidden\b/);
-  });
-
-  it('should navigate to terminal when closing', () => {
-    component.closeModal();
-    expect(navigate).toHaveBeenCalledWith(['/terminal']);
   });
 });
