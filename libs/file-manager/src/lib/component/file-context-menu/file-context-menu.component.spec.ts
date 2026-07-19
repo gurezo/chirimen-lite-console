@@ -30,7 +30,7 @@ describe('FileContextMenuComponent', () => {
     fixture = TestBed.createComponent(FileContextMenuComponent);
   });
 
-  it('shows create/rename/delete/reload for directories', async () => {
+  it('shows create/rename/delete for directories', async () => {
     fixture.componentRef.setInput('target', {
       name: 'docs',
       path: './docs',
@@ -44,11 +44,10 @@ describe('FileContextMenuComponent', () => {
       '新規ディレクトリ',
       '名前変更',
       '削除',
-      '再読み込み',
     ]);
   });
 
-  it('shows create/rename/delete/reload for files', async () => {
+  it('shows create/rename/delete for files', async () => {
     fixture.componentRef.setInput('target', {
       name: 'main.ts',
       path: './main.ts',
@@ -62,7 +61,6 @@ describe('FileContextMenuComponent', () => {
       '新規ディレクトリ',
       '名前変更',
       '削除',
-      '再読み込み',
     ]);
   });
 
@@ -76,11 +74,7 @@ describe('FileContextMenuComponent', () => {
     fixture.detectChanges();
     await openMenu();
 
-    expect(menuLabels()).toEqual([
-      '新規ファイル',
-      '新規ディレクトリ',
-      '再読み込み',
-    ]);
+    expect(menuLabels()).toEqual(['新規ファイル', '新規ディレクトリ']);
   });
 
   it('emits menuAction when an item is selected', () => {
