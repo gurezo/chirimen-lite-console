@@ -20,6 +20,7 @@ const OVERLAY_BP = '(max-width: 1023.98px)';
 function vmDefaults(
   overrides: Partial<SerialConnectionViewModel> = {},
 ): SerialConnectionViewModel {
+  const isConnected = overrides.isConnected ?? false;
   return {
     isBrowserSupported: true,
     isConnected: false,
@@ -28,6 +29,10 @@ function vmDefaults(
     isInitializing: false,
     setupStatus: 'idle',
     errorMessage: null,
+    // 接続済みのみ指定した場合はシェル準備完了扱い（connectionBusy を立てない）。
+    ...(isConnected
+      ? { isConnected: true, isLoggedIn: true, setupStatus: 'ready' as const }
+      : {}),
     ...overrides,
   };
 }
@@ -355,6 +360,69 @@ describe('ConsoleShellComponent', () => {
     vmSignal.set(vmDefaults({ isConnected: true }));
     TestBed.flushEffects();
     logoutPendingSignal.set(true);
+    TestBed.flushEffects();
+    navigateSpy.mockClear();
+
+    component.onToolbarAction('editor');
+
+    expect(navigateSpy).not.toHaveBeenCalled();
+  });
+
+  it('shows a blocking connect loader while isConnecting is true', () => {
+    expect(
+      fixture.nativeElement.querySelector('[aria-label="Web Serial 接続中"]'),
+    ).toBeNull();
+
+    vmSignal.set(vmDefaults({ isConnecting: true }));
+    fixture.detectChanges();
+
+    const overlay = fixture.nativeElement.querySelector(
+      '[aria-label="Web Serial 接続中"]',
+    ) as HTMLElement | null;
+    expect(overlay).toBeTruthy();
+    expect(overlay?.textContent).toContain('Web Serial 接続中');
+    expect(fixture.nativeElement.querySelector('mat-progress-spinner')).toBeTruthy();
+  });
+
+  it('shows a blocking connect loader while connected but not logged in', () => {
+    vmSignal.set(
+      vmDefaults({
+        isConnected: true,
+        isLoggedIn: false,
+        setupStatus: 'waiting-login',
+      }),
+    );
+    fixture.detectChanges();
+
+    const overlay = fixture.nativeElement.querySelector(
+      '[aria-label="Web Serial 接続中"]',
+    ) as HTMLElement | null;
+    expect(overlay).toBeTruthy();
+  });
+
+  it('hides connect loader when setup fails after connect', () => {
+    vmSignal.set(
+      vmDefaults({
+        isConnected: true,
+        isLoggedIn: false,
+        setupStatus: 'failed',
+      }),
+    );
+    fixture.detectChanges();
+
+    expect(
+      fixture.nativeElement.querySelector('[aria-label="Web Serial 接続中"]'),
+    ).toBeNull();
+  });
+
+  it('blocks toolbar actions while connectionBusy is true', () => {
+    vmSignal.set(
+      vmDefaults({
+        isConnected: true,
+        isLoggedIn: false,
+        setupStatus: 'waiting-shell',
+      }),
+    );
     TestBed.flushEffects();
     navigateSpy.mockClear();
 
