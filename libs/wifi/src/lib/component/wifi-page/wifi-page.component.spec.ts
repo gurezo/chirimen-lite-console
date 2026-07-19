@@ -1,11 +1,14 @@
-import { computed } from '@angular/core';
+import { computed, signal } from '@angular/core';
 import { Dialog } from '@angular/cdk/dialog';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { of, Subject } from 'rxjs';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { NotificationService } from '@libs-shared';
-import { WifiRebootFlowService } from '../../service';
-import { WifiScanService } from '../../service';
+import {
+  WifiPostConnectRebootFlowService,
+  WifiRebootFlowService,
+  WifiScanService,
+} from '../../service';
 import type { WiFiInfo } from '@libs-shared';
 import { SerialFacadeService } from '@libs-web-serial';
 import { WifiPageComponent } from './wifi-page.component';
@@ -15,6 +18,8 @@ describe('WifiPageComponent', () => {
   let fixture: ComponentFixture<WifiPageComponent>;
 
   const scanNetworks = vi.fn();
+  const postConnectRebootRun = vi.fn().mockResolvedValue(undefined);
+  const rebootFlowInProgress = signal(false);
 
   let dialogClosed: ReturnType<typeof of>;
 
@@ -24,6 +29,8 @@ describe('WifiPageComponent', () => {
       rawData: [] as string[],
     });
     dialogClosed = of(undefined);
+    postConnectRebootRun.mockClear().mockResolvedValue(undefined);
+    rebootFlowInProgress.set(false);
 
     await TestBed.configureTestingModule({
       imports: [WifiPageComponent],
@@ -66,7 +73,14 @@ describe('WifiPageComponent', () => {
           provide: WifiRebootFlowService,
           useValue: {
             restartWifiService: vi.fn().mockResolvedValue(undefined),
-            rebootDevice: vi.fn().mockResolvedValue(undefined),
+            rebootDevice: vi.fn().mockResolvedValue('ok'),
+          },
+        },
+        {
+          provide: WifiPostConnectRebootFlowService,
+          useValue: {
+            inProgress: rebootFlowInProgress.asReadonly(),
+            run: postConnectRebootRun,
           },
         },
       ],
@@ -173,6 +187,16 @@ describe('WifiPageComponent', () => {
       expect(component.wifiInfoList()).toEqual(wifiInfos);
     });
     expect(scanNetworks).toHaveBeenCalled();
+    await vi.waitFor(() => {
+      expect(postConnectRebootRun).toHaveBeenCalled();
+    });
+  });
+
+  it('rebootDevice delegates to post-connect reboot flow', async () => {
+    await component.rebootDevice();
+    expect(postConnectRebootRun).toHaveBeenCalledWith({
+      afterReconnect: expect.any(Function),
+    });
   });
 
   it('does not refresh scan when connect dialog is cancelled', async () => {
