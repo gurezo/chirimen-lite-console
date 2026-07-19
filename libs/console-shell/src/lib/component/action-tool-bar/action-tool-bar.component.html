@@ -5,7 +5,8 @@
     @for (action of toolbarActions; track action.name) {
       <button
         mat-icon-button
-        [attr.aria-label]="action.name"
+        [matTooltip]="action.tooltip"
+        [attr.aria-label]="action.tooltip"
         type="button"
         (click)="toolbarAction.emit(action.name)"
       >

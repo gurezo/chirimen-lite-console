@@ -1,6 +1,7 @@
 import { Component, input, output } from '@angular/core';
 import { MatIconButton } from '@angular/material/button';
 import { MatIcon } from '@angular/material/icon';
+import { MatTooltip } from '@angular/material/tooltip';
 
 export type ToolbarAction =
   | 'editor'
@@ -13,7 +14,7 @@ export type ToolbarAction =
 
 @Component({
   selector: 'lib-action-tool-bar',
-  imports: [MatIconButton, MatIcon],
+  imports: [MatIconButton, MatIcon, MatTooltip],
   templateUrl: './action-tool-bar.component.html',
 })
 export class ActionToolBarComponent {
@@ -21,12 +22,12 @@ export class ActionToolBarComponent {
   toolbarAction = output<ToolbarAction>();
 
   readonly toolbarActions = [
-    { name: 'terminal', icon: 'terminal' },
-    { name: 'wifi', icon: 'signal_wifi_4_bar' },
-    { name: 'editor', icon: 'text_ad' },
-    { name: 'example', icon: 'javascript' },
-    { name: 'i2c', icon: 'lan' },
-    { name: 'setup', icon: 'settings' },
-    { name: 'remote', icon: 'sync' },
+    { name: 'terminal', icon: 'terminal', tooltip: 'Terminal' },
+    { name: 'wifi', icon: 'signal_wifi_4_bar', tooltip: 'WiFi' },
+    { name: 'editor', icon: 'text_ad', tooltip: 'Editor' },
+    { name: 'example', icon: 'javascript', tooltip: 'Example' },
+    { name: 'i2c', icon: 'lan', tooltip: 'I2C' },
+    { name: 'setup', icon: 'settings', tooltip: 'Setup' },
+    { name: 'remote', icon: 'sync', tooltip: 'Remote' },
   ] as const;
 }
