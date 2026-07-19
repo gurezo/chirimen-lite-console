@@ -6,6 +6,7 @@ import type { WiFiInfo } from '@libs-shared';
 import { ButtonComponent, NotificationService } from '@libs-shared';
 import { SerialFacadeService } from '@libs-web-serial';
 import { firstValueFrom } from 'rxjs';
+import { parseConnectedSsid } from '../../functions';
 import type { WifiConnectDialogData } from '../../models';
 import { WifiRebootFlowService, WifiScanService } from '../../service';
 import { WifiConnectDialogComponent } from '../wifi-connect-dialog/wifi-connect-dialog.component';
@@ -20,11 +21,17 @@ import { WifiListComponent } from '../wifi-list/wifi-list.component';
   selector: 'choh-wifi-page',
   imports: [ButtonComponent, WifiListComponent, MatDividerModule],
   templateUrl: './wifi-page.component.html',
+  host: {
+    class: 'flex min-h-0 h-full w-full flex-col',
+  },
 })
 export class WifiPageComponent {
-  wifiInfoList: WiFiInfo[] = [];
+  readonly wifiInfoList = signal<WiFiInfo[]>([]);
   readonly scanInProgress = signal(false);
   readonly actionInProgress = signal(false);
+  readonly scanError = signal<string | null>(null);
+  readonly selectedAddress = signal<string | null>(null);
+  readonly connectedSsid = signal<string | null>(null);
 
   private readonly dialog = inject(Dialog);
   private readonly notify = inject(NotificationService);
@@ -41,20 +48,33 @@ export class WifiPageComponent {
     return true;
   }
 
+  private async refreshConnectedSsid(): Promise<void> {
+    try {
+      const { wlInfo } = await this.wifiScan.getWifiStatus();
+      this.connectedSsid.set(parseConnectedSsid(wlInfo));
+    } catch {
+      // 接続中 SSID は補助情報のため、失敗しても一覧表示は継続する
+    }
+  }
+
   async runWifiScan(): Promise<void> {
     if (!(await this.ensureSerial())) {
       return;
     }
     this.scanInProgress.set(true);
+    this.scanError.set(null);
     try {
       const { wifiInfos } = await this.wifiScan.scanNetworks();
-      this.wifiInfoList = wifiInfos;
+      this.wifiInfoList.set(wifiInfos);
+      this.selectedAddress.set(null);
+      await this.refreshConnectedSsid();
       this.notify.success(
         'WiFi',
         `ネットワークを ${wifiInfos.length} 件取得しました`,
       );
     } catch (e: unknown) {
       const msg = e instanceof Error ? e.message : 'スキャンに失敗しました';
+      this.scanError.set(msg);
       this.notify.error('WiFi', msg);
     } finally {
       this.scanInProgress.set(false);
@@ -74,8 +94,24 @@ export class WifiPageComponent {
   }
 
   onNetworkSelected(info: WiFiInfo): void {
+    this.selectedAddress.set(info.address);
+  }
+
+  onNetworkConnect(info: WiFiInfo): void {
+    this.selectedAddress.set(info.address);
     const ssid = info.ssid?.trim();
     this.openConnectDialog(ssid || undefined);
+  }
+
+  openManualConnectDialog(): void {
+    const address = this.selectedAddress();
+    if (address) {
+      const selected = this.wifiInfoList().find((w) => w.address === address);
+      const ssid = selected?.ssid?.trim();
+      this.openConnectDialog(ssid || undefined);
+      return;
+    }
+    this.openConnectDialog();
   }
 
   async showWifiInfo(): Promise<void> {
@@ -85,6 +121,7 @@ export class WifiPageComponent {
     this.actionInProgress.set(true);
     try {
       const { ipInfo, wlInfo, ipaddr } = await this.wifiScan.getWifiStatus();
+      this.connectedSsid.set(parseConnectedSsid(wlInfo));
       const body = [ipInfo, wlInfo, ipaddr ? `IP: ${ipaddr}` : '']
         .filter(Boolean)
         .join('\n\n');
