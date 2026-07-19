@@ -159,13 +159,14 @@ export class TerminalViewComponent implements AfterViewInit, OnDestroy {
 
     attachTerminalInput(
       this.xterminal,
-      async (command) => {
+      (command) => {
         if (command === 'clear') {
           this.clearTerminalDisplay();
         }
-        return this.console.runInteractiveCommand(command);
+        this.console.notifyInteractiveCommand(command);
       },
       () => this.serialInputEnabled,
+      (data) => this.console.sendInteractiveData(data),
     );
   }
 
