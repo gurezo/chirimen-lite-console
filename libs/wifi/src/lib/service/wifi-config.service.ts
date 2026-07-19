@@ -3,6 +3,11 @@ import { FileContentService } from './file-content.service';
 import { SerialFacadeService } from '@libs-web-serial';
 import { FileUtils } from '../functions';
 import { shellSingleQuote } from '../functions';
+import {
+  toWifiConnectError,
+  WifiConnectError,
+  wifiConnectErrorFromOutput,
+} from '../functions';
 import { WifiRebootFlowService } from './wifi-reboot-flow.service';
 import {
   PI_ZERO_PROMPT,
@@ -42,15 +47,33 @@ export class WifiConfigService {
 
       const qSsid = shellSingleQuote(ssid);
       const qPass = shellSingleQuote(password);
-      await firstValueFrom(this.serial.exec$(
+      const result = await firstValueFrom(this.serial.exec$(
         `chmod +x wifi_setup.sh && ./wifi_setup.sh ${qSsid} ${qPass}`,
         {
           prompt: PI_ZERO_PROMPT,
           timeout: SERIAL_TIMEOUT.LONG,
         }
       ));
+
+      const output = [result.stdout, result.stderr]
+        .filter((part): part is string => Boolean(part))
+        .join('\n');
+      const fromOutput = wifiConnectErrorFromOutput(output);
+      if (fromOutput) {
+        throw fromOutput;
+      }
+      if (result.exitCode != null && result.exitCode !== 0) {
+        throw toWifiConnectError(
+          new Error(`wifi_setup.sh exited with code ${result.exitCode}`),
+        );
+      }
     } catch (error: unknown) {
-      throw wrapSerialError('Failed to set WiFi', error);
+      if (error instanceof WifiConnectError) {
+        throw error;
+      }
+      throw toWifiConnectError(
+        wrapSerialError('Failed to set WiFi', error),
+      );
     }
   }
 
@@ -88,9 +111,15 @@ network={
   psk="$PASSWORD"
 }
 EOL
-  sudo wpa_cli -i wlan0 reconfigure
+  if ! sudo wpa_cli -i wlan0 reconfigure; then
+    echo "WIFI_CONNECT_FAILED"
+    exit 1
+  fi
 else
-  sudo nmcli dev wifi connect "$SSID" password "$PASSWORD"
+  if ! sudo nmcli dev wifi connect "$SSID" password "$PASSWORD"; then
+    echo "WIFI_CONNECT_FAILED"
+    exit 1
+  fi
 fi
 `;
   }

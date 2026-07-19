@@ -31,6 +31,16 @@
         }}</mat-icon>
       </button>
     </mat-form-field>
+    @if (feedback(); as fb) {
+      <p
+        class="m-0 text-sm"
+        [class.text-red-700]="fb.kind === 'error'"
+        [class.text-green-700]="fb.kind === 'success'"
+        role="status"
+      >
+        {{ fb.message }}
+      </p>
+    }
     <div class="flex justify-end gap-2">
       <button
         mat-stroked-button
