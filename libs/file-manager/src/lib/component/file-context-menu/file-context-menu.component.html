@@ -14,7 +14,8 @@
       [disabled]="disabled()"
       (click)="onSelect('new-file')"
     >
-      新規ファイル
+      <mat-icon aria-hidden="true">note_add</mat-icon>
+      <span>新規ファイル</span>
     </button>
     <button
       type="button"
@@ -22,7 +23,8 @@
       [disabled]="disabled()"
       (click)="onSelect('new-directory')"
     >
-      新規ディレクトリ
+      <mat-icon aria-hidden="true">create_new_folder</mat-icon>
+      <span>新規ディレクトリ</span>
     </button>
     @if (!node.virtual) {
       <button
@@ -31,7 +33,8 @@
         [disabled]="disabled()"
         (click)="onSelect('rename')"
       >
-        名前変更
+        <mat-icon aria-hidden="true">drive_file_rename_outline</mat-icon>
+        <span>名前変更</span>
       </button>
       <button
         type="button"
@@ -39,7 +42,8 @@
         [disabled]="disabled()"
         (click)="onSelect('delete')"
       >
-        削除
+        <mat-icon aria-hidden="true">delete</mat-icon>
+        <span>削除</span>
       </button>
     }
   }
