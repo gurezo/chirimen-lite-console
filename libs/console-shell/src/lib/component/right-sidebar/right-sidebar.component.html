@@ -7,7 +7,8 @@
     <button
       mat-icon-button
       type="button"
-      aria-label="Toggle right panel"
+      [matTooltip]="panelToggleLabel()"
+      [attr.aria-label]="panelToggleLabel()"
       (click)="toggleRightSidebar.emit()"
     >
       <mat-icon>fiber_pin</mat-icon>
@@ -15,9 +16,8 @@
     <button
       mat-icon-button
       type="button"
-      [attr.aria-label]="
-        rightNavOpen() ? 'Close right panel' : 'Open right panel'
-      "
+      [matTooltip]="panelToggleLabel()"
+      [attr.aria-label]="panelToggleLabel()"
       (click)="toggleRightSidebar.emit()"
     >
       <mat-icon>

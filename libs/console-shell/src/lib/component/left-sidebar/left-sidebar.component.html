@@ -40,7 +40,8 @@
     <button
       mat-icon-button
       type="button"
-      aria-label="Toggle left panel"
+      [matTooltip]="panelToggleLabel()"
+      [attr.aria-label]="panelToggleLabel()"
       (click)="toggleLeftSidebar.emit()"
     >
       <mat-icon>folder</mat-icon>
@@ -48,9 +49,8 @@
     <button
       mat-icon-button
       type="button"
-      [attr.aria-label]="
-        leftNavOpen() ? 'Close left panel' : 'Open left panel'
-      "
+      [matTooltip]="panelToggleLabel()"
+      [attr.aria-label]="panelToggleLabel()"
       (click)="toggleLeftSidebar.emit()"
     >
       <mat-icon>

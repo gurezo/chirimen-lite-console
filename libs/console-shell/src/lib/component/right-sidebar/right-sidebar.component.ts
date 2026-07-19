@@ -1,6 +1,7 @@
 import { Component, computed, input, output } from '@angular/core';
 import { MatIconButton } from '@angular/material/button';
 import { MatIcon } from '@angular/material/icon';
+import { MatTooltip } from '@angular/material/tooltip';
 import { PinAssignComponent } from '@libs-pin-assign-panel';
 import {
   ConsoleShellLayoutMode,
@@ -9,7 +10,7 @@ import {
 
 @Component({
   selector: 'lib-right-sidebar',
-  imports: [MatIconButton, MatIcon, PinAssignComponent],
+  imports: [MatIconButton, MatIcon, MatTooltip, PinAssignComponent],
   templateUrl: './right-sidebar.component.html',
   host: {
     class: 'flex h-full min-h-0 min-w-0 flex-1 flex-col overflow-hidden',
@@ -29,6 +30,10 @@ export class RightSidebarComponent {
 
   readonly overlayWidth = computed(
     () => `min(${this.diagramWidthPx()}px, 85vw)`,
+  );
+
+  readonly panelToggleLabel = computed(() =>
+    this.rightNavOpen() ? 'ピン配置閉じる' : 'ピン配置開く',
   );
 
   onResizePointerDown(event: PointerEvent): void {
