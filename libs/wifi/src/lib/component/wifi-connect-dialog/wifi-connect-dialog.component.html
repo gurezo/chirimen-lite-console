@@ -3,7 +3,13 @@
   <form class="flex flex-col gap-3" (ngSubmit)="$event.preventDefault(); connect()">
     <mat-form-field appearance="outline">
       <mat-label>SSID</mat-label>
-      <input matInput name="ssid" [(ngModel)]="ssid" [disabled]="connecting()" />
+      <input
+        matInput
+        name="ssid"
+        [(ngModel)]="ssid"
+        [disabled]="connecting()"
+        [readonly]="ssidReadonly()"
+      />
     </mat-form-field>
     <mat-form-field appearance="outline">
       <mat-label>パスワード</mat-label>

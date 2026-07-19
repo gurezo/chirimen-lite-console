@@ -81,14 +81,15 @@ export class WifiPageComponent {
     }
   }
 
-  openConnectDialog(initialSsid?: string): void {
+  openConnectDialog(initialSsid?: string, ssidReadonly = false): void {
     void (async () => {
       if (!(await this.ensureSerial())) {
         return;
       }
       const ref = this.dialog.open(WifiConnectDialogComponent, {
         width: '400px',
-        data: { initialSsid } satisfies WifiConnectDialogData,
+        disableClose: false,
+        data: { initialSsid, ssidReadonly } satisfies WifiConnectDialogData,
       });
       const ok = await firstValueFrom(ref.closed);
       if (ok) {
@@ -124,7 +125,7 @@ export class WifiPageComponent {
   onNetworkConnect(info: WiFiInfo): void {
     this.selectedAddress.set(info.address);
     const ssid = info.ssid?.trim();
-    this.openConnectDialog(ssid || undefined);
+    this.openConnectDialog(ssid || undefined, Boolean(ssid));
   }
 
   openManualConnectDialog(): void {
@@ -132,7 +133,7 @@ export class WifiPageComponent {
     if (address) {
       const selected = this.wifiInfoList().find((w) => w.address === address);
       const ssid = selected?.ssid?.trim();
-      this.openConnectDialog(ssid || undefined);
+      this.openConnectDialog(ssid || undefined, Boolean(ssid));
       return;
     }
     this.openConnectDialog();
