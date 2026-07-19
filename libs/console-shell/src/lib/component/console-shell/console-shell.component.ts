@@ -74,6 +74,18 @@ export class ConsoleShellComponent implements OnInit, OnDestroy {
   /** logout / exit 送信後〜切断完了までの入力ブロック用ローダー。 */
   readonly logoutPending = this.shellReadiness.logoutPending;
 
+  /**
+   * Web Serial 接続〜シェル準備完了までの入力ブロック用ローダー（issue #755）。
+   * 初期化失敗時（`setupStatus === 'failed'`）は解除して再操作を許可する。
+   */
+  readonly connectionBusy = computed(() => {
+    const vm = this.connectionVm.vm();
+    return (
+      vm.isConnecting ||
+      (vm.isConnected && !vm.isLoggedIn && vm.setupStatus !== 'failed')
+    );
+  });
+
   readonly activePanel = this.shellStore.activePanel;
   readonly leftNavOpen = this.shellStore.leftNavOpen;
   readonly rightNavOpen = this.shellStore.rightNavOpen;
@@ -326,7 +338,7 @@ export class ConsoleShellComponent implements OnInit, OnDestroy {
   }
 
   onToolbarAction(action: ToolbarAction): void {
-    if (this.logoutPending()) {
+    if (this.logoutPending() || this.connectionBusy()) {
       return;
     }
 
