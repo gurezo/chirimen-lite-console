@@ -9,7 +9,6 @@
     "domain:example"
   ],
   "implicitDependencies": [
-    "libs-dialogs",
     "libs-editor",
     "libs-shared"
   ],

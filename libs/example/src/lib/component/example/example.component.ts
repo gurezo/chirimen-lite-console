@@ -1,6 +1,6 @@
 import { AsyncPipe } from '@angular/common';
 import { Component, inject, OnInit } from '@angular/core';
-import { DialogService } from '@libs-dialogs';
+import { Router } from '@angular/router';
 import { EditorService } from '@libs-editor';
 import { ButtonComponent } from '@libs-shared';
 import { BehaviorSubject, firstValueFrom, forkJoin } from 'rxjs';
@@ -17,7 +17,7 @@ import { ExampleListComponent } from '../example-list/example-list.component';
   },
 })
 export class ExampleComponent implements OnInit {
-  private dialogService = inject(DialogService);
+  private router = inject(Router);
   private exampleDataService = inject(ExampleDataService);
   private exampleService = inject(ExampleService);
   private editorService = inject(EditorService);
@@ -36,7 +36,7 @@ export class ExampleComponent implements OnInit {
   }
 
   closeModal(): void {
-    this.dialogService.close();
+    void this.router.navigate(['/terminal']);
   }
 
   async onSaveExample(example: ExampleItem): Promise<void> {
