@@ -1,5 +1,11 @@
 import { Dialog } from '@angular/cdk/dialog';
-import { Component, computed, inject, signal } from '@angular/core';
+import {
+  Component,
+  computed,
+  inject,
+  OnInit,
+  signal,
+} from '@angular/core';
 import { MatDividerModule } from '@angular/material/divider';
 import { ConfirmDialogComponent } from '@libs-dialogs';
 import type { WiFiInfo } from '@libs-shared';
@@ -29,7 +35,7 @@ import { WifiListComponent } from '../wifi-list/wifi-list.component';
     class: 'flex min-h-0 h-full w-full flex-col',
   },
 })
-export class WifiPageComponent {
+export class WifiPageComponent implements OnInit {
   readonly wifiInfoList = signal<WiFiInfo[]>([]);
   readonly scanInProgress = signal(false);
   readonly actionInProgress = signal(false);
@@ -48,6 +54,10 @@ export class WifiPageComponent {
   readonly busy = computed(
     () => this.actionInProgress() || this.postConnectReboot.inProgress(),
   );
+
+  ngOnInit(): void {
+    void this.runWifiScan();
+  }
 
   private async ensureSerial(): Promise<boolean> {
     const ok = this.serial.isConnected();
