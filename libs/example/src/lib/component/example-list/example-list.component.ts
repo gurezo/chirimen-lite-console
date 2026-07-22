@@ -14,5 +14,6 @@ export class ExampleListComponent {
   readonly gpioExample = input.required<ExampleItem[]>();
   readonly i2cExample = input.required<ExampleItem[]>();
   readonly remoteExample = input.required<ExampleItem[]>();
+  readonly downloadInProgress = input(false);
   readonly saveExample = output<ExampleItem>();
 }

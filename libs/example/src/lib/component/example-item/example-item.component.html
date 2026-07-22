@@ -34,6 +34,8 @@
         <mat-icon
           matTooltip="{{ element.id }} example Javascript Download"
           class="cursor-pointer"
+          [class.pointer-events-none]="downloadInProgress()"
+          [class.opacity-40]="downloadInProgress()"
           (click)="onSave(element)"
         >
           download

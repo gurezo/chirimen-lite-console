@@ -3,16 +3,19 @@
     <choh-example-item
       [label]="'GPIO'"
       [exampleItem]="gpioExample()"
+      [downloadInProgress]="downloadInProgress()"
       (saveExample)="saveExample.emit($event)"
     />
     <choh-example-item
       [label]="'I2C'"
       [exampleItem]="i2cExample()"
+      [downloadInProgress]="downloadInProgress()"
       (saveExample)="saveExample.emit($event)"
     />
     <choh-example-item
       [label]="'Remote'"
       [exampleItem]="remoteExample()"
+      [downloadInProgress]="downloadInProgress()"
       (saveExample)="saveExample.emit($event)"
     />
   </div>
