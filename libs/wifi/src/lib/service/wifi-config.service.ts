@@ -32,23 +32,20 @@ export class WifiConfigService {
    */
   async setWiFi(ssid: string, password: string): Promise<void> {
     try {
-      await firstValueFrom(this.serial.exec$('cd', {
-        prompt: PI_ZERO_PROMPT,
-        timeout: SERIAL_TIMEOUT.DEFAULT,
-      }));
       await firstValueFrom(this.serial.exec$('sudo touch /boot/ssh', {
         prompt: PI_ZERO_PROMPT,
         timeout: SERIAL_TIMEOUT.DEFAULT,
       }));
 
       const wifiSetupScript = this.generateWifiSetupScript();
+      const scriptPath = '/tmp/wifi_setup.sh';
 
-      await this.fileContent.writeTextFile('wifi_setup.sh', wifiSetupScript);
+      await this.fileContent.writeTextFile(scriptPath, wifiSetupScript);
 
       const qSsid = shellSingleQuote(ssid);
       const qPass = shellSingleQuote(password);
       const result = await firstValueFrom(this.serial.exec$(
-        `chmod +x wifi_setup.sh && ./wifi_setup.sh ${qSsid} ${qPass}`,
+        `chmod +x ${scriptPath} && ${scriptPath} ${qSsid} ${qPass}`,
         {
           prompt: PI_ZERO_PROMPT,
           timeout: SERIAL_TIMEOUT.LONG,
@@ -102,7 +99,7 @@ DEBIAN_VERSION=$(cut -d . -f 1 /etc/debian_version)
 
 if [ "$DEBIAN_VERSION" -le 11 ]; then
   WPA_CONF_PATH=/etc/wpa_supplicant/wpa_supplicant.conf
-  sudo sh -c "cat > $WPA_CONF_PATH" <<EOL
+  sudo sh -c "cat > $WPA_CONF_PATH" <<WPA_CONF_EOF
 ctrl_interface=DIR=/var/run/wpa_supplicant GROUP=netdev
 update_config=1
 country=JP
@@ -110,7 +107,7 @@ network={
   ssid="$SSID"
   psk="$PASSWORD"
 }
-EOL
+WPA_CONF_EOF
   if ! sudo wpa_cli -i wlan0 reconfigure; then
     echo "WIFI_CONNECT_FAILED"
     exit 1
