@@ -12,6 +12,7 @@ import { ExampleItem } from '../../models';
 export class ExampleItemComponent {
   readonly label = input.required<string>();
   readonly exampleItem = input.required<ExampleItem[]>();
+  readonly downloadInProgress = input(false);
   readonly saveExample = output<ExampleItem>();
   displayedColumns: string[] = [
     'id',
@@ -23,6 +24,9 @@ export class ExampleItemComponent {
   ];
 
   onSave(element: ExampleItem): void {
+    if (this.downloadInProgress()) {
+      return;
+    }
     this.saveExample.emit(element);
   }
 }
