@@ -10,7 +10,8 @@
   ],
   "implicitDependencies": [
     "libs-editor",
-    "libs-shared"
+    "libs-shared",
+    "libs-web-serial"
   ],
   "targets": {
     "build": {
