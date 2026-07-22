@@ -61,7 +61,7 @@ export class FileContentService {
     try {
       const command = FileUtils.generateHeredocCommand(path, content);
       await firstValueFrom(this.serial.exec$(command, {
-        prompt: 'EOL',
+        prompt: PI_ZERO_PROMPT,
         timeout: SERIAL_TIMEOUT.DEFAULT,
       }));
     } catch (error: unknown) {
@@ -106,7 +106,7 @@ export class FileContentService {
     try {
       const command = FileUtils.generateAppendCommand(path, content);
       await firstValueFrom(this.serial.exec$(command, {
-        prompt: 'EOL',
+        prompt: PI_ZERO_PROMPT,
         timeout: SERIAL_TIMEOUT.DEFAULT,
       }));
     } catch (error: unknown) {

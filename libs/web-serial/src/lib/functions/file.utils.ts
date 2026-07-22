@@ -95,12 +95,38 @@ export class FileUtils {
     return bytes.buffer;
   }
 
+  /**
+   * 本文に現れない heredoc 終端を選ぶ（固定 `EOL` は内容中の `EOL` 行と衝突する）。
+   */
+  static chooseHeredocDelimiter(content: string): string {
+    const base = 'CHIRIMEN_EOF';
+    if (!FileUtils.contentHasDelimiterLine(content, base)) {
+      return base;
+    }
+    let n = 0;
+    while (FileUtils.contentHasDelimiterLine(content, `${base}_${n}`)) {
+      n += 1;
+    }
+    return `${base}_${n}`;
+  }
+
+  private static contentHasDelimiterLine(
+    content: string,
+    delimiter: string,
+  ): boolean {
+    return content.split(/\r?\n/).some((line) => line === delimiter);
+  }
+
   static generateHeredocCommand(fileName: string, content: string): string {
-    return `cat > ${fileName} << 'EOL'\n${content}\nEOL`;
+    const delimiter = FileUtils.chooseHeredocDelimiter(content);
+    const path = FileUtils.escapePath(fileName);
+    return `cat > ${path} << '${delimiter}'\n${content}\n${delimiter}`;
   }
 
   static generateAppendCommand(fileName: string, content: string): string {
-    return `cat >> ${fileName} << 'EOL'\n${content}\nEOL`;
+    const delimiter = FileUtils.chooseHeredocDelimiter(content);
+    const path = FileUtils.escapePath(fileName);
+    return `cat >> ${path} << '${delimiter}'\n${content}\n${delimiter}`;
   }
 
   static generateBase64SaveCommand(fileName: string): string {
