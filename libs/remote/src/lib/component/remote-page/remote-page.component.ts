@@ -243,9 +243,7 @@ export class RemotePageComponent implements OnInit {
     if (this.processes.length === 0 || !(await this.ensureSerial())) {
       return;
     }
-    const targets = this.processes
-      .map((p) => `- uid: ${p.uid} / script: ${p.script}`)
-      .join('\n');
+    const targets = this.formatProcessLines(this.processes);
     const ref = this.dialogService.open(ConfirmDialogComponent, {
       data: {
         title: 'すべての forever プロセスを停止',
@@ -268,14 +266,32 @@ export class RemotePageComponent implements OnInit {
     this.actionInProgress.set(true);
     try {
       await this.remoteStop.stopAll();
-      this.notify.success('Remote', 'stopall を送信しました');
       this.selected = null;
       await this.refreshList();
+      if (this.processes.length > 0) {
+        this.notify.error(
+          'Remote',
+          [
+            '一部または全部の停止に失敗しました。残存プロセスがあります。',
+            '',
+            `残存: ${this.processes.length} 件`,
+            this.formatProcessLines(this.processes),
+          ].join('\n'),
+        );
+      } else {
+        this.notify.success('Remote', 'stopall を送信しました');
+      }
     } catch (e: unknown) {
       const msg = e instanceof Error ? e.message : 'stopall に失敗しました';
       this.notify.error('Remote', msg);
     } finally {
       this.actionInProgress.set(false);
     }
+  }
+
+  private formatProcessLines(processes: ForeverProcess[]): string {
+    return processes
+      .map((p) => `- uid: ${p.uid} / script: ${p.script}`)
+      .join('\n');
   }
 }
