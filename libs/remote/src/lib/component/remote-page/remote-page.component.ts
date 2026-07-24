@@ -205,7 +205,7 @@ export class RemotePageComponent implements OnInit {
 
   async stopSelected(): Promise<void> {
     const target = this.selected;
-    if (!target || !(await this.ensureSerial())) {
+    if (!target || !target.running || !(await this.ensureSerial())) {
       return;
     }
     const confirmed = await this.confirmStopSelected(target);
