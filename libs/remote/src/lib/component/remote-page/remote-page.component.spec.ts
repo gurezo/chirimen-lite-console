@@ -274,4 +274,158 @@ describe('RemotePageComponent', () => {
       'forever: stop failed: ENOENT',
     );
   });
+
+  it('confirmStopAll confirms then calls remoteStop.stopAll', async () => {
+    component.processes = [
+      {
+        listIndex: 0,
+        uid: 'RelayServer',
+        command: 'node',
+        script: '/home/pi/RelayServer.js',
+        running: true,
+      },
+    ];
+    const status = TestBed.inject(RemoteStatusService) as unknown as {
+      listPlain: ReturnType<typeof vi.fn>;
+    };
+    status.listPlain.mockResolvedValueOnce('No forever processes running');
+    const stop = TestBed.inject(RemoteStopService);
+    const dialog = TestBed.inject(DialogService);
+    await component.confirmStopAll();
+    expect(dialog.open).toHaveBeenCalled();
+    expect(stop.stopAll).toHaveBeenCalled();
+  });
+
+  it('confirmStopAll skips stop when confirm is cancelled', async () => {
+    const dialog = TestBed.inject(DialogService) as unknown as {
+      open: ReturnType<typeof vi.fn>;
+    };
+    dialog.open.mockReturnValue({ closed: of(false) });
+    component.processes = [
+      {
+        listIndex: 0,
+        uid: 'RelayServer',
+        command: 'node',
+        script: '/home/pi/RelayServer.js',
+        running: true,
+      },
+    ];
+    const stop = TestBed.inject(RemoteStopService);
+    await component.confirmStopAll();
+    expect(stop.stopAll).not.toHaveBeenCalled();
+  });
+
+  it('confirmStopAll does nothing when there are no processes', async () => {
+    component.processes = [];
+    const stop = TestBed.inject(RemoteStopService);
+    const dialog = TestBed.inject(DialogService);
+    await component.confirmStopAll();
+    expect(dialog.open).not.toHaveBeenCalled();
+    expect(stop.stopAll).not.toHaveBeenCalled();
+  });
+
+  it('confirmStopAll shows error notification when forever stopall fails', async () => {
+    component.processes = [
+      {
+        listIndex: 0,
+        uid: 'RelayServer',
+        command: 'node',
+        script: '/home/pi/RelayServer.js',
+        running: true,
+      },
+    ];
+    const stop = TestBed.inject(RemoteStopService) as unknown as {
+      stopAll: ReturnType<typeof vi.fn>;
+    };
+    stop.stopAll.mockRejectedValueOnce(
+      new Error('forever: stopall failed: EPERM'),
+    );
+    const notify = TestBed.inject(NotificationService) as unknown as {
+      error: ReturnType<typeof vi.fn>;
+    };
+    await component.confirmStopAll();
+    expect(notify.error).toHaveBeenCalledWith(
+      'Remote',
+      'forever: stopall failed: EPERM',
+    );
+  });
+
+  it('confirmStopAll reports remaining processes after stopall', async () => {
+    component.processes = [
+      {
+        listIndex: 0,
+        uid: 'RelayServer',
+        command: 'node',
+        script: '/home/pi/RelayServer.js',
+        running: true,
+      },
+    ];
+    const notify = TestBed.inject(NotificationService) as unknown as {
+      error: ReturnType<typeof vi.fn>;
+      success: ReturnType<typeof vi.fn>;
+    };
+    await component.confirmStopAll();
+    expect(notify.error).toHaveBeenCalledWith(
+      'Remote',
+      expect.stringContaining('残存: 1 件'),
+    );
+    expect(notify.success).not.toHaveBeenCalledWith(
+      'Remote',
+      'stopall を送信しました',
+    );
+  });
+
+  it('confirmStopAll shows success when no processes remain', async () => {
+    component.processes = [
+      {
+        listIndex: 0,
+        uid: 'RelayServer',
+        command: 'node',
+        script: '/home/pi/RelayServer.js',
+        running: true,
+      },
+    ];
+    const status = TestBed.inject(RemoteStatusService) as unknown as {
+      listPlain: ReturnType<typeof vi.fn>;
+    };
+    status.listPlain.mockResolvedValueOnce('No forever processes running');
+    const notify = TestBed.inject(NotificationService) as unknown as {
+      success: ReturnType<typeof vi.fn>;
+    };
+    await component.confirmStopAll();
+    expect(notify.success).toHaveBeenCalledWith(
+      'Remote',
+      'stopall を送信しました',
+    );
+  });
+
+  it('confirmStopAll confirm message lists impact and chirimen warning', async () => {
+    component.processes = [
+      {
+        listIndex: 0,
+        uid: 'RelayServer',
+        command: 'node',
+        script: '/home/pi/RelayServer.js',
+        running: true,
+      },
+    ];
+    const status = TestBed.inject(RemoteStatusService) as unknown as {
+      listPlain: ReturnType<typeof vi.fn>;
+    };
+    status.listPlain.mockResolvedValueOnce('No forever processes running');
+    const dialog = TestBed.inject(DialogService) as unknown as {
+      open: ReturnType<typeof vi.fn>;
+    };
+    await component.confirmStopAll();
+    const openArg = dialog.open.mock.calls[0]?.[1] as {
+      data: { message: string };
+    };
+    expect(openArg.data.message).toContain('対象: 1 件');
+    expect(openArg.data.message).toContain(
+      'uid: RelayServer / script: /home/pi/RelayServer.js',
+    );
+    expect(openArg.data.message).toContain(
+      'CHIRIMEN の動作に必要なプロセス',
+    );
+  });
 });
