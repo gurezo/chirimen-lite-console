@@ -21,14 +21,29 @@
 
     <div class="flex flex-col gap-2">
       <label class="text-sm font-medium" for="remote-script-path">起動するスクリプトパス（リモート）</label>
-      <input
-        id="remote-script-path"
-        class="border border-gray-300 rounded px-2 py-1.5 w-full text-sm font-mono"
-        type="text"
-        [(ngModel)]="scriptPath"
-        placeholder="/home/pi/RelayServer.js"
-        [disabled]="actionInProgress() || !serialConnected()"
-      />
+      <div class="flex flex-col sm:flex-row gap-2 items-stretch sm:items-center">
+        <input
+          id="remote-script-path"
+          class="border border-gray-300 rounded px-2 py-1.5 w-full text-sm font-mono"
+          type="text"
+          [(ngModel)]="scriptPath"
+          placeholder="/home/pi/RelayServer.js"
+          [disabled]="actionInProgress() || !serialConnected()"
+        />
+        <choh-button
+          label="選択中のファイルを使う"
+          type="button"
+          [disabled]="
+            !selectedJsPath() || actionInProgress() || !serialConnected()
+          "
+          (clickEvent)="useSelectedFile()"
+        />
+      </div>
+      @if (selectedJsPath(); as jsPath) {
+        <p class="text-xs text-gray-500 font-mono truncate" [title]="jsPath">
+          File Manager 選択中: {{ jsPath }}
+        </p>
+      }
     </div>
 
     <mat-divider />

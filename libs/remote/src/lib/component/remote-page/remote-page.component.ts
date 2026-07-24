@@ -1,9 +1,19 @@
-import { Component, computed, inject, signal } from '@angular/core';
+import {
+  Component,
+  computed,
+  inject,
+  OnInit,
+  signal,
+} from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { MatDividerModule } from '@angular/material/divider';
 import { ConfirmDialogComponent, DialogService } from '@libs-dialogs';
 import type { ForeverProcess } from '@libs-shared';
-import { ButtonComponent, NotificationService } from '@libs-shared';
+import {
+  ButtonComponent,
+  ConsoleShellStore,
+  NotificationService,
+} from '@libs-shared';
 import {
   PI_ZERO_PROMPT,
   sanitizeSerialStdout,
@@ -25,6 +35,10 @@ import { RemoteStopButtonComponent } from '../remote-stop-button/remote-stop-but
 
 const FOREVER_LIST_CMD = 'forever list --plain';
 
+function isJsScriptPath(path: string | null | undefined): path is string {
+  return !!path && /\.js$/i.test(path.trim());
+}
+
 @Component({
   selector: 'lib-remote-page',
   imports: [
@@ -37,7 +51,7 @@ const FOREVER_LIST_CMD = 'forever list --plain';
   ],
   templateUrl: './remote-page.component.html',
 })
-export class RemotePageComponent {
+export class RemotePageComponent implements OnInit {
   processes: ForeverProcess[] = [];
   selected: ForeverProcess | null = null;
   scriptPath = '';
@@ -48,11 +62,32 @@ export class RemotePageComponent {
   private readonly dialogService = inject(DialogService);
   private readonly notify = inject(NotificationService);
   private readonly serial = inject(SerialFacadeService);
+  private readonly shellStore = inject(ConsoleShellStore);
   private readonly remoteStatus = inject(RemoteStatusService);
   private readonly remoteRun = inject(RemoteRunService);
   private readonly remoteStop = inject(RemoteStopService);
 
   readonly serialConnected = computed(() => this.serial.isConnected());
+
+  /** File Manager で選択中の .js パス（なければ null）。 */
+  readonly selectedJsPath = computed(() => {
+    const path = this.shellStore.selectedFilePath();
+    return isJsScriptPath(path) ? path.trim() : null;
+  });
+
+  ngOnInit(): void {
+    const path = this.selectedJsPath();
+    if (path) {
+      this.scriptPath = path;
+    }
+  }
+
+  useSelectedFile(): void {
+    const path = this.selectedJsPath();
+    if (path) {
+      this.scriptPath = path;
+    }
+  }
 
   closeModal(): void {
     this.dialogService.close();
