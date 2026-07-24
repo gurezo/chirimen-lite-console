@@ -5,26 +5,47 @@
   class="max-h-[min(360px,40vh)] overflow-y-auto w-full border border-gray-200 rounded"
   role="list"
 >
-  @for (p of processes(); track trackKey(p)) {
-    <button
-      type="button"
-      role="listitem"
-      class="w-full text-left px-3 py-2 border-b border-gray-100 hover:bg-gray-50"
-      [class.bg-blue-50]="isSelected(p)"
-      (click)="rowSelected.emit(p)"
-    >
-      <div class="font-mono text-sm">{{ p.uid }}</div>
-      <div class="text-xs text-gray-600 break-all">{{ p.script }}</div>
-      <div class="text-xs mt-0.5" [class.text-green-700]="p.running" [class.text-gray-500]="!p.running">
-        {{ p.running ? '実行中' : '停止' }}
-        @if (p.uptime) {
-          <span class="text-gray-400"> · {{ p.uptime }}</span>
+  @if (loading()) {
+    <p class="p-3 text-sm text-gray-600" role="status">取得中…</p>
+  } @else if (error(); as err) {
+    <div class="p-3 flex flex-col gap-2" role="alert">
+      <p class="text-sm text-red-700">{{ err }}</p>
+      <choh-button
+        label="再試行"
+        type="button"
+        (clickEvent)="retry.emit()"
+      />
+    </div>
+  } @else {
+    @for (p of processes(); track trackKey(p)) {
+      <button
+        type="button"
+        role="listitem"
+        class="w-full text-left px-3 py-2 border-b border-gray-100 hover:bg-gray-50"
+        [class.bg-blue-50]="isSelected(p)"
+        (click)="rowSelected.emit(p)"
+      >
+        <div class="font-mono text-sm">{{ p.uid }}</div>
+        <div class="text-xs text-gray-600 break-all">{{ p.script }}</div>
+        <div
+          class="text-xs mt-0.5"
+          [class.text-green-700]="p.running"
+          [class.text-gray-500]="!p.running"
+        >
+          {{ p.running ? '実行中' : '停止' }}
+          @if (p.uptime) {
+            <span class="text-gray-400"> · {{ p.uptime }}</span>
+          }
+        </div>
+      </button>
+    } @empty {
+      <p class="p-3 text-sm text-gray-600">
+        @if (fetched()) {
+          プロセスがありません。
+        } @else {
+          「更新」で一覧を取得してください。
         }
-      </div>
-    </button>
-  } @empty {
-    <p class="p-3 text-sm text-gray-600">
-      プロセスがありません。「更新」で一覧を取得してください。
-    </p>
+      </p>
+    }
   }
 </div>

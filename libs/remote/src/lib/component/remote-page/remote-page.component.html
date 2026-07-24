@@ -14,7 +14,11 @@
     <lib-remote-status-list
       [processes]="processes"
       [selected]="selected"
+      [loading]="listInProgress()"
+      [error]="listError()"
+      [fetched]="listFetched()"
       (rowSelected)="onRowSelected($event)"
+      (retry)="refreshList()"
     />
 
     @if (selected && !selected.running) {
