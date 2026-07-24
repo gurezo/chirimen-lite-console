@@ -88,10 +88,41 @@ describe('RemotePageComponent', () => {
     expect(notify.warning).toHaveBeenCalled();
   });
 
-  it('startScript calls remoteRun.start', async () => {
+  it('startScript confirms then calls remoteRun.start', async () => {
+    component.scriptPath = '/app.js';
+    const run = TestBed.inject(RemoteRunService);
+    const dialog = TestBed.inject(DialogService);
+    await component.startScript();
+    expect(dialog.open).toHaveBeenCalled();
+    expect(run.start).toHaveBeenCalledWith('/app.js');
+  });
+
+  it('startScript skips start when confirm is cancelled', async () => {
+    const dialog = TestBed.inject(DialogService) as unknown as {
+      open: ReturnType<typeof vi.fn>;
+    };
+    dialog.open.mockReturnValue({ closed: of(false) });
     component.scriptPath = '/app.js';
     const run = TestBed.inject(RemoteRunService);
     await component.startScript();
-    expect(run.start).toHaveBeenCalledWith('/app.js');
+    expect(run.start).not.toHaveBeenCalled();
+  });
+
+  it('startScript restarts when the same script is already running', async () => {
+    component.scriptPath = '/home/pi/RelayServer.js';
+    component.processes = [
+      {
+        listIndex: 0,
+        uid: 'RelayServer',
+        command: 'node',
+        script: '/home/pi/RelayServer.js',
+        running: true,
+      },
+    ];
+    const run = TestBed.inject(RemoteRunService);
+    const stop = TestBed.inject(RemoteStopService);
+    await component.startScript();
+    expect(stop.stopTarget).toHaveBeenCalledWith('RelayServer');
+    expect(run.start).toHaveBeenCalledWith('/home/pi/RelayServer.js');
   });
 });
