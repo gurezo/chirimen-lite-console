@@ -152,4 +152,45 @@ describe('RemotePageComponent', () => {
     selectedFilePath.set('/home/pi/readme.md');
     expect(component.selectedJsPath()).toBeNull();
   });
+
+  it('serialConnected reflects SerialFacadeService isConnected', () => {
+    expect(component.serialConnected()).toBe(true);
+    serialConnected.set(false);
+    expect(component.serialConnected()).toBe(false);
+  });
+
+  it('startScript warns and does not start when serial disconnected', async () => {
+    serialConnected.set(false);
+    component.scriptPath = '/app.js';
+    const run = TestBed.inject(RemoteRunService);
+    const notify = TestBed.inject(NotificationService) as unknown as {
+      warning: ReturnType<typeof vi.fn>;
+    };
+    await component.startScript();
+    expect(notify.warning).toHaveBeenCalled();
+    expect(run.start).not.toHaveBeenCalled();
+  });
+
+  it('startScript shows error notification when forever start fails', async () => {
+    component.scriptPath = '/app.js';
+    const run = TestBed.inject(RemoteRunService) as unknown as {
+      start: ReturnType<typeof vi.fn>;
+    };
+    run.start.mockRejectedValueOnce(new Error('forever: start failed: EACCES'));
+    const notify = TestBed.inject(NotificationService) as unknown as {
+      error: ReturnType<typeof vi.fn>;
+    };
+    await component.startScript();
+    expect(notify.error).toHaveBeenCalledWith(
+      'Remote',
+      'forever: start failed: EACCES',
+    );
+  });
+
+  it('does not prefill scriptPath when selected file is not .js', () => {
+    selectedFilePath.set('/home/pi/readme.md');
+    const next = TestBed.createComponent(RemotePageComponent);
+    next.detectChanges();
+    expect(next.componentInstance.scriptPath).toBe('');
+  });
 });
