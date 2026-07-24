@@ -243,10 +243,20 @@ export class RemotePageComponent implements OnInit {
     if (this.processes.length === 0 || !(await this.ensureSerial())) {
       return;
     }
+    const targets = this.processes
+      .map((p) => `- uid: ${p.uid} / script: ${p.script}`)
+      .join('\n');
     const ref = this.dialogService.open(ConfirmDialogComponent, {
       data: {
         title: 'すべての forever プロセスを停止',
-        message: 'forever stopall を実行します。よろしいですか？',
+        message: [
+          'Foreverで管理中のすべてのプロセスを停止します。この操作を続行しますか？',
+          '',
+          `対象: ${this.processes.length} 件`,
+          targets,
+          '',
+          '注意: CHIRIMEN の動作に必要なプロセス（例: RelayServer 等）も停止対象になります。',
+        ].join('\n'),
         confirmLabel: 'すべて停止',
         cancelLabel: 'キャンセル',
       },
