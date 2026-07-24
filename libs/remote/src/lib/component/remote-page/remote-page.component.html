@@ -17,6 +17,12 @@
       (rowSelected)="onRowSelected($event)"
     />
 
+    @if (selected && !selected.running) {
+      <p class="text-sm text-gray-600" role="status">
+        選択中のプロセスは既に停止しています
+      </p>
+    }
+
     <mat-divider />
 
     <div class="flex flex-col gap-2">
@@ -55,7 +61,12 @@
       />
       <lib-remote-stop-button
         label="選択を停止"
-        [disabled]="actionInProgress() || !selected || !serialConnected()"
+        [disabled]="
+          actionInProgress() ||
+          !selected ||
+          !selected.running ||
+          !serialConnected()
+        "
         (stopClick)="stopSelected()"
       />
       <lib-remote-stop-button
