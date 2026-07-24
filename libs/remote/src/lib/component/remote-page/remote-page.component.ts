@@ -240,7 +240,7 @@ export class RemotePageComponent implements OnInit {
   }
 
   async confirmStopAll(): Promise<void> {
-    if (!(await this.ensureSerial())) {
+    if (this.processes.length === 0 || !(await this.ensureSerial())) {
       return;
     }
     const ref = this.dialogService.open(ConfirmDialogComponent, {
