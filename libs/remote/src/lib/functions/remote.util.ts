@@ -78,3 +78,38 @@ export function parseForeverListPlain(stdout: string): ForeverProcess[] {
 
   return out;
 }
+
+/** Normalize a remote script path for comparison (trim, unify slashes, drop trailing /). */
+export function normalizeScriptPath(path: string): string {
+  return String(path)
+    .trim()
+    .replace(/\\/g, '/')
+    .replace(/\/+$/, '');
+}
+
+/**
+ * Whether two script path strings refer to the same forever target.
+ * Matches exact paths, or when one path ends with the other as a path suffix.
+ * The forever script column may include args — only the first token is used.
+ */
+export function scriptsMatch(a: string, b: string): boolean {
+  const na = normalizeScriptPath(a.split(/\s+/)[0] ?? '');
+  const nb = normalizeScriptPath(b.split(/\s+/)[0] ?? '');
+  if (!na || !nb) {
+    return false;
+  }
+  if (na === nb) {
+    return true;
+  }
+  return na.endsWith(`/${nb}`) || nb.endsWith(`/${na}`);
+}
+
+/** Find a running forever process whose script matches the given path. */
+export function findRunningProcessByScript(
+  processes: ForeverProcess[],
+  scriptPath: string,
+): ForeverProcess | undefined {
+  return processes.find(
+    (p) => p.running && scriptsMatch(p.script, scriptPath),
+  );
+}

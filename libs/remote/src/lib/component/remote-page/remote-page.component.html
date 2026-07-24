@@ -27,7 +27,7 @@
         type="text"
         [(ngModel)]="scriptPath"
         placeholder="/home/pi/RelayServer.js"
-        [disabled]="actionInProgress()"
+        [disabled]="actionInProgress() || !serialConnected()"
       />
     </div>
 
@@ -35,24 +35,24 @@
 
     <div class="flex flex-wrap gap-2 justify-between w-full">
       <lib-remote-run-button
-        [disabled]="actionInProgress() || !scriptPath.trim()"
+        [disabled]="actionInProgress() || !scriptPath.trim() || !serialConnected()"
         (runClick)="startScript()"
       />
       <lib-remote-stop-button
         label="選択を停止"
-        [disabled]="actionInProgress() || !selected"
+        [disabled]="actionInProgress() || !selected || !serialConnected()"
         (stopClick)="stopSelected()"
       />
       <lib-remote-stop-button
         label="すべて停止"
-        [disabled]="actionInProgress()"
+        [disabled]="actionInProgress() || !serialConnected()"
         (stopClick)="confirmStopAll()"
       />
       <choh-button
         [label]="listInProgress() ? '更新中…' : '更新'"
         type="button"
         (clickEvent)="refreshList()"
-        [disabled]="listInProgress() || actionInProgress()"
+        [disabled]="listInProgress() || actionInProgress() || !serialConnected()"
       />
       <choh-button label="閉じる" type="button" (clickEvent)="closeModal()" />
     </div>

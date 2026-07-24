@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { formatRemoteStatus, parseForeverListPlain } from './remote.util';
+import {
+  findRunningProcessByScript,
+  formatRemoteStatus,
+  normalizeScriptPath,
+  parseForeverListPlain,
+  scriptsMatch,
+} from './remote.util';
 
 describe('formatRemoteStatus', () => {
   it('trims and drops blank lines', () => {
@@ -71,5 +77,43 @@ not a row
 
   it('ignores rows with too few columns after split', () => {
     expect(parseForeverListPlain('[0]  onlyone')).toEqual([]);
+  });
+});
+
+describe('normalizeScriptPath / scriptsMatch', () => {
+  it('normalizes slashes and trailing slash', () => {
+    expect(normalizeScriptPath('  /home/pi/app.js/  ')).toBe('/home/pi/app.js');
+    expect(normalizeScriptPath('C:\\x\\y.js')).toBe('C:/x/y.js');
+  });
+
+  it('matches exact and path-suffix forms', () => {
+    expect(scriptsMatch('/home/pi/app.js', '/home/pi/app.js')).toBe(true);
+    expect(scriptsMatch('/home/pi/app.js', 'app.js')).toBe(true);
+    expect(scriptsMatch('app.js', '/home/pi/app.js')).toBe(true);
+    expect(scriptsMatch('/home/pi/a.js', '/home/pi/b.js')).toBe(false);
+  });
+
+  it('uses first token when forever script column includes args', () => {
+    expect(scriptsMatch('/home/pi/app.js --flag', '/home/pi/app.js')).toBe(
+      true,
+    );
+  });
+});
+
+describe('findRunningProcessByScript', () => {
+  it('returns running process matching script path', () => {
+    const processes = parseForeverListPlain(
+      '[0]  RelayServer  node  /home/pi/RelayServer.js  1111  2222  /tmp/a.log  0:0:0:1',
+    );
+    expect(
+      findRunningProcessByScript(processes, 'RelayServer.js')?.uid,
+    ).toBe('RelayServer');
+  });
+
+  it('ignores stopped processes', () => {
+    const processes = parseForeverListPlain(
+      '[0]  app  node  /x.js  1  2  /l.log  STOPPED',
+    );
+    expect(findRunningProcessByScript(processes, '/x.js')).toBeUndefined();
   });
 });

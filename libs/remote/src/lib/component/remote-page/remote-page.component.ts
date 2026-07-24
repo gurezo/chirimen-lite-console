@@ -1,4 +1,4 @@
-import { Component, inject, signal } from '@angular/core';
+import { Component, computed, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { MatDividerModule } from '@angular/material/divider';
 import { ConfirmDialogComponent, DialogService } from '@libs-dialogs';
@@ -10,7 +10,10 @@ import {
   SerialFacadeService,
 } from '@libs-web-serial';
 import { firstValueFrom } from 'rxjs';
-import { parseForeverListPlain } from '../../functions';
+import {
+  findRunningProcessByScript,
+  parseForeverListPlain,
+} from '../../functions';
 import {
   RemoteRunService,
   RemoteStatusService,
@@ -48,6 +51,8 @@ export class RemotePageComponent {
   private readonly remoteStatus = inject(RemoteStatusService);
   private readonly remoteRun = inject(RemoteRunService);
   private readonly remoteStop = inject(RemoteStopService);
+
+  readonly serialConnected = computed(() => this.serial.isConnected());
 
   closeModal(): void {
     this.dialogService.close();
@@ -103,17 +108,64 @@ export class RemotePageComponent {
     if (!path || !(await this.ensureSerial())) {
       return;
     }
+
+    const running = findRunningProcessByScript(this.processes, path);
+    const confirmed = running
+      ? await this.confirmRestart(path, running)
+      : await this.confirmStart(path);
+    if (!confirmed) {
+      return;
+    }
+
     this.actionInProgress.set(true);
     try {
+      if (running) {
+        await this.remoteStop.stopTarget(running.uid);
+      }
       await this.remoteRun.start(path);
-      this.notify.success('Remote', '起動コマンドを送信しました');
+      this.notify.success(
+        'Remote',
+        running ? '再起動コマンドを送信しました' : '起動コマンドを送信しました',
+      );
       await this.refreshList();
     } catch (e: unknown) {
-      const msg = e instanceof Error ? e.message : '起動に失敗しました';
+      const msg =
+        e instanceof Error
+          ? e.message
+          : running
+            ? '再起動に失敗しました'
+            : '起動に失敗しました';
       this.notify.error('Remote', msg);
     } finally {
       this.actionInProgress.set(false);
     }
+  }
+
+  private async confirmStart(path: string): Promise<boolean> {
+    const ref = this.dialogService.open(ConfirmDialogComponent, {
+      data: {
+        title: 'forever で起動',
+        message: `次のスクリプトを forever start します。よろしいですか？\n\n${path}`,
+        confirmLabel: '起動',
+        cancelLabel: 'キャンセル',
+      },
+    });
+    return !!(await firstValueFrom(ref.closed));
+  }
+
+  private async confirmRestart(
+    path: string,
+    running: ForeverProcess,
+  ): Promise<boolean> {
+    const ref = this.dialogService.open(ConfirmDialogComponent, {
+      data: {
+        title: '既に起動中のアプリを再起動',
+        message: `「${running.uid}」(${running.script}) は既に実行中です。停止してから次のスクリプトを再起動しますか？\n\n${path}`,
+        confirmLabel: '再起動',
+        cancelLabel: 'キャンセル',
+      },
+    });
+    return !!(await firstValueFrom(ref.closed));
   }
 
   async stopSelected(): Promise<void> {
