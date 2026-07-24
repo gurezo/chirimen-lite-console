@@ -71,7 +71,9 @@
       />
       <lib-remote-stop-button
         label="すべて停止"
-        [disabled]="actionInProgress() || !serialConnected()"
+        [disabled]="
+          processes.length === 0 || actionInProgress() || !serialConnected()
+        "
         (stopClick)="confirmStopAll()"
       />
       <choh-button
