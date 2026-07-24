@@ -208,6 +208,10 @@ export class RemotePageComponent implements OnInit {
     if (!target || !(await this.ensureSerial())) {
       return;
     }
+    const confirmed = await this.confirmStopSelected(target);
+    if (!confirmed) {
+      return;
+    }
     this.actionInProgress.set(true);
     try {
       await this.remoteStop.stopTarget(target.uid);
@@ -220,6 +224,19 @@ export class RemotePageComponent implements OnInit {
     } finally {
       this.actionInProgress.set(false);
     }
+  }
+
+  private async confirmStopSelected(target: ForeverProcess): Promise<boolean> {
+    const pidLine = target.pid ? `\npid: ${target.pid}` : '';
+    const ref = this.dialogService.open(ConfirmDialogComponent, {
+      data: {
+        title: 'forever プロセスを停止',
+        message: `次の forever プロセスを停止します。よろしいですか？\n\nuid: ${target.uid}\nscript: ${target.script}${pidLine}`,
+        confirmLabel: '停止',
+        cancelLabel: 'キャンセル',
+      },
+    });
+    return !!(await firstValueFrom(ref.closed));
   }
 
   async confirmStopAll(): Promise<void> {
