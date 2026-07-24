@@ -6,7 +6,7 @@ import { DialogService } from '@libs-dialogs';
 import { RemoteRunService } from '../../service';
 import { RemoteStatusService } from '../../service';
 import { RemoteStopService } from '../../service';
-import { NotificationService } from '@libs-shared';
+import { ConsoleShellStore, NotificationService } from '@libs-shared';
 import { SerialFacadeService } from '@libs-web-serial';
 import { RemotePageComponent } from './remote-page.component';
 
@@ -17,9 +17,11 @@ describe('RemotePageComponent', () => {
   let component: RemotePageComponent;
   let fixture: ComponentFixture<RemotePageComponent>;
   let serialConnected: ReturnType<typeof signal<boolean>>;
+  let selectedFilePath: ReturnType<typeof signal<string | null>>;
 
   beforeEach(async () => {
     serialConnected = signal(true);
+    selectedFilePath = signal<string | null>(null);
     const dialogRef = { closed: of(true) };
     await TestBed.configureTestingModule({
       imports: [RemotePageComponent],
@@ -44,6 +46,12 @@ describe('RemotePageComponent', () => {
           provide: SerialFacadeService,
           useValue: {
             isConnected: computed(() => serialConnected()),
+          },
+        },
+        {
+          provide: ConsoleShellStore,
+          useValue: {
+            selectedFilePath: computed(() => selectedFilePath()),
           },
         },
         {
@@ -124,5 +132,24 @@ describe('RemotePageComponent', () => {
     await component.startScript();
     expect(stop.stopTarget).toHaveBeenCalledWith('RelayServer');
     expect(run.start).toHaveBeenCalledWith('/home/pi/RelayServer.js');
+  });
+
+  it('prefills scriptPath from File Manager .js selection on init', async () => {
+    selectedFilePath.set('/home/pi/myApp/main.js');
+    const next = TestBed.createComponent(RemotePageComponent);
+    next.detectChanges();
+    expect(next.componentInstance.scriptPath).toBe('/home/pi/myApp/main.js');
+  });
+
+  it('useSelectedFile copies selectedJsPath into scriptPath', () => {
+    selectedFilePath.set('/home/pi/app.js');
+    component.scriptPath = '/other.js';
+    component.useSelectedFile();
+    expect(component.scriptPath).toBe('/home/pi/app.js');
+  });
+
+  it('selectedJsPath is null for non-js selection', () => {
+    selectedFilePath.set('/home/pi/readme.md');
+    expect(component.selectedJsPath()).toBeNull();
   });
 });
