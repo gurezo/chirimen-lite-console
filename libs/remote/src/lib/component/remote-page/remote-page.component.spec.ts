@@ -193,4 +193,85 @@ describe('RemotePageComponent', () => {
     next.detectChanges();
     expect(next.componentInstance.scriptPath).toBe('');
   });
+
+  it('stopSelected confirms then calls remoteStop.stopTarget', async () => {
+    component.selected = {
+      listIndex: 0,
+      uid: 'RelayServer',
+      command: 'node',
+      script: '/home/pi/RelayServer.js',
+      pid: '2222',
+      running: true,
+    };
+    const stop = TestBed.inject(RemoteStopService);
+    const dialog = TestBed.inject(DialogService);
+    await component.stopSelected();
+    expect(dialog.open).toHaveBeenCalled();
+    expect(stop.stopTarget).toHaveBeenCalledWith('RelayServer');
+  });
+
+  it('stopSelected skips stop when confirm is cancelled', async () => {
+    const dialog = TestBed.inject(DialogService) as unknown as {
+      open: ReturnType<typeof vi.fn>;
+    };
+    dialog.open.mockReturnValue({ closed: of(false) });
+    component.selected = {
+      listIndex: 0,
+      uid: 'RelayServer',
+      command: 'node',
+      script: '/home/pi/RelayServer.js',
+      running: true,
+    };
+    const stop = TestBed.inject(RemoteStopService);
+    await component.stopSelected();
+    expect(stop.stopTarget).not.toHaveBeenCalled();
+  });
+
+  it('stopSelected does nothing when nothing is selected', async () => {
+    component.selected = null;
+    const stop = TestBed.inject(RemoteStopService);
+    const dialog = TestBed.inject(DialogService);
+    await component.stopSelected();
+    expect(dialog.open).not.toHaveBeenCalled();
+    expect(stop.stopTarget).not.toHaveBeenCalled();
+  });
+
+  it('stopSelected does nothing when selected process is already stopped', async () => {
+    component.selected = {
+      listIndex: 0,
+      uid: 'RelayServer',
+      command: 'node',
+      script: '/home/pi/RelayServer.js',
+      running: false,
+    };
+    const stop = TestBed.inject(RemoteStopService);
+    const dialog = TestBed.inject(DialogService);
+    await component.stopSelected();
+    expect(dialog.open).not.toHaveBeenCalled();
+    expect(stop.stopTarget).not.toHaveBeenCalled();
+  });
+
+  it('stopSelected shows error notification when forever stop fails', async () => {
+    component.selected = {
+      listIndex: 0,
+      uid: 'RelayServer',
+      command: 'node',
+      script: '/home/pi/RelayServer.js',
+      running: true,
+    };
+    const stop = TestBed.inject(RemoteStopService) as unknown as {
+      stopTarget: ReturnType<typeof vi.fn>;
+    };
+    stop.stopTarget.mockRejectedValueOnce(
+      new Error('forever: stop failed: ENOENT'),
+    );
+    const notify = TestBed.inject(NotificationService) as unknown as {
+      error: ReturnType<typeof vi.fn>;
+    };
+    await component.stopSelected();
+    expect(notify.error).toHaveBeenCalledWith(
+      'Remote',
+      'forever: stop failed: ENOENT',
+    );
+  });
 });
