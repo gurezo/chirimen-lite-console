@@ -85,6 +85,8 @@ describe('RemotePageComponent', () => {
     await component.refreshList();
     expect(component.processes.length).toBe(1);
     expect(component.processes[0]?.uid).toBe('RelayServer');
+    expect(component.listFetched()).toBe(true);
+    expect(component.listError()).toBeNull();
   });
 
   it('refreshList warns when serial disconnected', async () => {
@@ -96,6 +98,58 @@ describe('RemotePageComponent', () => {
     expect(notify.warning).toHaveBeenCalled();
   });
 
+  it('refreshList sets listError when forever list fails', async () => {
+    const status = TestBed.inject(RemoteStatusService) as unknown as {
+      listPlain: ReturnType<typeof vi.fn>;
+    };
+    status.listPlain.mockRejectedValueOnce(new Error('list failed'));
+    const notify = TestBed.inject(NotificationService) as unknown as {
+      error: ReturnType<typeof vi.fn>;
+    };
+    await component.refreshList();
+    expect(component.listError()).toBe('list failed');
+    expect(component.listFetched()).toBe(false);
+    expect(component.listInProgress()).toBe(false);
+    expect(notify.error).toHaveBeenCalledWith('Remote', 'list failed');
+  });
+
+  it('refreshList ignores concurrent calls while in progress', async () => {
+    const status = TestBed.inject(RemoteStatusService) as unknown as {
+      listPlain: ReturnType<typeof vi.fn>;
+    };
+    let resolveList!: (value: string) => void;
+    status.listPlain.mockReturnValueOnce(
+      new Promise<string>((resolve) => {
+        resolveList = resolve;
+      }),
+    );
+
+    const first = component.refreshList();
+    await Promise.resolve();
+    expect(status.listPlain).toHaveBeenCalledTimes(1);
+
+    const second = component.refreshList();
+    expect(status.listPlain).toHaveBeenCalledTimes(1);
+
+    resolveList(PLAIN_ROW);
+    await Promise.all([first, second]);
+    expect(status.listPlain).toHaveBeenCalledTimes(1);
+    expect(component.processes.length).toBe(1);
+  });
+
+  it('refreshList clears listError on success after a previous failure', async () => {
+    const status = TestBed.inject(RemoteStatusService) as unknown as {
+      listPlain: ReturnType<typeof vi.fn>;
+    };
+    status.listPlain.mockRejectedValueOnce(new Error('list failed'));
+    await component.refreshList();
+    expect(component.listError()).toBe('list failed');
+
+    status.listPlain.mockResolvedValueOnce(PLAIN_ROW);
+    await component.refreshList();
+    expect(component.listError()).toBeNull();
+    expect(component.listFetched()).toBe(true);
+  });
   it('startScript confirms then calls remoteRun.start', async () => {
     component.scriptPath = '/app.js';
     const run = TestBed.inject(RemoteRunService);
