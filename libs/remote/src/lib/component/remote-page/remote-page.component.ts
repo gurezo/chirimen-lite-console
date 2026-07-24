@@ -57,6 +57,8 @@ export class RemotePageComponent implements OnInit {
   scriptPath = '';
 
   readonly listInProgress = signal(false);
+  readonly listError = signal<string | null>(null);
+  readonly listFetched = signal(false);
   readonly actionInProgress = signal(false);
 
   private readonly dialogService = inject(DialogService);
@@ -107,10 +109,14 @@ export class RemotePageComponent implements OnInit {
   }
 
   async refreshList(): Promise<void> {
+    if (this.listInProgress()) {
+      return;
+    }
     if (!(await this.ensureSerial())) {
       return;
     }
     this.listInProgress.set(true);
+    this.listError.set(null);
     try {
       const stdout = await this.remoteStatus.listPlain();
       const cleaned = sanitizeSerialStdout(
@@ -119,6 +125,7 @@ export class RemotePageComponent implements OnInit {
         PI_ZERO_PROMPT,
       );
       this.processes = parseForeverListPlain(cleaned);
+      this.listFetched.set(true);
       const prev = this.selected;
       if (prev) {
         const still = this.processes.find(
@@ -132,6 +139,7 @@ export class RemotePageComponent implements OnInit {
       );
     } catch (e: unknown) {
       const msg = e instanceof Error ? e.message : '一覧の取得に失敗しました';
+      this.listError.set(msg);
       this.notify.error('Remote', msg);
     } finally {
       this.listInProgress.set(false);
