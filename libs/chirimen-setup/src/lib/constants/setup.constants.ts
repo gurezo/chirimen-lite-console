@@ -1,11 +1,11 @@
 import type { ExtraSetupStep } from '../models';
 
 /**
- * Pi Zero（linux-armv6l）向け Node.js 非公式ビルドのデフォルト URL。
+ * Node.js 非公式ビルド（linux-arm64-musl）のデフォルト URL。
  * 必要に応じて UI から差し替え可能。
  */
 export const DEFAULT_NODE_TAR_URL =
-  'https://unofficial-builds.nodejs.org/download/release/v20.18.1/node-v20.18.1-linux-armv6l.tar.xz';
+  'https://unofficial-builds.nodejs.org/download/release/v24.9.0/node-v24.9.0-linux-arm64-musl.tar.xz';
 
 /**
  * #412 のチュートリアル手順に合わせたプロジェクトサブディレクトリのデフォルト（chirimenSetup 配下）
