@@ -1,5 +1,35 @@
-<ul>
-  @for (step of steps(); track step) {
-    <li>{{ step }}</li>
-  }
-</ul>
+@if (steps().length > 0) {
+  <ul class="text-sm space-y-1 max-h-[160px] overflow-auto border border-gray-200 rounded p-2 bg-gray-50">
+    @for (step of steps(); track $index) {
+      <li class="flex items-start gap-2 font-mono text-xs">
+        <span
+          class="shrink-0 w-16 text-right"
+          [class.text-gray-400]="step.status === 'pending'"
+          [class.text-blue-600]="step.status === 'running'"
+          [class.text-green-700]="step.status === 'ok'"
+          [class.text-red-700]="step.status === 'failed'"
+          [class.text-amber-700]="step.status === 'skipped'"
+        >
+          @switch (step.status) {
+            @case ('pending') {
+              待機
+            }
+            @case ('running') {
+              実行中
+            }
+            @case ('ok') {
+              成功
+            }
+            @case ('failed') {
+              失敗
+            }
+            @case ('skipped') {
+              スキップ
+            }
+          }
+        </span>
+        <span class="text-gray-800 break-words">{{ step.label }}</span>
+      </li>
+    }
+  </ul>
+}

@@ -5,6 +5,7 @@
     <h1 class="text-xl font-semibold text-gray-900">CHIRIMEN 初期セットアップ</h1>
     <p class="text-sm text-gray-600">
       Web Serial 経由で Raspberry Pi 上に Node.js と CHIRIMEN 依存を導入します。数十分かかる場合があります。
+      実行前に処理内容と影響を確認ダイアログで案内します。
     </p>
 
     <div class="flex flex-col gap-2 min-w-0">
@@ -50,17 +51,33 @@
       [indeterminate]="inProgress() && progressPercent() === 0"
     />
 
+    @if (stepItems().length > 0) {
+      <div class="flex flex-col gap-1 min-h-0">
+        <span class="text-sm font-medium text-gray-800">ステップ</span>
+        <lib-setup-step-list [steps]="stepItems()" />
+      </div>
+    }
+
     <mat-divider />
 
     <div class="flex flex-col gap-1 min-h-0 flex-1">
       <span class="text-sm font-medium text-gray-800">ログ</span>
       <textarea
         #logArea
-        class="border border-gray-300 rounded p-2 text-xs font-mono bg-gray-50 min-h-[180px] max-h-[40vh] overflow-auto resize-y w-full"
+        class="border border-gray-300 rounded p-2 text-xs font-mono bg-gray-50 min-h-[140px] max-h-[30vh] overflow-auto resize-y w-full"
         readonly
         [value]="logText()"
       ></textarea>
     </div>
+
+    @if (retryGuidance()) {
+      <div
+        class="border border-amber-300 bg-amber-50 text-amber-950 text-sm whitespace-pre-wrap rounded p-3"
+        role="alert"
+      >
+        {{ retryGuidance() }}
+      </div>
+    }
 
     <div class="flex flex-wrap gap-2 justify-end">
       <lib-setup-execute-button
