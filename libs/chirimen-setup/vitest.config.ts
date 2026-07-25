@@ -30,6 +30,7 @@ export default defineConfig({
   resolve: {
     alias: {
       '@libs-chirimen-setup': resolve(__dirname, './src/index.ts'),
+      '@libs-wifi': resolve(__dirname, '../wifi/src/index.ts'),
     },
   },
   esbuild: {

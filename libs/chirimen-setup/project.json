@@ -11,7 +11,8 @@
   "implicitDependencies": [
     "libs-web-serial",
     "libs-dialogs",
-    "libs-shared"
+    "libs-shared",
+    "libs-wifi"
   ],
   "targets": {
     "build": {
