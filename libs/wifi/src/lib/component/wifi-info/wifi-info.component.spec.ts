@@ -31,6 +31,14 @@ describe('WifiInfoComponent', () => {
     expect(component).toBeTruthy();
   });
 
+  it('uses subgrid host classes without own column template', () => {
+    const host = fixture.nativeElement as HTMLElement;
+    expect(host.className).toContain('grid-cols-subgrid');
+    expect(host.className).toContain('col-span-4');
+    expect(host.className).toContain('sm:col-span-5');
+    expect(host.className).not.toContain('grid-cols-[minmax');
+  });
+
   it('shows hidden label for empty ssid', () => {
     fixture.componentRef.setInput('wifiInfo', { ...sample, ssid: '' });
     fixture.detectChanges();

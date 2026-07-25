@@ -79,6 +79,33 @@ describe('WifiListComponent', () => {
     expect(text).toContain('WPA2');
   });
 
+  it('shares column tracks via subgrid between header and rows', () => {
+    fixture.componentRef.setInput('wifiInfoList', [sampleNetwork]);
+    fixture.detectChanges();
+
+    const list = fixture.nativeElement.querySelector(
+      '[role="list"]',
+    ) as HTMLElement;
+    expect(list.className).toContain(
+      'grid-cols-[minmax(0,2fr)_minmax(0,1fr)_auto_auto]',
+    );
+    expect(list.className).toContain(
+      'sm:grid-cols-[minmax(0,2fr)_minmax(0,1fr)_minmax(0,1fr)_auto_auto]',
+    );
+
+    const header = list.querySelector(
+      '[role="presentation"]',
+    ) as HTMLElement;
+    expect(header.className).toContain('grid-cols-subgrid');
+    expect(header.className).toContain('col-span-4');
+    expect(header.className).toContain('sm:col-span-5');
+
+    const row = list.querySelector('choh-wifi-info') as HTMLElement;
+    expect(row.className).toContain('grid-cols-subgrid');
+    expect(row.className).toContain('col-span-4');
+    expect(row.className).toContain('sm:col-span-5');
+  });
+
   it('marks selected and connected rows', () => {
     fixture.componentRef.setInput('wifiInfoList', [sampleNetwork]);
     fixture.componentRef.setInput('selectedAddress', sampleNetwork.address);
