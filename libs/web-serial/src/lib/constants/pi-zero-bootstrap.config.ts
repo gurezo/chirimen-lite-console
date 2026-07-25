@@ -20,6 +20,13 @@ export const PI_ZERO_LC_ALL = 'C.UTF-8' as const;
 export const PI_ZERO_TZ_ENV = PI_ZERO_TIMEZONE;
 
 /**
+ * Debian/RPi 標準の色付き PS1。
+ * シリアルログイン時はシェル起動時点の TERM で色なし PS1 が確定するため、TERM 設定後に再適用する（#795）。
+ */
+export const PI_ZERO_COLORED_PS1 =
+  '\\[\\033[01;32m\\]\\u@\\h\\[\\033[00m\\]:\\[\\033[01;34m\\]\\w\\[\\033[00m\\]\\$ ';
+
+/**
  * 接続直後の環境初期化（timezone/language/locale/env 各ステップの説明とコマンド）。
  * timezone 設定では `sudo -n` を使い、対話的パスワード待ちを避ける。
  */
@@ -28,6 +35,11 @@ export const PI_ZERO_ENVIRONMENT_STEPS: readonly PiZeroEnvironmentStep[] = [
     statusMessage:
       '[コンソール] 端末種別 TERM=xterm-256color を設定しています...',
     command: 'export TERM=xterm-256color',
+  },
+  {
+    statusMessage:
+      '[コンソール] シェルプロンプトに色を設定しています...',
+    command: `PS1='${PI_ZERO_COLORED_PS1}'`,
   },
   {
     statusMessage:
