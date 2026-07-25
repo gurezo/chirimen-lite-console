@@ -14,9 +14,21 @@ export function buildNodeInstallStepList(
     : '';
 
   const steps: NodeInstallStep[] = [
-    { label: 'Node のバージョン確認', command: 'node -v || true' },
-    { label: 'npm のバージョン確認', command: 'npm -v || true' },
-    { label: 'forever の有無確認', command: 'which forever || true' },
+    {
+      label: 'Node のバージョン確認',
+      command: 'node -v || true',
+      soft: true,
+    },
+    {
+      label: 'npm のバージョン確認',
+      command: 'npm -v || true',
+      soft: true,
+    },
+    {
+      label: 'forever の有無確認',
+      command: 'which forever || true',
+      soft: true,
+    },
     {
       label: '作業ディレクトリ chirimenSetup を作成',
       command: 'mkdir -p chirimenSetup',
