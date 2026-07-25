@@ -1,3 +1,4 @@
+import { OVERLAY_DEFAULT_CONFIG } from '@angular/cdk/overlay';
 import { provideHttpClient } from '@angular/common/http';
 import { ApplicationConfig, provideZoneChangeDetection } from '@angular/core';
 import { MAT_ICON_DEFAULT_OPTIONS } from '@angular/material/icon';
@@ -19,6 +20,11 @@ export const appConfig: ApplicationConfig = {
     {
       provide: MAT_ICON_DEFAULT_OPTIONS,
       useValue: { fontSet: 'material-symbols-outlined' },
+    },
+    // CDK Dialog が Popover top layer に入ると ngx-toastr が背面になるため無効化
+    {
+      provide: OVERLAY_DEFAULT_CONFIG,
+      useValue: { usePopover: false },
     },
     provideToastr({
       timeOut: 2000,
