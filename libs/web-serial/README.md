@@ -165,13 +165,13 @@ PiZeroSerialBootstrapService
 2. **ユーザー名送信後** — `Password:` プロンプト。
 3. **パスワード送信後** — Debian MOTD と `pi@raspberrypi:~$` 形式のシェルプロンプト。
 
-シェル到達後は **環境設定の初期化**（`PI_ZERO_ENVIRONMENT_STEPS`）を `exec$` で実行する。初期化には timezone に加えて language / locale / `TZ` などを含める。ターミナルへのライブ表示は **`terminalText$`**。プロンプト照合・ログイン判定は **`exec$` / `readUntilPrompt$` 経路**（内部で `receive$` チャンクをバッファ）により行う。
+シェル到達後は **環境設定の初期化**（`PI_ZERO_ENVIRONMENT_STEPS`）を `exec$` で実行する。初期化には `TERM=xterm-256color`、色付き `PS1`（Issue [#795](https://github.com/gurezo/chirimen-lite-console/issues/795)）、timezone、language / locale / `TZ` などを含める。ターミナルへのライブ表示は **`terminalText$`**。プロンプト照合・ログイン判定は **`exec$` / `readUntilPrompt$` 経路**（内部で `receive$` チャンクをバッファ）により行う。
 
 ## CHIRIMEN / Pi Zero 固有ロジックの集約（Issue [#594](https://github.com/gurezo/chirimen-lite-console/issues/594)）
 
 - Pi Zero 向けの **login / password / シェルプロンプト到達確認 / 環境初期化（timezone/language/locale/env）** は **`PiZeroSerialBootstrapService` に集約**する（[`pi-zero-serial-bootstrap.service.ts`](src/lib/pi-zero-serial-bootstrap.service.ts)）。
   - 接続単位の「一度だけ実行」などのオーケストレーションは `PiZeroSessionService`（[`pi-zero-session.service.ts`](src/lib/pi-zero-session.service.ts)）。
-  - 環境初期化ステップ（timezone/language/locale/env）／期待プロンプトの定数は [`pi-zero-bootstrap.config.ts`](src/lib/pi-zero-bootstrap.config.ts) に集約。
+  - 環境初期化ステップ（TERM / 色付き PS1 / timezone / language / locale / env）／期待プロンプトの定数は [`pi-zero-bootstrap.config.ts`](src/lib/constants/pi-zero-bootstrap.config.ts) に集約。
 - Pi Zero 固有のプロンプト判定（`pi@…` シェル / `login:` / `Password:` 等）は **`PiZeroPromptDetectorService`** に分離（[`pi-zero-prompt-detector.service.ts`](src/lib/pi-zero-prompt-detector.service.ts)）。
 - 汎用の `prompt` / `RegExp` 照合は **`matchesSerialPrompt`**（[`serial-prompt-match.ts`](src/lib/serial-command/serial-prompt-match.ts)）に集約し、**`SerialCommandPipelineService` が直接利用**する（Issue [#675](https://github.com/gurezo/chirimen-lite-console/issues/675) で `SerialPromptDetectorService` を廃止。単一コンシューマ・外部依存なしのため Injectable 境界を外した）。
 - 他サービス（`wifi`, `file-manager`, `remote`, `chirimen-setup`, `i2cdetect` など）は Pi Zero 固有ロジックを保持しない。期待プロンプト文字列としての `PI_ZERO_PROMPT` 利用は許容する。
