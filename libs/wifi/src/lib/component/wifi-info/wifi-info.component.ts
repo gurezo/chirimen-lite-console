@@ -18,7 +18,7 @@ import {
     role: 'listitem',
     tabindex: '0',
     class:
-      'grid w-full grid-cols-[minmax(0,2fr)_minmax(0,1fr)_auto_auto] items-center gap-2 border-b border-gray-100 px-3 py-2 text-left hover:bg-gray-50 focus-visible:ring-2 focus-visible:outline-none sm:grid-cols-[minmax(0,2fr)_minmax(0,1fr)_minmax(0,1fr)_auto_auto]',
+      'col-span-4 grid w-full grid-cols-subgrid items-center gap-2 border-b border-gray-100 px-3 py-2 text-left hover:bg-gray-50 focus-visible:ring-2 focus-visible:outline-none sm:col-span-5',
     '[class.bg-blue-50]': 'selected()',
     '[attr.aria-selected]': 'selected()',
     '(click)': 'onHostClick($event)',
