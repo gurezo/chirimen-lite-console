@@ -12,14 +12,21 @@ import type { WiFiInfo } from '@libs-shared';
 import { ButtonComponent, NotificationService } from '@libs-shared';
 import { SerialFacadeService } from '@libs-web-serial';
 import { firstValueFrom } from 'rxjs';
-import { parseConnectedSsid } from '../../functions';
-import type { WifiConnectDialogData } from '../../models';
+import {
+  parseConnectedSsid,
+  parseConnectivityCheckResult,
+} from '../../functions';
+import type {
+  WifiConnectDialogData,
+  WifiConnectivityDialogData,
+} from '../../models';
 import {
   WifiPostConnectRebootFlowService,
   WifiRebootFlowService,
   WifiScanService,
 } from '../../service';
 import { WifiConnectDialogComponent } from '../wifi-connect-dialog/wifi-connect-dialog.component';
+import { WifiConnectivityDialogComponent } from '../wifi-connectivity-dialog/wifi-connectivity-dialog.component';
 import { WifiListComponent } from '../wifi-list/wifi-list.component';
 
 /**
@@ -236,20 +243,23 @@ export class WifiPageComponent implements OnInit {
     this.actionInProgress.set(true);
     try {
       const out = await this.wifiScan.checkChirimenTutorialReachability();
-      this.dialog.open(ConfirmDialogComponent, {
-        width: '480px',
-        data: {
-          title: '疎通確認（tutorial.chirimen.org）',
-          message: out.trim() || '完了（出力なし）',
-          confirmLabel: '閉じる',
-          hideCancel: true,
-        },
+      const detail = out.trim() || '完了（出力なし）';
+      this.openConnectivityDialog({
+        status: parseConnectivityCheckResult(out),
+        detail,
       });
     } catch (e: unknown) {
       const msg = e instanceof Error ? e.message : '疎通確認に失敗しました';
-      this.notify.error('WiFi', msg);
+      this.openConnectivityDialog({ status: 'ng', detail: msg });
     } finally {
       this.actionInProgress.set(false);
     }
+  }
+
+  private openConnectivityDialog(data: WifiConnectivityDialogData): void {
+    this.dialog.open(WifiConnectivityDialogComponent, {
+      width: '480px',
+      data,
+    });
   }
 }
