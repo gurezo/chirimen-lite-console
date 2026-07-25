@@ -104,6 +104,41 @@ describe('SetupPageComponent', () => {
     expect(postSetupRebootRun).toHaveBeenCalled();
   });
 
+  it('runSetup warns and skips confirm dialog when wifi is disconnected', async () => {
+    getWifiStatus.mockResolvedValueOnce({
+      ipInfo: '',
+      wlInfo: 'wlan0  ESSID:"off/any"',
+    });
+    const setup = TestBed.inject(SetupCommandService);
+    const notify = TestBed.inject(NotificationService);
+
+    await component.runSetup();
+
+    expect(notify.warning).toHaveBeenCalledWith(
+      'Setup',
+      'WiFi に接続してからセットアップを実行してください',
+    );
+    expect(dialogOpen).not.toHaveBeenCalled();
+    expect(setup.run).not.toHaveBeenCalled();
+    expect(postSetupRebootRun).not.toHaveBeenCalled();
+  });
+
+  it('runSetup warns and skips confirm dialog when wifi status fetch fails', async () => {
+    getWifiStatus.mockRejectedValueOnce(new Error('serial timeout'));
+    const setup = TestBed.inject(SetupCommandService);
+    const notify = TestBed.inject(NotificationService);
+
+    await component.runSetup();
+
+    expect(notify.warning).toHaveBeenCalledWith(
+      'Setup',
+      'WiFi に接続してからセットアップを実行してください',
+    );
+    expect(dialogOpen).not.toHaveBeenCalled();
+    expect(setup.run).not.toHaveBeenCalled();
+    expect(postSetupRebootRun).not.toHaveBeenCalled();
+  });
+
   it('runSetup does not run when confirm is cancelled', async () => {
     dialogOpen.mockReturnValueOnce({ closed: of(false) });
     const setup = TestBed.inject(SetupCommandService);
