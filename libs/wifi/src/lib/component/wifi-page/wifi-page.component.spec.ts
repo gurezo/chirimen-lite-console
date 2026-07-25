@@ -12,6 +12,7 @@ import {
 } from '../../service';
 import type { WiFiInfo } from '@libs-shared';
 import { SerialFacadeService } from '@libs-web-serial';
+import { WifiConnectivityDialogComponent } from '../wifi-connectivity-dialog/wifi-connectivity-dialog.component';
 import { WifiPageComponent } from './wifi-page.component';
 
 describe('WifiPageComponent', () => {
@@ -19,6 +20,7 @@ describe('WifiPageComponent', () => {
   let fixture: ComponentFixture<WifiPageComponent>;
 
   const scanNetworks = vi.fn();
+  const checkChirimenTutorialReachability = vi.fn();
   const restartWifiService = vi.fn().mockResolvedValue(undefined);
   const postConnectRebootRun = vi.fn().mockResolvedValue(undefined);
   const rebootFlowInProgress = signal(false);
@@ -37,6 +39,10 @@ describe('WifiPageComponent', () => {
       wifiInfos: [] as WiFiInfo[],
       rawData: [] as string[],
     });
+    checkChirimenTutorialReachability.mockClear();
+    checkChirimenTutorialReachability.mockResolvedValue(
+      'URL: https://tutorial.chirimen.org/ 200 OK',
+    );
     dialogClosed = of(undefined);
     restartWifiService.mockClear().mockResolvedValue(undefined);
     postConnectRebootRun.mockClear().mockResolvedValue(undefined);
@@ -73,9 +79,7 @@ describe('WifiPageComponent', () => {
               ipInfo: '',
               wlInfo: '',
             }),
-            checkChirimenTutorialReachability: vi
-              .fn()
-              .mockResolvedValue('OK'),
+            checkChirimenTutorialReachability,
           },
         },
         {
@@ -286,6 +290,44 @@ describe('WifiPageComponent', () => {
     scanNetworks.mockRejectedValueOnce(new Error('scan failed'));
     await component.runWifiScan();
     expect(component.scanError()).toBe('scan failed');
+  });
+
+  it('checkConnectivity opens dialog with ok status on success', async () => {
+    const dialog = TestBed.inject(Dialog);
+    const openSpy = vi.spyOn(dialog, 'open');
+
+    await component.checkConnectivity();
+
+    expect(openSpy).toHaveBeenCalledWith(
+      WifiConnectivityDialogComponent,
+      expect.objectContaining({
+        data: {
+          status: 'ok',
+          detail: 'URL: https://tutorial.chirimen.org/ 200 OK',
+        },
+      }),
+    );
+  });
+
+  it('checkConnectivity opens dialog with ng status on failure', async () => {
+    checkChirimenTutorialReachability.mockRejectedValueOnce(
+      new Error('Connectivity check failed'),
+    );
+    const dialog = TestBed.inject(Dialog);
+    const openSpy = vi.spyOn(dialog, 'open');
+
+    await component.checkConnectivity();
+
+    expect(openSpy).toHaveBeenCalledWith(
+      WifiConnectivityDialogComponent,
+      expect.objectContaining({
+        data: {
+          status: 'ng',
+          detail: 'Connectivity check failed',
+        },
+      }),
+    );
+    expect(notify.error).not.toHaveBeenCalled();
   });
 });
 
