@@ -1,4 +1,5 @@
 export * from './wifi-connect-dialog/wifi-connect-dialog.component';
+export * from './wifi-connectivity-dialog/wifi-connectivity-dialog.component';
 export * from './wifi-form/wifi-form.component';
 export * from './wifi-info/wifi-info.component';
 export * from './wifi-list/wifi-list.component';

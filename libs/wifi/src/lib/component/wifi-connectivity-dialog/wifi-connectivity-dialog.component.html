@@ -1,0 +1,31 @@
+<div
+  class="flex min-w-[280px] max-w-full flex-col gap-4 rounded-lg bg-white p-5 text-gray-900 shadow-lg"
+>
+  <h2 class="m-0 text-lg font-medium">疎通確認（tutorial.chirimen.org）</h2>
+
+  <div>
+    @if (isOk) {
+      <span
+        class="rounded bg-green-100 px-1.5 py-0.5 text-sm font-medium text-green-800"
+        role="status"
+      >
+        OK
+      </span>
+    } @else {
+      <span
+        class="rounded bg-red-100 px-1.5 py-0.5 text-sm font-medium text-red-800"
+        role="status"
+      >
+        NG
+      </span>
+    }
+  </div>
+
+  <pre
+    class="m-0 max-h-64 overflow-auto whitespace-pre-wrap break-words rounded border border-gray-200 bg-gray-50 p-3 text-xs leading-relaxed text-gray-800"
+  >{{ detail }}</pre>
+
+  <div class="flex justify-end">
+    <button mat-stroked-button type="button" (click)="close()">閉じる</button>
+  </div>
+</div>
