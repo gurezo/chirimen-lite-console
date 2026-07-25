@@ -1,6 +1,8 @@
 export interface NodeInstallStep {
   label: string;
   command: string;
+  /** true のとき失敗してもセットアップを継続する（probe 等） */
+  soft?: boolean;
 }
 
 export interface NodeInstallOptions {

@@ -20,5 +20,6 @@ export const EXTRA_SETUP_STEPS: readonly ExtraSetupStep[] = [
   {
     label: 'タイムゾーンを Asia/Tokyo に設定',
     command: 'sudo timedatectl set-timezone Asia/Tokyo || true',
+    soft: true,
   },
 ];
