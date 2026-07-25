@@ -50,6 +50,9 @@ export class SetupPostSetupRebootFlowService {
         return;
       }
 
+      // 親のセットアップダイアログを閉じる（確認ダイアログは既に閉じ済み）
+      this.dialogService.close();
+
       this.expectedDisconnect.beginExpectedDisconnect('reboot');
       this.expectedDisconnect.beginRebootPending();
       try {
