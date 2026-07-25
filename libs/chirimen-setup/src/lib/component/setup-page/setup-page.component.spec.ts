@@ -1,8 +1,12 @@
 /// <reference types="vitest/globals" />
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { computed } from '@angular/core';
+import { computed, signal } from '@angular/core';
 import { of } from 'rxjs';
-import { SetupCommandService } from '../../service';
+import {
+  SetupCommandService,
+  SetupPostSetupRebootFlowService,
+  SetupReadyCheckService,
+} from '../../service';
 import { ConfirmDialogComponent, DialogService } from '@libs-dialogs';
 import { NotificationService } from '@libs-shared';
 import { SerialFacadeService } from '@libs-web-serial';
@@ -12,9 +16,19 @@ describe('SetupPageComponent', () => {
   let component: SetupPageComponent;
   let fixture: ComponentFixture<SetupPageComponent>;
   let dialogOpen: ReturnType<typeof vi.fn>;
+  const rebootInProgress = signal(false);
+  let readyCheck: ReturnType<typeof vi.fn>;
+  let postSetupRebootRun: ReturnType<typeof vi.fn>;
 
   beforeEach(async () => {
     dialogOpen = vi.fn().mockReturnValue({ closed: of(true) });
+    readyCheck = vi.fn().mockResolvedValue({
+      ready: true,
+      nodeStdout: 'v20.18.1',
+      npmStdout: '10.8.2',
+    });
+    postSetupRebootRun = vi.fn().mockResolvedValue(undefined);
+    rebootInProgress.set(false);
 
     await TestBed.configureTestingModule({
       imports: [SetupPageComponent],
@@ -26,6 +40,17 @@ describe('SetupPageComponent', () => {
             buildStepList: vi.fn().mockReturnValue([
               { label: 'step1', phase: 'extra', status: 'pending' },
             ]),
+          },
+        },
+        {
+          provide: SetupReadyCheckService,
+          useValue: { check: readyCheck },
+        },
+        {
+          provide: SetupPostSetupRebootFlowService,
+          useValue: {
+            run: postSetupRebootRun,
+            inProgress: rebootInProgress.asReadonly(),
           },
         },
         {
@@ -42,6 +67,7 @@ describe('SetupPageComponent', () => {
             warning: vi.fn(),
             error: vi.fn(),
             success: vi.fn(),
+            info: vi.fn(),
           },
         },
       ],
@@ -68,6 +94,8 @@ describe('SetupPageComponent', () => {
       }),
     );
     expect(setup.run).toHaveBeenCalled();
+    expect(readyCheck).toHaveBeenCalled();
+    expect(postSetupRebootRun).toHaveBeenCalled();
   });
 
   it('runSetup does not run when confirm is cancelled', async () => {
@@ -75,6 +103,7 @@ describe('SetupPageComponent', () => {
     const setup = TestBed.inject(SetupCommandService);
     await component.runSetup();
     expect(setup.run).not.toHaveBeenCalled();
+    expect(postSetupRebootRun).not.toHaveBeenCalled();
   });
 
   it('shows retry guidance when setup fails', async () => {
@@ -111,5 +140,6 @@ describe('SetupPageComponent', () => {
     await component.runSetup();
     expect(component.retryGuidance()).toContain('Node.js バイナリを取得');
     expect(component.retryGuidance()).toContain('再試行手順');
+    expect(postSetupRebootRun).not.toHaveBeenCalled();
   });
 });
