@@ -5,19 +5,22 @@ import {
   signal,
   viewChild,
 } from '@angular/core';
+import { firstValueFrom } from 'rxjs';
 import {
   DEFAULT_NODE_TAR_URL,
   DEFAULT_PROJECT_SUBDIR,
 } from '../../constants';
 import {
+  buildSetupRetryMessage,
   isValidNodeTarUrl,
   sanitizeProjectSubdir,
 } from '../../functions';
 import { SetupCommandService } from '../../service';
-import type { SetupStepProgress } from '../../models';
+import type { SetupStepListItem, SetupStepProgress } from '../../models';
 import { SetupExecuteButtonComponent } from '../setup-execute-button/setup-execute-button.component';
 import { SetupProgressComponent } from '../setup-progress/setup-progress.component';
-import { DialogService } from '@libs-dialogs';
+import { SetupStepListComponent } from '../setup-step-list/setup-step-list.component';
+import { ConfirmDialogComponent, DialogService } from '@libs-dialogs';
 import { NotificationService } from '@libs-shared';
 import { SerialFacadeService } from '@libs-web-serial';
 import { MatDividerModule } from '@angular/material/divider';
@@ -28,6 +31,7 @@ import { MatDividerModule } from '@angular/material/divider';
     MatDividerModule,
     SetupProgressComponent,
     SetupExecuteButtonComponent,
+    SetupStepListComponent,
   ],
   templateUrl: './setup-page.component.html',
 })
@@ -47,6 +51,8 @@ export class SetupPageComponent {
   readonly progressPercent = signal(0);
   readonly currentLabel = signal('');
   readonly logText = signal('');
+  readonly stepItems = signal<SetupStepListItem[]>([]);
+  readonly retryGuidance = signal('');
 
   closeModal(): void {
     this.dialogService.close();
@@ -67,8 +73,21 @@ export class SetupPageComponent {
     this.useProjectSubdir.set(checked);
   }
 
+  private resolveOptions() {
+    return {
+      nodeTarUrl: this.nodeTarUrl().trim(),
+      projectSubdir: this.useProjectSubdir()
+        ? sanitizeProjectSubdir(this.projectSubdir())
+        : undefined,
+    };
+  }
+
   private appendLog(p: SetupStepProgress): void {
-    const block = `\n--- [${p.phase}] ${p.label} ---\n$ ${p.command}\n${p.stdout}\n`;
+    const errLine = p.stderr?.trim() ? `\n[stderr]\n${p.stderr}` : '';
+    const statusLine = p.errorMessage
+      ? `\n[status=${p.status}] ${p.errorMessage}`
+      : `\n[status=${p.status}]`;
+    const block = `\n--- [${p.phase}] ${p.label} ---${statusLine}\n$ ${p.command}\n${p.stdout}${errLine}\n`;
     this.logText.update((t) => t + block);
     queueMicrotask(() => {
       const el = this.logArea()?.nativeElement;
@@ -76,6 +95,48 @@ export class SetupPageComponent {
         el.scrollTop = el.scrollHeight;
       }
     });
+  }
+
+  private updateStepStatus(p: SetupStepProgress): void {
+    this.stepItems.update((items) => {
+      if (items.length === 0) {
+        return items;
+      }
+      const next = items.map((item) => ({ ...item }));
+      if (p.stepIndex >= 0 && p.stepIndex < next.length) {
+        next[p.stepIndex] = {
+          ...next[p.stepIndex],
+          status: p.status,
+        };
+      }
+      return next;
+    });
+  }
+
+  private async confirmRun(): Promise<boolean> {
+    const ref = this.dialogService.open(ConfirmDialogComponent, {
+      width: '480px',
+      data: {
+        title: 'CHIRIMEN セットアップを実行',
+        message: [
+          '次の処理を Web Serial 経由で実行します。',
+          '',
+          '・Node.js（linux-armv6l）の取得・展開と PATH 設定',
+          '・raspi-config によるカメラ関連設定の変更',
+          '・CHIRIMEN 用 package.json / RelayServer.js の取得と npm install',
+          '・forever の導入と既存プロセスの停止',
+          '',
+          '所要時間は数十分かかる場合があります。',
+          'インターネット接続と十分なディスク容量が必要です。',
+          'システム設定が変更され、再起動が必要になることがあります。',
+          '',
+          '実行しますか？',
+        ].join('\n'),
+        confirmLabel: '実行',
+        cancelLabel: 'キャンセル',
+      },
+    });
+    return (await firstValueFrom(ref.closed)) === true;
   }
 
   async runSetup(): Promise<void> {
@@ -93,28 +154,51 @@ export class SetupPageComponent {
       return;
     }
 
+    if (!(await this.confirmRun())) {
+      return;
+    }
+
+    const options = this.resolveOptions();
     this.inProgress.set(true);
     this.logText.set('');
+    this.retryGuidance.set('');
     this.progressPercent.set(0);
     this.currentLabel.set('開始…');
+    this.stepItems.set(this.setup.buildStepList(options));
+
+    let lastFailed: SetupStepProgress | undefined;
 
     try {
       await this.setup.run({
-        nodeTarUrl: url,
-        projectSubdir: this.useProjectSubdir()
-          ? sanitizeProjectSubdir(this.projectSubdir())
-          : undefined,
+        ...options,
         onProgress: (p: SetupStepProgress) => {
           const pct = Math.round(((p.stepIndex + 1) / p.stepTotal) * 100);
           this.progressPercent.set(Math.min(100, pct));
           this.currentLabel.set(p.label);
           this.appendLog(p);
+          this.updateStepStatus(p);
+          if (p.status === 'failed') {
+            lastFailed = p;
+          }
         },
       });
       this.notify.success('Setup', 'セットアップが完了しました');
     } catch (e: unknown) {
       const msg = e instanceof Error ? e.message : 'セットアップに失敗しました';
       this.notify.error('Setup', msg);
+      if (lastFailed) {
+        this.retryGuidance.set(buildSetupRetryMessage(lastFailed));
+      } else {
+        this.retryGuidance.set(
+          [
+            `セットアップに失敗しました: ${msg}`,
+            '',
+            '再試行手順:',
+            '1. ログとシリアル接続を確認してください',
+            '2. 問題を解消したら、もう一度「セットアップ実行」を押してください',
+          ].join('\n'),
+        );
+      }
     } finally {
       this.inProgress.set(false);
       this.currentLabel.set('');
