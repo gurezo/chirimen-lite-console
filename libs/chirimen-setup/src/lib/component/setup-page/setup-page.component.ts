@@ -1,6 +1,7 @@
 import {
   Component,
   ElementRef,
+  computed,
   inject,
   signal,
   viewChild,
@@ -15,7 +16,11 @@ import {
   isValidNodeTarUrl,
   sanitizeProjectSubdir,
 } from '../../functions';
-import { SetupCommandService } from '../../service';
+import {
+  SetupCommandService,
+  SetupPostSetupRebootFlowService,
+  SetupReadyCheckService,
+} from '../../service';
 import type { SetupStepListItem, SetupStepProgress } from '../../models';
 import { SetupExecuteButtonComponent } from '../setup-execute-button/setup-execute-button.component';
 import { SetupProgressComponent } from '../setup-progress/setup-progress.component';
@@ -40,6 +45,8 @@ export class SetupPageComponent {
   private readonly notify = inject(NotificationService);
   private readonly serial = inject(SerialFacadeService);
   private readonly setup = inject(SetupCommandService);
+  private readonly readyCheck = inject(SetupReadyCheckService);
+  private readonly postSetupReboot = inject(SetupPostSetupRebootFlowService);
 
   private readonly logArea = viewChild<ElementRef<HTMLTextAreaElement>>('logArea');
 
@@ -47,12 +54,17 @@ export class SetupPageComponent {
   readonly useProjectSubdir = signal(true);
   readonly projectSubdir = signal(DEFAULT_PROJECT_SUBDIR);
 
-  readonly inProgress = signal(false);
+  readonly setupRunning = signal(false);
   readonly progressPercent = signal(0);
   readonly currentLabel = signal('');
   readonly logText = signal('');
   readonly stepItems = signal<SetupStepListItem[]>([]);
   readonly retryGuidance = signal('');
+
+  /** セットアップ実行中、または再起動案内フロー中 */
+  readonly inProgress = computed(
+    () => this.setupRunning() || this.postSetupReboot.inProgress(),
+  );
 
   closeModal(): void {
     this.dialogService.close();
@@ -159,7 +171,7 @@ export class SetupPageComponent {
     }
 
     const options = this.resolveOptions();
-    this.inProgress.set(true);
+    this.setupRunning.set(true);
     this.logText.set('');
     this.retryGuidance.set('');
     this.progressPercent.set(0);
@@ -182,7 +194,29 @@ export class SetupPageComponent {
           }
         },
       });
-      this.notify.success('Setup', 'セットアップが完了しました');
+
+      this.currentLabel.set('完了確認中…');
+      const ready = await this.readyCheck.check();
+      this.logText.update(
+        (t) =>
+          t +
+          `\n--- [verify] node/npm ---\nnode: ${ready.nodeStdout.trim()}\nnpm: ${ready.npmStdout.trim()}\nready: ${ready.ready}\n`,
+      );
+
+      if (ready.ready) {
+        this.notify.success(
+          'Setup',
+          'セットアップが完了しました。Terminal 等を利用できます',
+        );
+      } else {
+        this.notify.warning(
+          'Setup',
+          'コマンドは完了しましたが node/npm の確認に失敗しました。ログを確認してください',
+        );
+      }
+
+      // raspi-config 変更反映のため再起動を案内
+      await this.postSetupReboot.run();
     } catch (e: unknown) {
       const msg = e instanceof Error ? e.message : 'セットアップに失敗しました';
       this.notify.error('Setup', msg);
@@ -200,7 +234,7 @@ export class SetupPageComponent {
         );
       }
     } finally {
-      this.inProgress.set(false);
+      this.setupRunning.set(false);
       this.currentLabel.set('');
     }
   }
