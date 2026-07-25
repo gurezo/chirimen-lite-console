@@ -11,11 +11,7 @@ import {
   DEFAULT_NODE_TAR_URL,
   DEFAULT_PROJECT_SUBDIR,
 } from '../../constants';
-import {
-  buildSetupRetryMessage,
-  isValidNodeTarUrl,
-  sanitizeProjectSubdir,
-} from '../../functions';
+import { buildSetupRetryMessage, sanitizeProjectSubdir } from '../../functions';
 import {
   SetupCommandService,
   SetupPostSetupRebootFlowService,
@@ -27,7 +23,7 @@ import { SetupProgressComponent } from '../setup-progress/setup-progress.compone
 import { SetupStepListComponent } from '../setup-step-list/setup-step-list.component';
 import { ConfirmDialogComponent, DialogService } from '@libs-dialogs';
 import { NotificationService } from '@libs-shared';
-import { SerialFacadeService } from '@libs-web-serial';
+import { parseConnectedSsid, WifiScanService } from '@libs-wifi';
 import { MatDividerModule } from '@angular/material/divider';
 
 @Component({
@@ -43,7 +39,7 @@ import { MatDividerModule } from '@angular/material/divider';
 export class SetupPageComponent {
   private readonly dialogService = inject(DialogService);
   private readonly notify = inject(NotificationService);
-  private readonly serial = inject(SerialFacadeService);
+  private readonly wifiScan = inject(WifiScanService);
   private readonly setup = inject(SetupCommandService);
   private readonly readyCheck = inject(SetupReadyCheckService);
   private readonly postSetupReboot = inject(SetupPostSetupRebootFlowService);
@@ -152,16 +148,19 @@ export class SetupPageComponent {
   }
 
   async runSetup(): Promise<void> {
-    const connected = this.serial.isConnected();
-    if (!connected) {
-      this.notify.warning('Setup', 'シリアル接続してください');
-      return;
-    }
-    const url = this.nodeTarUrl().trim();
-    if (!isValidNodeTarUrl(url)) {
-      this.notify.error(
+    try {
+      const { wlInfo } = await this.wifiScan.getWifiStatus();
+      if (!parseConnectedSsid(wlInfo)) {
+        this.notify.warning(
+          'Setup',
+          'WiFi に接続してからセットアップを実行してください',
+        );
+        return;
+      }
+    } catch {
+      this.notify.warning(
         'Setup',
-        'Node の tarball URL は https://unofficial-builds.nodejs.org/ 配下の有効な URL を指定してください',
+        'WiFi に接続してからセットアップを実行してください',
       );
       return;
     }

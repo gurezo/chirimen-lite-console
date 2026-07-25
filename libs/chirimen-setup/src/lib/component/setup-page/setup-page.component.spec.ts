@@ -1,6 +1,6 @@
 /// <reference types="vitest/globals" />
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { computed, signal } from '@angular/core';
+import { signal } from '@angular/core';
 import { of } from 'rxjs';
 import {
   SetupCommandService,
@@ -9,7 +9,7 @@ import {
 } from '../../service';
 import { ConfirmDialogComponent, DialogService } from '@libs-dialogs';
 import { NotificationService } from '@libs-shared';
-import { SerialFacadeService } from '@libs-web-serial';
+import { WifiScanService } from '@libs-wifi';
 import { SetupPageComponent } from './setup-page.component';
 
 describe('SetupPageComponent', () => {
@@ -19,6 +19,7 @@ describe('SetupPageComponent', () => {
   const rebootInProgress = signal(false);
   let readyCheck: ReturnType<typeof vi.fn>;
   let postSetupRebootRun: ReturnType<typeof vi.fn>;
+  let getWifiStatus: ReturnType<typeof vi.fn>;
 
   beforeEach(async () => {
     dialogOpen = vi.fn().mockReturnValue({ closed: of(true) });
@@ -29,6 +30,11 @@ describe('SetupPageComponent', () => {
     });
     postSetupRebootRun = vi.fn().mockResolvedValue(undefined);
     rebootInProgress.set(false);
+    getWifiStatus = vi.fn().mockResolvedValue({
+      ipInfo: '',
+      wlInfo: 'wlan0  ESSID:"home-net"',
+      ipaddr: '192.168.1.2',
+    });
 
     await TestBed.configureTestingModule({
       imports: [SetupPageComponent],
@@ -54,8 +60,8 @@ describe('SetupPageComponent', () => {
           },
         },
         {
-          provide: SerialFacadeService,
-          useValue: { isConnected: computed(() => true) },
+          provide: WifiScanService,
+          useValue: { getWifiStatus },
         },
         {
           provide: DialogService,
