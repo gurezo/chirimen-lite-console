@@ -10,6 +10,7 @@ minimumReleaseAgeExclude:
   - '@angular/*'
   - '@angular-devkit/*'
   - '@commitlint/*'
+  - '@eslint/*'
   - '@gurezo/*'
   - '@inquirer/*'
   - '@jsonjoy.com/*'
@@ -22,9 +23,12 @@ minimumReleaseAgeExclude:
   - '@typescript/*'
   - '@typescript-eslint/*'
   - '@vitest/*'
+  - eslint
   - eslint-plugin-tailwindcss
   - memfs
+  - monaco-editor
   - nx
+  - postcss
   - prettier
   - tinyglobby
   - tmp
