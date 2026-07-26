@@ -35,9 +35,7 @@ export class SetupReadyCheckService {
       // profile 読込失敗でもバージョン確認は試す
     }
 
-    let nodeStdout = '';
-    let npmStdout = '';
-
+    let nodeStdout: string;
     try {
       const node = await firstValueFrom(
         this.serial.exec$('node -v', {
@@ -50,6 +48,7 @@ export class SetupReadyCheckService {
       nodeStdout = e instanceof Error ? e.message : '';
     }
 
+    let npmStdout: string;
     try {
       const npm = await firstValueFrom(
         this.serial.exec$('npm -v', {
