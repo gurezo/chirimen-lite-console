@@ -4,6 +4,8 @@ import { computed, Injectable } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
 import {
   createSerialSession,
+  isConnectedSessionState,
+  isWebSerialSupported,
   SerialSessionStatus,
   type SerialSession,
   type SerialSessionState,
@@ -17,9 +19,11 @@ import {
   defer,
   distinctUntilChanged,
   EMPTY,
+  map,
   NEVER,
   of,
   switchMap,
+  take,
   tap,
   throwError,
 } from 'rxjs';
@@ -42,9 +46,9 @@ export class SerialTransportService {
     SerialSession | undefined
   >(undefined);
 
-  /** {@link SerialSession.isBrowserSupported}（ポート未生成でも利用可） */
+  /** {@link isWebSerialSupported}（ポート未生成でも利用可） */
   isBrowserSupported(): boolean {
-    return createSerialSession().isBrowserSupported();
+    return isWebSerialSupported();
   }
 
   /**
@@ -87,9 +91,11 @@ export class SerialTransportService {
     EMPTY,
   );
 
-  private readonly portInfoSource$ = this.fromSession(
-    (s) => s.portInfo$ ?? of(null),
-    of(null),
+  /** v4: `portInfo$` は削除。接続中の `state.portInfo` から導出する。 */
+  private readonly portInfoSource$ = this.stateSource$.pipe(
+    map((state) =>
+      isConnectedSessionState(state) ? state.portInfo : null,
+    ),
   );
 
   readonly state = toSignal(this.stateSource$, {
@@ -117,8 +123,10 @@ export class SerialTransportService {
     initialValue: null as SerialPortInfo | null,
   });
 
+  /** v4: `getPortInfo()` は削除。接続中の `state.portInfo` から同期導出する。 */
   getPortInfo(): SerialPortInfo | null {
-    return this.active?.getPortInfo() ?? null;
+    const state = this.state();
+    return isConnectedSessionState(state) ? state.portInfo : null;
   }
 
   /**
@@ -146,17 +154,22 @@ export class SerialTransportService {
       this.active = session;
       this.activeSession$.next(session);
       return session.connect$().pipe(
-        switchMap(() => {
-          if (!session.getPortInfo()) {
-            this.detachSession();
-            return of({
-              error: getConnectionErrorMessage(
-                new Error('Port is not available after connection'),
-              ),
-            });
-          }
-          return of({ ok: true as const });
-        }),
+        switchMap(() =>
+          session.state$.pipe(
+            take(1),
+            map((state) => {
+              if (!isConnectedSessionState(state)) {
+                this.detachSession();
+                return {
+                  error: getConnectionErrorMessage(
+                    new Error('Port is not available after connection'),
+                  ),
+                };
+              }
+              return { ok: true as const };
+            }),
+          ),
+        ),
         catchError((error) => {
           this.detachSession();
           return of({ error: getConnectionErrorMessage(error) });
