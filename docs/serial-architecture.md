@@ -29,9 +29,9 @@ chirimen-lite-console（本リポジトリ）
 
 ## `SerialSession` と本アプリの薄いラッパー（issue #557 との対応）
 
-本リポジトリでは `SerialSession`（`state$` / `isConnected$` / `errors$` 等）を **接続状態などの唯一のソース** とし、[`SerialTransportService`](../libs/web-serial/data-access/src/lib/serial-transport.service.ts) は `activeSession$` 経由内の **橋渡し（thin adapter）** に留める。Pi Zero 向けの接続・ログイン・初期化は `PiZeroSessionService` やオーケストレーション層に集約し、機能コンポーネントから `SerialTransportService` を直接注入しない方針とする（[`SerialFacadeService`](../libs/web-serial/data-access/src/lib/serial-facade.service.ts) 経由）。
+本リポジトリでは `SerialSession`（`state$` / `errors$` 等。接続可否は `state.status`、ポート情報は接続中の `state.portInfo`）を **接続状態などの唯一のソース** とし、[`SerialTransportService`](../libs/web-serial/src/lib/service/serial-transport.service.ts) は `activeSession$` 経由内の **橋渡し（thin adapter）** に留める。Pi Zero 向けの接続・ログイン・初期化は `PiZeroSessionService` やオーケストレーション層に集約し、機能コンポーネントから `SerialTransportService` を直接注入しない方針とする（[`SerialFacadeService`](../libs/web-serial/src/lib/service/serial-facade.service.ts) 経由）。ブラウザ対応判定はセッション外のトップレベル `isWebSerialSupported()` を使う（v4）。
 
-Issue #590 / [#601](https://github.com/gurezo/chirimen-lite-console/issues/601) / [#649](https://github.com/gurezo/chirimen-lite-console/issues/649) 以降は、外部公開 API を `SerialFacadeService` に集約し、利用側は `terminalText$` / `lines$` / `state$` / `isConnected$` / `errors$` / `portInfo$` / `connectionEstablished$` と `connect$()` / `disconnect$()` / `send$()` / `exec$()` / `execRaw$()` / `readUntilPrompt$()` / `isBrowserSupported()` / `isRaspberryPiZero()` を基本導線とする。`receive$` は **Facade では橋渡しせず**、`SerialTransportService` 経由で data-access 内部（`SerialCommandPipelineService`）のみがプロンプト照合・`exec$` の stdout 集約に用いる（[#646](https://github.com/gurezo/chirimen-lite-console/issues/646)）。Pi Zero のログイン〜タイムゾーン初期化の期待シーケンスは [Issue #606](https://github.com/gurezo/chirimen-lite-console/issues/606) を参照。
+Issue #590 / [#601](https://github.com/gurezo/chirimen-lite-console/issues/601) / [#649](https://github.com/gurezo/chirimen-lite-console/issues/649) 以降は、外部公開 API を `SerialFacadeService` に集約し、利用側は Signal の `terminalText` / `lines` / `state` / `isConnected` / `errors` / `portInfo` / `connectionEpoch` と `connect$()` / `disconnect$()` / `send$()` / `exec$()` / `execRaw$()` / `readUntilPrompt$()` / `isBrowserSupported()` / `isRaspberryPiZero()` を基本導線とする。`receive$` は **Facade では橋渡しせず**、`SerialTransportService` 経由で data-access 内部（`SerialCommandPipelineService`）のみがプロンプト照合・`exec$` の stdout 集約に用いる（[#646](https://github.com/gurezo/chirimen-lite-console/issues/646)）。Pi Zero のログイン〜タイムゾーン初期化の期待シーケンスは [Issue #606](https://github.com/gurezo/chirimen-lite-console/issues/606) を参照。
 
 [#664](https://github.com/gurezo/chirimen-lite-console/issues/664) に沿い、`@libs-web-serial` のパッケージ公開面からは **`SerialCommandPipelineService` クラスを export せず**、コマンド実行の利用入口は Facade の `exec$` / `execRaw$` / `readUntilPrompt$` とする。実装として **`SerialFacadeService` は上記 API を Pipeline に委譲するため Pipeline を直接 inject** する。接続ライフサイクルの read loop 開始・停止・切断時キャンセルは、`SerialFacadeService` と `SerialConnectionOrchestrationService` の **循環 DI を避けるため**、オーケストレーションも Pipeline を **data-access 内部だけ**直接 inject して制御する（詳細は [libs/web-serial/README.md](../libs/web-serial/README.md) の「Orchestration と Pipeline」節）。
 
@@ -57,14 +57,13 @@ Issue #590 / [#601](https://github.com/gurezo/chirimen-lite-console/issues/601) 
 
 ## 受信ストリーム（ライブラリ vs 本アプリの公開面）
 
-ライブラリの `SerialSession` は `receive$` / `receiveReplay$` / `lines$` / `terminalText$` 等を提供する。本アプリの **`SerialFacadeService`** は `terminalText$` / `lines$` を `readonly` で橋渡しする。**`receive$` は Facade では露出せず**、`SerialTransportService` が `activeSession$` 経由で橋渡しし、`SerialCommandPipelineService` がプロンプト照合・`exec$` stdout 用に購読する（[#601](https://github.com/gurezo/chirimen-lite-console/issues/601)、[#646](https://github.com/gurezo/chirimen-lite-console/issues/646)、[#649](https://github.com/gurezo/chirimen-lite-console/issues/649)）。ライブ表示の `\r` 再描画や表示用バッファ正規化は **ライブラリの `terminalText$`** に委譲する。
+ライブラリの `SerialSession`（v4）は `receive$` / `lines$` / `terminalText$` 等を提供する（`receiveReplay$` は v4 で削除）。本アプリの **`SerialFacadeService`** は `terminalText` / `lines` を Signal で橋渡しする。**`receive$` は Facade では露出せず**、`SerialTransportService` が `activeSession$` 経由で橋渡しし、`SerialCommandPipelineService` がプロンプト照合・`exec$` stdout 用に購読する（[#601](https://github.com/gurezo/chirimen-lite-console/issues/601)、[#646](https://github.com/gurezo/chirimen-lite-console/issues/646)、[#649](https://github.com/gurezo/chirimen-lite-console/issues/649)）。ライブ表示の `\r` 再描画や表示用バッファ正規化は **ライブラリの `terminalText$`** に委譲する。
 
 | ストリーム | ライブラリ `SerialSession` | 本アプリ `SerialFacadeService` |
 |------------|---------------------------|--------------------------------|
-| `terminalText$` | terminal helper 相当の表示用テキスト | Feature から購読可（xterm ライブ表示） |
-| `lines$` | 行境界で分割された行 | Feature から購読可（行単位の読み取り） |
+| `terminalText$` | terminal helper 相当の表示用テキスト | Feature から購読可（Signal `terminalText`、xterm ライブ表示） |
+| `lines$` | 行境界で分割された行 | Feature から購読可（Signal `lines`、行単位の読み取り） |
 | `receive$` | UTF-8 デコード済みの生チャンク | **橋渡ししない**（`SerialTransportService` のみが data-access 内部向けに公開） |
-| `receiveReplay$` | 生チャンク（リプレイ付き） | Facade では橋渡ししない |
 
 ### 本アプリでの推奨利用
 
