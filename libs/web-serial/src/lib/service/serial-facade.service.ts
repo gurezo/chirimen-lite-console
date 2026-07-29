@@ -1,6 +1,6 @@
 /// <reference types="@types/w3c-web-serial" />
 
-/** Facade over `SerialSession` v3.1.0 via {@link SerialTransportService}. */
+/** Facade over `SerialSession` v4.0.0 via {@link SerialTransportService}. */
 import { Injectable, inject } from '@angular/core';
 import { type Observable } from 'rxjs';
 import type { CommandResult } from '../models';
@@ -18,7 +18,7 @@ import { SerialTransportService } from './serial-transport.service';
 export type SerialFacadeConnectResult = SerialConnectResult;
 
 /**
- * アプリ唯一の入口。`@gurezo/web-serial-rxjs` v3.1.0 の {@link SerialSession} 由来は
+ * アプリ唯一の入口。`@gurezo/web-serial-rxjs` v4.0.0 の {@link SerialSession} 由来は
  * {@link SerialTransportService} が Signal で橋渡しする。
  */
 @Injectable({

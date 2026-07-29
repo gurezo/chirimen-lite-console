@@ -1,6 +1,6 @@
 # web-serial-data-access
 
-Angular 向けのシリアル（Web Serial + `@gurezo/web-serial-rxjs` v3.1.0）データアクセス層。読み取り状態は Angular Signal、コマンド実行は RxJS Observable を基本とする（[#719](https://github.com/gurezo/chirimen-lite-console/issues/719)）。
+Angular 向けのシリアル（Web Serial + `@gurezo/web-serial-rxjs` v4.0.0）データアクセス層。読み取り状態は Angular Signal、コマンド実行は RxJS Observable を基本とする（[#719](https://github.com/gurezo/chirimen-lite-console/issues/719)）。
 
 **リポジトリ間の責務分界**（ライブラリ一般と本アプリの対応、`SerialSession` を正とする方針など）: [docs/serial-architecture.md](../../../docs/serial-architecture.md)（[#568](https://github.com/gurezo/chirimen-lite-console/issues/568)）。**`index.ts` の export とワークスペース import の棚卸し・三層分類**は同ドキュメントの「公開面の棚卸し（Issue [#672](https://github.com/gurezo/chirimen-lite-console/issues/672)）」節を参照（親 [#671](https://github.com/gurezo/chirimen-lite-console/issues/671)）。
 
@@ -141,7 +141,7 @@ PiZeroSerialBootstrapService
   - **Observable（アクション）**: `connect$()`, `disconnect$()`, `send$()`, `exec$()`, `execRaw$()`, `readUntilPrompt$()`
   - **メソッド**: `isBrowserSupported()`, `isRaspberryPiZero()`
 - **Facade では露出しない**（data-access 内部のみ）: 生チャンクの `receive$`（`SerialTransportService` 経由で `SerialCommandPipelineService` がプロンプト照合・`exec$` stdout 用に購読。[#601](https://github.com/gurezo/chirimen-lite-console/issues/601)、[#646](https://github.com/gurezo/chirimen-lite-console/issues/646)）、接続エポック整数（`SerialConnectionOrchestrationService#getConnectionEpoch` — `PiZeroSessionService` が bootstrap 突き合わせに利用）、`read$` / `getPort` / キュー診断 API。
-- ライブラリの `receiveReplay$` は本 data-access の Facade では橋渡ししない。ライブ表示の `\r` 再描画は `terminalText$` に委譲する。
+- ライブ表示の `\r` 再描画はライブラリの `terminalText$` に委譲する（v4 で `receiveReplay$` は削除済み）。
 
 ### `terminalText$` の責務（[#617](https://github.com/gurezo/chirimen-lite-console/issues/617)）
 
