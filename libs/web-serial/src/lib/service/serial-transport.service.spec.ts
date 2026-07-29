@@ -42,34 +42,25 @@ function buildMockSession(
   const state$ = new BehaviorSubject<SerialSessionState>({
     status: SerialSessionStatus.Connecting,
   });
-  const isConnected$ = new BehaviorSubject(false);
-  const getPortInfo = vi.fn((): SerialPortInfo | null => portInfo);
   return {
-    isBrowserSupported: () => true,
     connect$: vi.fn(() => {
       state$.next({
         status: SerialSessionStatus.Connected,
         portInfo: portInfo ?? ({} as SerialPortInfo),
       });
-      isConnected$.next(true);
-      if (portInfo) {
-        getPortInfo.mockReturnValue(portInfo);
-      }
       return of(undefined);
     }),
     disconnect$: vi.fn(() => {
       state$.next({ status: SerialSessionStatus.Idle });
-      isConnected$.next(false);
-      getPortInfo.mockReturnValue(null);
+      return of(undefined);
+    }),
+    dispose$: vi.fn(() => {
+      state$.next({ status: SerialSessionStatus.Disposed });
       return of(undefined);
     }),
     state$: state$.asObservable(),
-    isConnected$: isConnected$.asObservable(),
-    portInfo$: of(null),
-    getPortInfo,
     errors$: EMPTY,
     receive$: receive$ ?? EMPTY,
-    receiveReplay$: EMPTY,
     lines$: lines$ ?? of('line1'),
     terminalText$: terminalText$ ?? of('terminal-line'),
     send$: vi.fn(() => of(undefined)),
