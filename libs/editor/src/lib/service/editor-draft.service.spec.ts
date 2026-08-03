@@ -64,6 +64,27 @@ describe('EditorDraftService', () => {
     expect(service.read('/home/pi/b.js')?.content).toBe('b');
   });
 
+  it('renames a draft key without changing content', () => {
+    const service = createService();
+    service.save('/home/pi/old.js', 'body');
+
+    service.rename('/home/pi/old.js', '/home/pi/new.js');
+
+    expect(service.read('/home/pi/old.js')).toBeNull();
+    expect(service.read('/home/pi/new.js')?.content).toBe('body');
+  });
+
+  it('does not overwrite an existing draft at the destination', () => {
+    const service = createService();
+    service.save('/home/pi/old.js', 'old');
+    service.save('/home/pi/new.js', 'new');
+
+    service.rename('/home/pi/old.js', '/home/pi/new.js');
+
+    expect(service.read('/home/pi/old.js')?.content).toBe('old');
+    expect(service.read('/home/pi/new.js')?.content).toBe('new');
+  });
+
   it('clears all drafts', () => {
     const service = createService();
     service.save('/home/pi/a.js', 'a');
