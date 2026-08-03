@@ -71,6 +71,28 @@ export class EditorDraftService {
     this.writeMap(map);
   }
 
+  /**
+   * Moves a draft from one path key to another.
+   * No-op when `from` has no draft or paths are equal.
+   * Does not overwrite an existing draft at `to`.
+   */
+  rename(from: string, to: string): void {
+    if (!from || !to || from === to) {
+      return;
+    }
+    const map = this.readMap();
+    const entry = map[from];
+    if (!entry) {
+      return;
+    }
+    if (to in map) {
+      return;
+    }
+    map[to] = entry;
+    delete map[from];
+    this.writeMap(map);
+  }
+
   clearAll(): void {
     try {
       this.storage.removeItem(EDITOR_DRAFT_STORAGE_KEY);
