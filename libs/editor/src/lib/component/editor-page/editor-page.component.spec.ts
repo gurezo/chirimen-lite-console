@@ -55,7 +55,7 @@ describe('EditorPageComponent', () => {
     await fixture.whenStable();
   }
 
-  function mockDialogResult(result: unknown): Subject<unknown> {
+  function mockDialogResult(_result: unknown): Subject<unknown> {
     const closed = new Subject<unknown>();
     dialogServiceMock.open.mockReturnValueOnce({
       closed: closed.asObservable(),
@@ -360,5 +360,39 @@ describe('EditorPageComponent', () => {
     closed.complete();
 
     await expect(deactivatePromise).resolves.toBe(false);
+  });
+
+  it('should format the current file and mark it dirty', async () => {
+    await loadPath('/home/pi/main.js', 'const x=1');
+    editorServiceMock.formatDocument.mockResolvedValueOnce(true);
+    editorServiceMock.getValue.mockReturnValueOnce('const x = 1;\n');
+
+    await component.formatCurrentFile();
+
+    expect(editorServiceMock.formatDocument).toHaveBeenCalledTimes(1);
+    expect(component.code()).toBe('const x = 1;\n');
+    expect(component.isDirty()).toBe(true);
+    expect(component.saveStatus()).toBe('draftSavedLocally');
+    expect(notifyMock.warning).not.toHaveBeenCalled();
+  });
+
+  it('should warn when no formatter is available', async () => {
+    await loadPath('/home/pi/main.js', 'const x=1');
+    editorServiceMock.formatDocument.mockResolvedValueOnce(false);
+
+    await component.formatCurrentFile();
+
+    expect(notifyMock.warning).toHaveBeenCalledWith(
+      'Format',
+      'No formatter is available for this language.',
+    );
+    expect(component.code()).toBe('const x=1');
+    expect(component.isDirty()).toBe(false);
+  });
+
+  it('should skip format when no file is selected', async () => {
+    await component.formatCurrentFile();
+
+    expect(editorServiceMock.formatDocument).not.toHaveBeenCalled();
   });
 });
