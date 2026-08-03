@@ -1,12 +1,12 @@
 <div
-  class="editor-toolbar flex flex-wrap items-center gap-2 border-b border-gray-200 px-3 py-2"
+  class="editor-toolbar flex min-w-0 flex-wrap items-center gap-2 overflow-x-auto border-b border-gray-200 px-3 py-2"
   role="toolbar"
   aria-label="Editor actions"
 >
   <button
     mat-button
     type="button"
-    class="editor-toolbar__button"
+    class="editor-toolbar__button shrink-0"
     [disabled]="newFileDisabled()"
     [matTooltip]="newFileTooltip"
     [attr.aria-label]="newFileTooltip"
@@ -18,7 +18,7 @@
   <button
     mat-button
     type="button"
-    class="editor-toolbar__button"
+    class="editor-toolbar__button shrink-0"
     [disabled]="saveDisabled()"
     [matTooltip]="saveTooltip()"
     [attr.aria-label]="saveTooltip()"
@@ -38,7 +38,7 @@
   <button
     mat-button
     type="button"
-    class="editor-toolbar__button"
+    class="editor-toolbar__button shrink-0"
     [disabled]="formatDisabled()"
     [matTooltip]="formatTooltip()"
     [attr.aria-label]="formatTooltip()"
@@ -50,7 +50,7 @@
   <button
     mat-button
     type="button"
-    class="editor-toolbar__button"
+    class="editor-toolbar__button shrink-0"
     [disabled]="discardDisabled()"
     [matTooltip]="discardTooltip"
     [attr.aria-label]="discardTooltip"
