@@ -5,7 +5,7 @@ import { Component } from '@angular/core';
   selector: 'choh-pin-assign',
   imports: [NgOptimizedImage],
   host: {
-    class: 'flex min-h-0 min-w-0 flex-1 flex-col',
+    class: 'flex h-full min-h-0 w-full min-w-0 flex-1 flex-col overflow-hidden',
   },
   templateUrl: './pin-assign.component.html',
 })
