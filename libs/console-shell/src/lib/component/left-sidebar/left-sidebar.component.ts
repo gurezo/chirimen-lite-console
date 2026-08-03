@@ -3,12 +3,12 @@ import { ActivatedRoute, Router } from '@angular/router';
 import { MatIconButton } from '@angular/material/button';
 import { MatIcon } from '@angular/material/icon';
 import { MatTooltip } from '@angular/material/tooltip';
-import { EditorDraftService } from '@libs-editor';
 import type { FileRenamedEvent } from '@libs-file-manager';
 import { FileTreeFeatureComponent } from '@libs-file-manager';
 import {
   ConsoleShellLayoutMode,
   ConsoleShellStore,
+  EDITOR_DRAFT_LIFECYCLE,
   LEFT_PANE_WIDTH,
   RAIL_WIDTH_PX,
 } from '@libs-shared';
@@ -47,12 +47,14 @@ export class LeftSidebarComponent {
   );
 
   readonly shellStore = inject(ConsoleShellStore);
-  private readonly draftService = inject(EditorDraftService);
+  private readonly draftLifecycle = inject(EDITOR_DRAFT_LIFECYCLE, {
+    optional: true,
+  });
   private router = inject(Router);
   private route = inject(ActivatedRoute);
 
   readonly hasUnsavedDraft = (path: string): boolean =>
-    this.draftService.has(path);
+    this.draftLifecycle?.has(path) ?? false;
 
   onCurrentPathChange(path: string): void {
     this.shellStore.setFileManagerCurrentPath(path);
@@ -68,14 +70,14 @@ export class LeftSidebarComponent {
   }
 
   onFileRenamed({ from, to }: FileRenamedEvent): void {
-    this.draftService.rename(from, to);
+    this.draftLifecycle?.rename(from, to);
     if (this.shellStore.selectedFilePath() === from) {
       this.shellStore.setSelectedFilePath(to);
     }
   }
 
   onFileDeleted(path: string): void {
-    this.draftService.clear(path);
+    this.draftLifecycle?.clear(path);
     if (this.shellStore.selectedFilePath() === path) {
       this.shellStore.setSelectedFilePath(null);
     }

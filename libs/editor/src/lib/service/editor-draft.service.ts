@@ -1,4 +1,5 @@
 import { Injectable, InjectionToken, inject } from '@angular/core';
+import type { EditorDraftLifecycle } from '@libs-shared';
 
 export interface EditorDraftEntry {
   content: string;
@@ -27,7 +28,7 @@ export const EDITOR_DRAFT_STORAGE = new InjectionToken<Storage>(
 @Injectable({
   providedIn: 'root',
 })
-export class EditorDraftService {
+export class EditorDraftService implements EditorDraftLifecycle {
   private readonly storage = inject(EDITOR_DRAFT_STORAGE);
 
   read(path: string): EditorDraft | null {

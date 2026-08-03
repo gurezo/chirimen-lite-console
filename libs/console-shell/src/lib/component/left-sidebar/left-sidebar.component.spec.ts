@@ -12,7 +12,7 @@ import {
 import { signal } from '@angular/core';
 import { EMPTY } from 'rxjs';
 import { LeftSidebarComponent } from './left-sidebar.component';
-import { ConsoleShellStore } from '@libs-shared';
+import { ConsoleShellStore, EDITOR_DRAFT_LIFECYCLE } from '@libs-shared';
 
 const baseVm: SerialConnectionViewModel = {
   isBrowserSupported: true,
@@ -27,8 +27,17 @@ const baseVm: SerialConnectionViewModel = {
 describe('LeftSidebarComponent', () => {
   let component: LeftSidebarComponent;
   let fixture: ComponentFixture<LeftSidebarComponent>;
+  const draftLifecycle = {
+    has: vi.fn<(path: string) => boolean>().mockReturnValue(false),
+    rename: vi.fn(),
+    clear: vi.fn(),
+  };
 
   beforeEach(async () => {
+    draftLifecycle.has.mockReset().mockReturnValue(false);
+    draftLifecycle.rename.mockReset();
+    draftLifecycle.clear.mockReset();
+
     const activatedRoute = {
       firstChild: null,
       snapshot: { url: [] },
@@ -56,6 +65,10 @@ describe('LeftSidebarComponent', () => {
         {
           provide: FileService,
           useValue: { listTree: vi.fn().mockResolvedValue([]) },
+        },
+        {
+          provide: EDITOR_DRAFT_LIFECYCLE,
+          useValue: draftLifecycle,
         },
       ],
     }).compileComponents();
@@ -98,7 +111,7 @@ describe('LeftSidebarComponent', () => {
     ).toBeNull();
   });
 
-  it('updates store path and clears selected file on currentPathChange', () => {
+  it('updates store path on currentPathChange without clearing selection', () => {
     const store = TestBed.inject(ConsoleShellStore);
     store.setSelectedFilePath('./docs/readme.md');
     store.setFileManagerCurrentPath('./docs');
@@ -106,6 +119,26 @@ describe('LeftSidebarComponent', () => {
     component.onCurrentPathChange('./home');
 
     expect(store.fileManagerCurrentPath()).toBe('./home');
+    expect(store.selectedFilePath()).toBe('./docs/readme.md');
+  });
+
+  it('renames draft and selected path when the open file is renamed', () => {
+    const store = TestBed.inject(ConsoleShellStore);
+    store.setSelectedFilePath('./old.js');
+
+    component.onFileRenamed({ from: './old.js', to: './new.js' });
+
+    expect(draftLifecycle.rename).toHaveBeenCalledWith('./old.js', './new.js');
+    expect(store.selectedFilePath()).toBe('./new.js');
+  });
+
+  it('clears draft and selection when the open file is deleted', () => {
+    const store = TestBed.inject(ConsoleShellStore);
+    store.setSelectedFilePath('./gone.js');
+
+    component.onFileDeleted('./gone.js');
+
+    expect(draftLifecycle.clear).toHaveBeenCalledWith('./gone.js');
     expect(store.selectedFilePath()).toBeNull();
   });
 
