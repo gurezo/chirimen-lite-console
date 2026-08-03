@@ -54,7 +54,11 @@ export class EditorPageComponent implements OnInit {
   }
 
   async ngOnInit(): Promise<void> {
-    const draft = this.draftService.read();
+    const selectedPath = this.shellStore.selectedFilePath();
+    const draft =
+      (selectedPath ? this.draftService.read(selectedPath) : null) ??
+      this.draftService.list()[0] ??
+      null;
     if (draft) {
       this.activeFilePath.set(draft.path);
       this.code.set(draft.content);
@@ -63,7 +67,6 @@ export class EditorPageComponent implements OnInit {
       return;
     }
 
-    const selectedPath = this.shellStore.selectedFilePath();
     if (selectedPath) {
       await this.loadFile(selectedPath);
     }
@@ -127,7 +130,7 @@ export class EditorPageComponent implements OnInit {
     try {
       await this.editorService.saveTextFile(path, this.code());
       this.isDirty.set(false);
-      this.draftService.clear();
+      this.draftService.clear(path);
     } finally {
       this.isSaving.set(false);
     }

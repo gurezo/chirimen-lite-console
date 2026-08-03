@@ -20,8 +20,11 @@ describe('EditorPageComponent', () => {
   };
   const draftServiceMock = {
     read: vi.fn(() => null),
+    list: vi.fn(() => []),
+    has: vi.fn(() => false),
     save: vi.fn(),
     clear: vi.fn(),
+    clearAll: vi.fn(),
   };
 
   async function loadPath(path: string, content = 'loaded content'): Promise<void> {
@@ -35,6 +38,7 @@ describe('EditorPageComponent', () => {
     vi.clearAllMocks();
     selectedFilePathSignal.set(null);
     draftServiceMock.read.mockReturnValue(null);
+    draftServiceMock.list.mockReturnValue([]);
     editorServiceMock.loadTextFile.mockResolvedValue('loaded content');
 
     await TestBed.configureTestingModule({
@@ -124,7 +128,7 @@ describe('EditorPageComponent', () => {
       'updated',
     );
     expect(component.isDirty()).toBe(false);
-    expect(draftServiceMock.clear).toHaveBeenCalled();
+    expect(draftServiceMock.clear).toHaveBeenCalledWith('/home/pi/main.js');
   });
 
   it('should skip save when dirty state is false', async () => {
@@ -147,11 +151,13 @@ describe('EditorPageComponent', () => {
   });
 
   it('should restore a session draft before loading the remote file', async () => {
-    draftServiceMock.read.mockReturnValueOnce({
-      path: '/home/pi/draft.js',
-      content: 'restored draft',
-      dirty: true,
-    });
+    draftServiceMock.list.mockReturnValueOnce([
+      {
+        path: '/home/pi/draft.js',
+        content: 'restored draft',
+        updatedAt: Date.now(),
+      },
+    ]);
     editorServiceMock.loadTextFile.mockClear();
 
     await component.ngOnInit();
