@@ -22,9 +22,26 @@ describe('EditorToolbarComponent', () => {
 
   it('should emit saveRequested when save button is clicked', () => {
     const emitSpy = vi.spyOn(component.saveRequested, 'emit');
-    const button = fixture.nativeElement.querySelector('button') as HTMLButtonElement;
+    const buttons = fixture.nativeElement.querySelectorAll(
+      'button',
+    ) as NodeListOf<HTMLButtonElement>;
 
-    button.click();
+    buttons[0].click();
+
+    expect(emitSpy).toHaveBeenCalledTimes(1);
+  });
+
+  it('should emit discardRequested when discard button is clicked', async () => {
+    fixture.componentRef.setInput('discardDisabled', false);
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    const emitSpy = vi.spyOn(component.discardRequested, 'emit');
+    const buttons = fixture.nativeElement.querySelectorAll(
+      'button',
+    ) as NodeListOf<HTMLButtonElement>;
+
+    buttons[1].click();
 
     expect(emitSpy).toHaveBeenCalledTimes(1);
   });
@@ -34,8 +51,10 @@ describe('EditorToolbarComponent', () => {
     fixture.detectChanges();
     await fixture.whenStable();
 
-    const button = fixture.nativeElement.querySelector('button') as HTMLButtonElement;
+    const buttons = fixture.nativeElement.querySelectorAll(
+      'button',
+    ) as NodeListOf<HTMLButtonElement>;
 
-    expect(button.disabled).toBe(true);
+    expect(buttons[0].disabled).toBe(true);
   });
 });

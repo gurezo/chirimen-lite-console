@@ -10,7 +10,8 @@
   ],
   "implicitDependencies": [
     "libs-shared",
-    "libs-web-serial"
+    "libs-web-serial",
+    "libs-dialogs"
   ],
   "targets": {
     "build": {
