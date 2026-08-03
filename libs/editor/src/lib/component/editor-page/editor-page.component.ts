@@ -9,6 +9,11 @@ import {
 } from '@angular/core';
 import { MatProgressSpinner } from '@angular/material/progress-spinner';
 import { ConfirmDialogComponent, DialogService } from '@libs-dialogs';
+import {
+  FileNameDialogComponent,
+  FileService,
+  joinPath,
+} from '@libs-file-manager';
 import { ConsoleShellStore, NotificationService } from '@libs-shared';
 import { SerialFacadeService } from '@libs-web-serial';
 import type { editor } from 'monaco-editor';
@@ -76,6 +81,7 @@ export class EditorPageComponent implements OnInit {
   private draftService = inject(EditorDraftService);
   private shellStore = inject(ConsoleShellStore);
   private dialog = inject(DialogService);
+  private readonly fileService = inject(FileService);
   private readonly serial = inject(SerialFacadeService);
   private readonly notify = inject(NotificationService);
 
@@ -91,11 +97,20 @@ export class EditorPageComponent implements OnInit {
   constructor() {
     effect(() => {
       const selectedPath = this.shellStore.selectedFilePath();
-      if (!this.initialized || !selectedPath) {
+      if (!this.initialized) {
+        return;
+      }
+      if (!selectedPath) {
+        if (this.activeFilePath()) {
+          this.clearOpenFile();
+        }
         return;
       }
       if (this.ignoreNextSelection) {
         this.ignoreNextSelection = false;
+        return;
+      }
+      if (this.tryRetargetAfterRename(selectedPath)) {
         return;
       }
       void this.loadFile(selectedPath);
@@ -142,6 +157,40 @@ export class EditorPageComponent implements OnInit {
       return null;
     }
     return path.split('/').pop() ?? path;
+  }
+
+  /**
+   * After a tree rename, the draft key is moved first and selection updates to
+   * the new path. Keep editor content and only retarget the open path.
+   */
+  private tryRetargetAfterRename(selectedPath: string): boolean {
+    const previousPath = this.activeFilePath();
+    if (!previousPath || previousPath === selectedPath) {
+      return false;
+    }
+    if (this.draftService.has(previousPath)) {
+      return false;
+    }
+    const draft = this.draftService.read(selectedPath);
+    if (!draft || draft.content !== this.code()) {
+      return false;
+    }
+    this.activeFilePath.set(selectedPath);
+    this.loadError.set(null);
+    return true;
+  }
+
+  private clearOpenFile(): void {
+    this.loadGeneration += 1;
+    this.activeFilePath.set(null);
+    this.code.set('');
+    this.baselineContent = '';
+    this.baselineReady = false;
+    this.saveStatus.set(null);
+    this.loadError.set(null);
+    this.saveError.set(null);
+    this.lastDeviceSavedAt.set(null);
+    this.isReadOnly.set(false);
   }
 
   private async loadFile(
@@ -306,6 +355,41 @@ export class EditorPageComponent implements OnInit {
   private revertSelection(): void {
     this.ignoreNextSelection = true;
     this.shellStore.setSelectedFilePath(this.activeFilePath());
+  }
+
+  async createNewFile(): Promise<void> {
+    if (!this.isSerialConnected() || this.isSaving() || this.isLoading()) {
+      return;
+    }
+
+    const parent = this.shellStore.fileManagerCurrentPath();
+    const ref = this.dialog.open(FileNameDialogComponent, {
+      width: '360px',
+      data: {
+        title: '新規ファイル',
+        confirmLabel: '作成',
+        label: 'ファイル名',
+        description: `作成先: ${parent}`,
+      },
+    });
+    const result = await firstValueFrom(ref.closed);
+    if (typeof result !== 'string' || !result) {
+      return;
+    }
+
+    const path = joinPath(parent, result);
+    try {
+      if (await this.fileService.exists(path)) {
+        this.notify.error('New File', `「${result}」は既に存在します`);
+        return;
+      }
+      await this.fileService.touch(path);
+      this.shellStore.setSelectedFilePath(path);
+    } catch (error: unknown) {
+      const message =
+        error instanceof Error ? error.message : 'Failed to create file';
+      this.notify.error('New File', message);
+    }
   }
 
   async saveCurrentFile(): Promise<void> {

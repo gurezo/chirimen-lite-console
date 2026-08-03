@@ -11,7 +11,8 @@
   "implicitDependencies": [
     "libs-shared",
     "libs-web-serial",
-    "libs-dialogs"
+    "libs-dialogs",
+    "libs-file-manager"
   ],
   "targets": {
     "build": {

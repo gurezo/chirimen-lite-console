@@ -2,6 +2,7 @@
 import { signal } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { DialogService } from '@libs-dialogs';
+import { FileService } from '@libs-file-manager';
 import { ConsoleShellStore, NotificationService } from '@libs-shared';
 import { SerialFacadeService } from '@libs-web-serial';
 import { provideMonacoEditor } from 'ngx-monaco-editor-v2';
@@ -23,6 +24,7 @@ describe('EditorPageComponent', () => {
   };
   const shellStoreMock = {
     selectedFilePath: () => selectedFilePathSignal(),
+    fileManagerCurrentPath: () => '.',
     setSelectedFilePath: vi.fn((path: string | null) => {
       selectedFilePathSignal.set(path);
     }),
@@ -34,9 +36,14 @@ describe('EditorPageComponent', () => {
     save: vi.fn(),
     clear: vi.fn(),
     clearAll: vi.fn(),
+    rename: vi.fn(),
   };
   const dialogServiceMock = {
     open: vi.fn(),
+  };
+  const fileServiceMock = {
+    exists: vi.fn().mockResolvedValue(false),
+    touch: vi.fn().mockResolvedValue(undefined),
   };
   const serialFacadeMock = {
     isConnected: () => isConnectedSignal(),
@@ -69,7 +76,10 @@ describe('EditorPageComponent', () => {
     isConnectedSignal.set(true);
     draftServiceMock.read.mockReturnValue(null);
     draftServiceMock.list.mockReturnValue([]);
+    draftServiceMock.has.mockReturnValue(false);
     editorServiceMock.loadTextFile.mockResolvedValue('loaded content');
+    fileServiceMock.exists.mockResolvedValue(false);
+    fileServiceMock.touch.mockResolvedValue(undefined);
 
     await TestBed.configureTestingModule({
       imports: [EditorPageComponent],
@@ -79,6 +89,7 @@ describe('EditorPageComponent', () => {
       .overrideProvider(EditorDraftService, { useValue: draftServiceMock })
       .overrideProvider(ConsoleShellStore, { useValue: shellStoreMock })
       .overrideProvider(DialogService, { useValue: dialogServiceMock })
+      .overrideProvider(FileService, { useValue: fileServiceMock })
       .overrideProvider(SerialFacadeService, { useValue: serialFacadeMock })
       .overrideProvider(NotificationService, { useValue: notifyMock })
       .compileComponents();
@@ -458,5 +469,67 @@ describe('EditorPageComponent', () => {
 
     expect(component.isReadOnly()).toBe(false);
     expect(component.lastDeviceSavedAt()).toBeNull();
+  });
+
+  it('should clear the editor when selection becomes null', async () => {
+    await loadPath('/home/pi/main.js', 'loaded content');
+    expect(component.currentFilePath()).toBe('/home/pi/main.js');
+
+    selectedFilePathSignal.set(null);
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    expect(component.currentFilePath()).toBeNull();
+    expect(component.code()).toBe('');
+    expect(component.saveStatus()).toBeNull();
+  });
+
+  it('should retarget the open path after a draft rename without reloading', async () => {
+    await loadPath('/home/pi/old.js', 'body');
+    component.onCodeChange('dirty body');
+    component.onContentEdited();
+    draftServiceMock.has.mockImplementation(
+      (path: string) => path === '/home/pi/new.js',
+    );
+    draftServiceMock.read.mockImplementation((path: string) =>
+      path === '/home/pi/new.js'
+        ? { path, content: 'dirty body', updatedAt: 1 }
+        : null,
+    );
+    editorServiceMock.loadTextFile.mockClear();
+
+    selectedFilePathSignal.set('/home/pi/new.js');
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    expect(component.currentFilePath()).toBe('/home/pi/new.js');
+    expect(component.code()).toBe('dirty body');
+    expect(editorServiceMock.loadTextFile).not.toHaveBeenCalled();
+  });
+
+  it('should create a new file from the toolbar and open it', async () => {
+    const closed = mockDialogResult('created.js');
+    const createPromise = component.createNewFile();
+    closed.next('created.js');
+    closed.complete();
+    await createPromise;
+
+    expect(fileServiceMock.exists).toHaveBeenCalledWith('./created.js');
+    expect(fileServiceMock.touch).toHaveBeenCalledWith('./created.js');
+    expect(shellStoreMock.setSelectedFilePath).toHaveBeenCalledWith(
+      './created.js',
+    );
+  });
+
+  it('should not create a file when the destination already exists', async () => {
+    fileServiceMock.exists.mockResolvedValueOnce(true);
+    const closed = mockDialogResult('dup.js');
+    const createPromise = component.createNewFile();
+    closed.next('dup.js');
+    closed.complete();
+    await createPromise;
+
+    expect(fileServiceMock.touch).not.toHaveBeenCalled();
+    expect(notifyMock.error).toHaveBeenCalled();
   });
 });
