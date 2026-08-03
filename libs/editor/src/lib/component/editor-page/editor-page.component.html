@@ -3,7 +3,9 @@
 >
   <choh-editor-toolbar
     class="shrink-0"
-    [saveDisabled]="!isDirty() || isSaving() || !currentFileName()"
+    [saveDisabled]="
+      !isDirty() || isSaving() || !currentFileName() || !isSerialConnected()
+    "
     [discardDisabled]="!isDirty() || isSaving() || !currentFileName()"
     [formatDisabled]="!currentFileName() || isLoading() || isSaving()"
     [isSaving]="isSaving()"

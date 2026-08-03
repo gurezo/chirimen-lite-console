@@ -3,6 +3,7 @@ import { signal } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { DialogService } from '@libs-dialogs';
 import { ConsoleShellStore } from '@libs-shared';
+import { SerialFacadeService } from '@libs-web-serial';
 import { provideMonacoEditor } from 'ngx-monaco-editor-v2';
 import { Subject } from 'rxjs';
 import { EditorDraftService, EditorService } from '../../service';
@@ -12,6 +13,7 @@ describe('EditorPageComponent', () => {
   let component: EditorPageComponent;
   let fixture: ComponentFixture<EditorPageComponent>;
   const selectedFilePathSignal = signal<string | null>(null);
+  const isConnectedSignal = signal(true);
   const editorServiceMock = {
     loadTextFile: vi.fn().mockResolvedValue('loaded content'),
     saveTextFile: vi.fn().mockResolvedValue(undefined),
@@ -34,6 +36,9 @@ describe('EditorPageComponent', () => {
   const dialogServiceMock = {
     open: vi.fn(),
   };
+  const serialFacadeMock = {
+    isConnected: () => isConnectedSignal(),
+  };
 
   async function loadPath(path: string, content = 'loaded content'): Promise<void> {
     editorServiceMock.loadTextFile.mockResolvedValue(content);
@@ -53,6 +58,7 @@ describe('EditorPageComponent', () => {
   beforeEach(async () => {
     vi.clearAllMocks();
     selectedFilePathSignal.set(null);
+    isConnectedSignal.set(true);
     draftServiceMock.read.mockReturnValue(null);
     draftServiceMock.list.mockReturnValue([]);
     editorServiceMock.loadTextFile.mockResolvedValue('loaded content');
@@ -65,6 +71,7 @@ describe('EditorPageComponent', () => {
       .overrideProvider(EditorDraftService, { useValue: draftServiceMock })
       .overrideProvider(ConsoleShellStore, { useValue: shellStoreMock })
       .overrideProvider(DialogService, { useValue: dialogServiceMock })
+      .overrideProvider(SerialFacadeService, { useValue: serialFacadeMock })
       .compileComponents();
 
     fixture = TestBed.createComponent(EditorPageComponent);
@@ -193,6 +200,33 @@ describe('EditorPageComponent', () => {
     await component.saveCurrentFile();
 
     expect(editorServiceMock.saveTextFile).not.toHaveBeenCalled();
+  });
+
+  it('should skip save when serial is disconnected', async () => {
+    await loadPath('/home/pi/main.js', 'loaded content');
+    component.onCodeChange('updated');
+    component.onContentEdited();
+    isConnectedSignal.set(false);
+
+    await component.saveCurrentFile();
+
+    expect(editorServiceMock.saveTextFile).not.toHaveBeenCalled();
+    expect(component.isDirty()).toBe(true);
+  });
+
+  it('should disable save in the toolbar when serial is disconnected', async () => {
+    await loadPath('/home/pi/main.js', 'loaded content');
+    component.onCodeChange('updated');
+    component.onContentEdited();
+    isConnectedSignal.set(false);
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    const saveButton = fixture.nativeElement.querySelector(
+      'choh-editor-toolbar button',
+    ) as HTMLButtonElement;
+
+    expect(saveButton.disabled).toBe(true);
   });
 
   it('should mark unsaved then draft-saved without claiming device save', async () => {
