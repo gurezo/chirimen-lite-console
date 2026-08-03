@@ -6,5 +6,7 @@ import { Component, input, output } from '@angular/core';
 })
 export class EditorToolbarComponent {
   saveDisabled = input(false);
+  discardDisabled = input(true);
   saveRequested = output<void>();
+  discardRequested = output<void>();
 }

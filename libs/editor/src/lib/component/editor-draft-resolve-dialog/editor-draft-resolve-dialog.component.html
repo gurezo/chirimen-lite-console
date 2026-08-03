@@ -1,0 +1,12 @@
+<div class="dialog-content">
+  <h2>Local draft found</h2>
+  <p>
+    A local draft exists for {{ path }}. Restore the draft, discard it, or reload the
+    file from the device?
+  </p>
+  <div class="dialog-actions">
+    <button type="button" (click)="discard()">Discard draft</button>
+    <button type="button" (click)="reload()">Reload from device</button>
+    <button type="button" (click)="restore()">Restore draft</button>
+  </div>
+</div>

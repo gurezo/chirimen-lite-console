@@ -1,8 +1,10 @@
 /// <reference types="vitest/globals" />
 import { signal } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { DialogService } from '@libs-dialogs';
 import { ConsoleShellStore } from '@libs-shared';
 import { provideMonacoEditor } from 'ngx-monaco-editor-v2';
+import { Subject } from 'rxjs';
 import { EditorDraftService, EditorService } from '../../service';
 import { EditorPageComponent } from './editor-page.component';
 
@@ -17,6 +19,9 @@ describe('EditorPageComponent', () => {
   };
   const shellStoreMock = {
     selectedFilePath: () => selectedFilePathSignal(),
+    setSelectedFilePath: vi.fn((path: string | null) => {
+      selectedFilePathSignal.set(path);
+    }),
   };
   const draftServiceMock = {
     read: vi.fn(() => null),
@@ -26,12 +31,23 @@ describe('EditorPageComponent', () => {
     clear: vi.fn(),
     clearAll: vi.fn(),
   };
+  const dialogServiceMock = {
+    open: vi.fn(),
+  };
 
   async function loadPath(path: string, content = 'loaded content'): Promise<void> {
     editorServiceMock.loadTextFile.mockResolvedValue(content);
     selectedFilePathSignal.set(path);
     fixture.detectChanges();
     await fixture.whenStable();
+  }
+
+  function mockDialogResult(result: unknown): Subject<unknown> {
+    const closed = new Subject<unknown>();
+    dialogServiceMock.open.mockReturnValueOnce({
+      closed: closed.asObservable(),
+    });
+    return closed;
   }
 
   beforeEach(async () => {
@@ -48,6 +64,7 @@ describe('EditorPageComponent', () => {
       .overrideProvider(EditorService, { useValue: editorServiceMock })
       .overrideProvider(EditorDraftService, { useValue: draftServiceMock })
       .overrideProvider(ConsoleShellStore, { useValue: shellStoreMock })
+      .overrideProvider(DialogService, { useValue: dialogServiceMock })
       .compileComponents();
 
     fixture = TestBed.createComponent(EditorPageComponent);
@@ -172,7 +189,8 @@ describe('EditorPageComponent', () => {
     expect(component.isDirty()).toBe(true);
   });
 
-  it('should restore a session draft before loading the remote file', async () => {
+  it('should prompt to restore a draft instead of auto-loading remote content', async () => {
+    const closed = mockDialogResult('restore');
     draftServiceMock.list.mockReturnValueOnce([
       {
         path: '/home/pi/draft.js',
@@ -180,14 +198,57 @@ describe('EditorPageComponent', () => {
         updatedAt: Date.now(),
       },
     ]);
-    editorServiceMock.loadTextFile.mockClear();
+    editorServiceMock.loadTextFile.mockResolvedValue('device content');
 
-    await component.ngOnInit();
+    const initPromise = component.ngOnInit();
+    closed.next('restore');
+    closed.complete();
+    await initPromise;
 
+    expect(dialogServiceMock.open).toHaveBeenCalled();
     expect(component.code()).toBe('restored draft');
     expect(component.currentFileName()).toBe('draft.js');
     expect(component.isDirty()).toBe(true);
     expect(component.saveStatus()).toBe('draftSavedLocally');
+  });
+
+  it('should confirm before switching files while dirty', async () => {
+    await loadPath('/home/pi/main.js', 'loaded content');
+    component.onCodeChange('dirty');
+    component.onContentEdited();
+
+    const closed = mockDialogResult(false);
+    editorServiceMock.loadTextFile.mockClear();
+
+    const switchPromise = (
+      component as unknown as { loadFile: (path: string) => Promise<void> }
+    ).loadFile('/home/pi/other.js');
+    closed.next(false);
+    closed.complete();
+    await switchPromise;
+
+    expect(component.currentFileName()).toBe('main.js');
+    expect(component.code()).toBe('dirty');
+    expect(shellStoreMock.setSelectedFilePath).toHaveBeenCalledWith(
+      '/home/pi/main.js',
+    );
     expect(editorServiceMock.loadTextFile).not.toHaveBeenCalled();
+  });
+
+  it('should discard dirty changes back to baseline', async () => {
+    await loadPath('/home/pi/main.js', 'loaded content');
+    component.onCodeChange('dirty');
+    component.onContentEdited();
+
+    const closed = mockDialogResult(true);
+
+    const discardPromise = component.discardChanges();
+    closed.next(true);
+    closed.complete();
+    await discardPromise;
+
+    expect(component.code()).toBe('loaded content');
+    expect(component.saveStatus()).toBe('savedToDevice');
+    expect(draftServiceMock.clear).toHaveBeenCalledWith('/home/pi/main.js');
   });
 });

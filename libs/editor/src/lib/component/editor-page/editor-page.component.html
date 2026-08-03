@@ -4,7 +4,9 @@
   <choh-editor-toolbar
     class="shrink-0"
     [saveDisabled]="!isDirty() || isSaving() || !currentFileName()"
+    [discardDisabled]="!isDirty() || isSaving() || !currentFileName()"
     (saveRequested)="saveCurrentFile()"
+    (discardRequested)="discardChanges()"
   />
   <choh-file-name-display
     class="shrink-0"
