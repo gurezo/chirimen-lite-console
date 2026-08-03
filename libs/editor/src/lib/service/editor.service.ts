@@ -1,6 +1,10 @@
 import { Injectable, inject } from '@angular/core';
 import type { editor } from 'monaco-editor';
-import { FileContentService } from '@libs-web-serial';
+import {
+  classifyFileWriteError,
+  FileContentService,
+  SerialFacadeService,
+} from '@libs-web-serial';
 
 /**
  * エディターサービス
@@ -16,6 +20,7 @@ export class EditorService {
   private editedFlag = false;
   private saveDisabled = false;
   private fileContent = inject(FileContentService);
+  private serial = inject(SerialFacadeService);
 
   /**
    * Monaco Editor を初期化
@@ -45,9 +50,18 @@ export class EditorService {
   }
 
   /**
-   * デバイス上のテキストファイルを保存します。
+   * デバイス上のテキストファイルを安全に保存します。
+   * 未接続時は実ファイルへ書き込まず失敗します。
    */
   async saveTextFile(path: string, content: string): Promise<void> {
-    await this.fileContent.writeTextFile(path, content);
+    if (!this.serial.isConnected()) {
+      throw classifyFileWriteError(new Error('not connected'));
+    }
+
+    try {
+      await this.fileContent.writeTextFile(path, content);
+    } catch (error: unknown) {
+      throw classifyFileWriteError(error);
+    }
   }
 }
