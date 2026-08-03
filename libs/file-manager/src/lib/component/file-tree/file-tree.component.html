@@ -16,10 +16,10 @@
           >
             @if (node.isDirectory) {
               <mat-icon aria-hidden="true" class="shrink-0 text-amber-500">folder</mat-icon>
-              <span>{{ node.name }}</span>
+              <span class="min-w-0 truncate" [attr.title]="node.name">{{ node.name }}</span>
             } @else {
               <mat-icon aria-hidden="true" class="shrink-0">article</mat-icon>
-              <span>{{ node.name }}</span>
+              <span class="min-w-0 truncate" [attr.title]="node.name">{{ node.name }}</span>
             }
           </button>
         </li>
