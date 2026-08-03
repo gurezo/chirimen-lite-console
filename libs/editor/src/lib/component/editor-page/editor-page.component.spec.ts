@@ -1,10 +1,11 @@
 /// <reference types="vitest/globals" />
-import { signal } from '@angular/core';
+import { computed, signal } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { DialogService } from '@libs-dialogs';
 import { FileService } from '@libs-file-manager';
 import { ConsoleShellStore, NotificationService } from '@libs-shared';
-import { SerialFacadeService } from '@libs-web-serial';
+import type { SerialConnectionViewModel } from '@libs-web-serial';
+import { SerialConnectionViewModelFacade } from '@libs-web-serial';
 import { provideMonacoEditor } from 'ngx-monaco-editor-v2';
 import { Subject } from 'rxjs';
 import { EditorDraftService, EditorService } from '../../service';
@@ -14,7 +15,15 @@ describe('EditorPageComponent', () => {
   let component: EditorPageComponent;
   let fixture: ComponentFixture<EditorPageComponent>;
   const selectedFilePathSignal = signal<string | null>(null);
-  const isConnectedSignal = signal(true);
+  const connectionVmSignal = signal<SerialConnectionViewModel>({
+    isBrowserSupported: true,
+    isConnected: true,
+    isConnecting: false,
+    isLoggedIn: true,
+    isInitializing: false,
+    setupStatus: 'ready',
+    errorMessage: null,
+  });
   const editorServiceMock = {
     loadTextFile: vi.fn().mockResolvedValue('loaded content'),
     saveTextFile: vi.fn().mockResolvedValue(undefined),
@@ -45,8 +54,8 @@ describe('EditorPageComponent', () => {
     exists: vi.fn().mockResolvedValue(false),
     touch: vi.fn().mockResolvedValue(undefined),
   };
-  const serialFacadeMock = {
-    isConnected: () => isConnectedSignal(),
+  const connectionVmMock = {
+    vm: computed(() => connectionVmSignal()),
   };
   const notifyMock = {
     success: vi.fn(),
@@ -73,7 +82,15 @@ describe('EditorPageComponent', () => {
   beforeEach(async () => {
     vi.clearAllMocks();
     selectedFilePathSignal.set(null);
-    isConnectedSignal.set(true);
+    connectionVmSignal.set({
+      isBrowserSupported: true,
+      isConnected: true,
+      isConnecting: false,
+      isLoggedIn: true,
+      isInitializing: false,
+      setupStatus: 'ready',
+      errorMessage: null,
+    });
     draftServiceMock.read.mockReturnValue(null);
     draftServiceMock.list.mockReturnValue([]);
     draftServiceMock.has.mockReturnValue(false);
@@ -90,7 +107,9 @@ describe('EditorPageComponent', () => {
       .overrideProvider(ConsoleShellStore, { useValue: shellStoreMock })
       .overrideProvider(DialogService, { useValue: dialogServiceMock })
       .overrideProvider(FileService, { useValue: fileServiceMock })
-      .overrideProvider(SerialFacadeService, { useValue: serialFacadeMock })
+      .overrideProvider(SerialConnectionViewModelFacade, {
+        useValue: connectionVmMock,
+      })
       .overrideProvider(NotificationService, { useValue: notifyMock })
       .compileComponents();
 
@@ -146,7 +165,8 @@ describe('EditorPageComponent', () => {
     expect(component.currentFileName()).toBe('ok.js');
     expect(component.loadError()).toEqual({
       path: '/home/pi/binary.bin',
-      message: 'Target file is not a text file',
+      message: 'ファイルの読み込みに失敗しました: /home/pi/binary.bin',
+      detail: 'Target file is not a text file',
     });
   });
 
@@ -175,7 +195,10 @@ describe('EditorPageComponent', () => {
     expect(component.isDirty()).toBe(false);
     expect(component.saveStatus()).toBe('savedToDevice');
     expect(draftServiceMock.clear).toHaveBeenCalledWith('/home/pi/main.js');
-    expect(notifyMock.success).toHaveBeenCalledWith('Save', 'Saved to device');
+    expect(notifyMock.success).toHaveBeenCalledWith(
+      '保存成功',
+      'デバイスへ保存しました',
+    );
   });
 
   it('should keep edits and draft when save fails', async () => {
@@ -191,13 +214,14 @@ describe('EditorPageComponent', () => {
     expect(component.code()).toBe('updated');
     expect(component.isDirty()).toBe(true);
     expect(component.saveStatus()).toBe('saveFailed');
-    expect(component.saveError()).toBe(
+    expect(component.saveError()?.detail).toBe(
       'Save failed: write permission was denied for the target file.',
     );
+    expect(component.saveError()?.message).toContain('Draft');
     expect(draftServiceMock.clear).not.toHaveBeenCalled();
     expect(notifyMock.error).toHaveBeenCalledWith(
-      'Save',
-      'Save failed: write permission was denied for the target file.',
+      '保存失敗',
+      'デバイスへの保存に失敗しました',
     );
   });
 
@@ -214,7 +238,9 @@ describe('EditorPageComponent', () => {
     await component.saveCurrentFile();
 
     expect(component.saveStatus()).toBe('saveFailed');
-    expect(component.saveError()).toContain('connection was lost or cancelled');
+    expect(component.saveError()?.detail).toContain(
+      'connection was lost or cancelled',
+    );
     expect(component.code()).toBe('updated');
     expect(draftServiceMock.clear).not.toHaveBeenCalled();
   });
@@ -231,7 +257,7 @@ describe('EditorPageComponent', () => {
     await loadPath('/home/pi/main.js', 'loaded content');
     component.onCodeChange('updated');
     component.onContentEdited();
-    isConnectedSignal.set(false);
+    connectionVmSignal.update((vm) => ({ ...vm, isConnected: false }));
 
     await component.saveCurrentFile();
 
@@ -243,7 +269,7 @@ describe('EditorPageComponent', () => {
     await loadPath('/home/pi/main.js', 'loaded content');
     component.onCodeChange('updated');
     component.onContentEdited();
-    isConnectedSignal.set(false);
+    connectionVmSignal.update((vm) => ({ ...vm, isConnected: false }));
     fixture.detectChanges();
     await fixture.whenStable();
 
@@ -394,8 +420,8 @@ describe('EditorPageComponent', () => {
     await component.formatCurrentFile();
 
     expect(notifyMock.warning).toHaveBeenCalledWith(
-      'Format',
-      'No formatter is available for this language.',
+      'フォーマット',
+      'この言語向けのフォーマッターはありません。',
     );
     expect(component.code()).toBe('const x=1');
     expect(component.isDirty()).toBe(false);
