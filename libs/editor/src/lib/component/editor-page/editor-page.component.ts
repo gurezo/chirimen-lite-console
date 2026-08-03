@@ -310,9 +310,24 @@ export class EditorPageComponent implements OnInit {
     }
   }
 
-  /** Wired to Format toolbar action; implementation lands with formatDocument. */
   async formatCurrentFile(): Promise<void> {
-    return;
+    if (!this.currentFilePath() || this.isLoading() || this.isSaving()) {
+      return;
+    }
+
+    const formatted = await this.editorService.formatDocument();
+    if (!formatted) {
+      this.notify.warning(
+        'Format',
+        'No formatter is available for this language.',
+      );
+      return;
+    }
+
+    const value = this.editorService.getValue();
+    if (value !== null) {
+      this.onCodeChange(value);
+    }
   }
 
   async discardChanges(): Promise<void> {
@@ -397,9 +412,23 @@ export class EditorPageComponent implements OnInit {
   async onKeydown(event: KeyboardEvent): Promise<void> {
     const isSaveShortcut =
       (event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 's';
-    if (!isSaveShortcut) return;
+    if (isSaveShortcut) {
+      event.preventDefault();
+      await this.saveCurrentFile();
+      return;
+    }
+
+    const isFormatShortcut =
+      event.shiftKey &&
+      event.altKey &&
+      !event.ctrlKey &&
+      !event.metaKey &&
+      event.key.toLowerCase() === 'f';
+    if (!isFormatShortcut) {
+      return;
+    }
 
     event.preventDefault();
-    await this.saveCurrentFile();
+    await this.formatCurrentFile();
   }
 }

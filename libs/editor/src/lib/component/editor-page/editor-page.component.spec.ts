@@ -18,6 +18,8 @@ describe('EditorPageComponent', () => {
     loadTextFile: vi.fn().mockResolvedValue('loaded content'),
     saveTextFile: vi.fn().mockResolvedValue(undefined),
     initializeEditor: vi.fn(),
+    formatDocument: vi.fn().mockResolvedValue(true),
+    getValue: vi.fn().mockReturnValue(null),
   };
   const shellStoreMock = {
     selectedFilePath: () => selectedFilePathSignal(),
