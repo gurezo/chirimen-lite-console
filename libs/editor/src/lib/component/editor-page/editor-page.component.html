@@ -5,8 +5,11 @@
     class="shrink-0"
     [saveDisabled]="!isDirty() || isSaving() || !currentFileName()"
     [discardDisabled]="!isDirty() || isSaving() || !currentFileName()"
+    [formatDisabled]="!currentFileName() || isLoading() || isSaving()"
+    [isSaving]="isSaving()"
     (saveRequested)="saveCurrentFile()"
     (discardRequested)="discardChanges()"
+    (formatRequested)="formatCurrentFile()"
   />
   <choh-file-name-display
     class="shrink-0"

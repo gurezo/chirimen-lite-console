@@ -1,10 +1,47 @@
-<div class="editor-toolbar flex gap-2 px-3 py-2">
-  <button type="button" [disabled]="saveDisabled()" (click)="saveRequested.emit()">
+<div
+  class="editor-toolbar flex flex-wrap items-center gap-2 border-b border-gray-200 px-3 py-2"
+  role="toolbar"
+  aria-label="Editor actions"
+>
+  <button
+    mat-button
+    type="button"
+    class="editor-toolbar__button"
+    [disabled]="saveDisabled()"
+    [matTooltip]="saveTooltip()"
+    [attr.aria-label]="saveTooltip()"
+    (click)="saveRequested.emit()"
+  >
+    @if (isSaving()) {
+      <mat-progress-spinner
+        class="editor-toolbar__spinner"
+        mode="indeterminate"
+        diameter="16"
+        aria-hidden="true"
+      />
+    }
     Save
   </button>
+
   <button
+    mat-button
     type="button"
+    class="editor-toolbar__button"
+    [disabled]="formatDisabled()"
+    [matTooltip]="formatTooltip()"
+    [attr.aria-label]="formatTooltip()"
+    (click)="formatRequested.emit()"
+  >
+    Format
+  </button>
+
+  <button
+    mat-button
+    type="button"
+    class="editor-toolbar__button"
     [disabled]="discardDisabled()"
+    [matTooltip]="discardTooltip"
+    [attr.aria-label]="discardTooltip"
     (click)="discardRequested.emit()"
   >
     Discard
