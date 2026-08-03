@@ -425,6 +425,73 @@ describe('FileTreeFeatureComponent', () => {
     expect(moveMock).not.toHaveBeenCalled();
   });
 
+  it('emits fileCreated after creating a file', async () => {
+    dialogOpen.mockReturnValue({ closed: of('root.txt') });
+    const fixture = await compileAndCreate();
+    await connectReady(fixture);
+    fixture.componentInstance.onBackgroundContextMenu(
+      new MouseEvent('contextmenu', {
+        bubbles: true,
+        cancelable: true,
+        clientX: 3,
+        clientY: 4,
+      }),
+    );
+    const createdSpy = vi.spyOn(fixture.componentInstance.fileCreated, 'emit');
+
+    fixture.componentInstance.onMenuAction('new-file');
+    await vi.waitFor(() => {
+      expect(createdSpy).toHaveBeenCalledWith('./root.txt');
+    });
+  });
+
+  it('emits fileRenamed after renaming a node', async () => {
+    dialogOpen.mockReturnValue({ closed: of('app.ts') });
+    const fixture = await compileAndCreate();
+    await connectReady(fixture);
+    fixture.componentInstance.contextTarget = treeNodes[1];
+    const renamedSpy = vi.spyOn(fixture.componentInstance.fileRenamed, 'emit');
+
+    fixture.componentInstance.onMenuAction('rename');
+    await vi.waitFor(() => {
+      expect(renamedSpy).toHaveBeenCalledWith({
+        from: './main.ts',
+        to: './app.ts',
+      });
+    });
+  });
+
+  it('emits fileDeleted after deleting a node', async () => {
+    dialogOpen.mockReturnValue({ closed: of(true) });
+    const fixture = await compileAndCreate();
+    await connectReady(fixture);
+    const deletedSpy = vi.spyOn(fixture.componentInstance.fileDeleted, 'emit');
+
+    fixture.componentInstance.onMenuAction('delete');
+    await vi.waitFor(() => {
+      expect(deletedSpy).toHaveBeenCalledWith('./docs');
+    });
+  });
+
+  it('warns about unsaved drafts in the delete confirm message', async () => {
+    dialogOpen.mockReturnValue({ closed: of(false) });
+    const fixture = await compileAndCreate();
+    fixture.componentRef.setInput('pathsWithUnsavedDrafts', ['./docs']);
+    await connectReady(fixture);
+
+    fixture.componentInstance.onMenuAction('delete');
+    await fixture.whenStable();
+
+    expect(dialogOpen).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({
+        data: expect.objectContaining({
+          message: '「docs」には未保存の変更があります。削除しますか？',
+        }),
+      }),
+    );
+  });
+
   it('deletes a directory recursively after confirm', async () => {
     dialogOpen.mockReturnValue({ closed: of(true) });
     const fixture = await compileAndCreate();

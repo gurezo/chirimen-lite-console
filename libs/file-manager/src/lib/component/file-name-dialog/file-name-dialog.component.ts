@@ -22,12 +22,14 @@ export class FileNameDialogComponent implements OnInit {
   title = '名前を入力';
   confirmLabel = 'OK';
   label = '名前';
+  description: string | null = null;
   readonly validationError = signal<string | null>(null);
 
   ngOnInit(): void {
     this.title = this.data?.title?.trim() || this.title;
     this.confirmLabel = this.data?.confirmLabel?.trim() || this.confirmLabel;
     this.label = this.data?.label?.trim() || this.label;
+    this.description = this.data?.description?.trim() || null;
     this.name = this.data?.initialValue ?? '';
   }
 
