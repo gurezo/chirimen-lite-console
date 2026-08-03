@@ -17,6 +17,9 @@ const isApplePlatform = (): boolean => {
   imports: [MatButtonModule, MatTooltip, MatProgressSpinner],
   templateUrl: './editor-toolbar.component.html',
   styleUrl: './editor-toolbar.component.css',
+  host: {
+    class: 'block min-w-0',
+  },
 })
 export class EditorToolbarComponent {
   saveDisabled = input(false);
