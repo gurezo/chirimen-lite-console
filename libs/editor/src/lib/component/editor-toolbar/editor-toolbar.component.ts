@@ -22,11 +22,13 @@ export class EditorToolbarComponent {
   saveDisabled = input(false);
   discardDisabled = input(true);
   formatDisabled = input(true);
+  newFileDisabled = input(false);
   isSaving = input(false);
 
   saveRequested = output<void>();
   discardRequested = output<void>();
   formatRequested = output<void>();
+  newFileRequested = output<void>();
 
   private readonly applePlatform = isApplePlatform();
 
@@ -41,4 +43,5 @@ export class EditorToolbarComponent {
   );
 
   readonly discardTooltip = 'Discard local changes';
+  readonly newFileTooltip = 'New file';
 }

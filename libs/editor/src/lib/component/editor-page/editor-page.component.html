@@ -8,10 +8,12 @@
     "
     [discardDisabled]="!isDirty() || isSaving() || !currentFileName()"
     [formatDisabled]="!currentFileName() || isLoading() || isSaving()"
+    [newFileDisabled]="!isSerialConnected() || isSaving() || isLoading()"
     [isSaving]="isSaving()"
     (saveRequested)="saveCurrentFile()"
     (discardRequested)="discardChanges()"
     (formatRequested)="formatCurrentFile()"
+    (newFileRequested)="createNewFile()"
   />
   <choh-file-name-display
     class="shrink-0"

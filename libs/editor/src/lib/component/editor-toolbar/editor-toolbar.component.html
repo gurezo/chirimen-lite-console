@@ -7,6 +7,18 @@
     mat-button
     type="button"
     class="editor-toolbar__button"
+    [disabled]="newFileDisabled()"
+    [matTooltip]="newFileTooltip"
+    [attr.aria-label]="newFileTooltip"
+    (click)="newFileRequested.emit()"
+  >
+    New File
+  </button>
+
+  <button
+    mat-button
+    type="button"
+    class="editor-toolbar__button"
     [disabled]="saveDisabled()"
     [matTooltip]="saveTooltip()"
     [attr.aria-label]="saveTooltip()"

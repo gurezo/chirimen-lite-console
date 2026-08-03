@@ -25,10 +25,18 @@ describe('EditorToolbarComponent', () => {
     expect(component).toBeTruthy();
   });
 
+  it('should emit newFileRequested when new file button is clicked', () => {
+    const emitSpy = vi.spyOn(component.newFileRequested, 'emit');
+
+    buttons()[0].click();
+
+    expect(emitSpy).toHaveBeenCalledTimes(1);
+  });
+
   it('should emit saveRequested when save button is clicked', () => {
     const emitSpy = vi.spyOn(component.saveRequested, 'emit');
 
-    buttons()[0].click();
+    buttons()[1].click();
 
     expect(emitSpy).toHaveBeenCalledTimes(1);
   });
@@ -40,7 +48,7 @@ describe('EditorToolbarComponent', () => {
 
     const emitSpy = vi.spyOn(component.formatRequested, 'emit');
 
-    buttons()[1].click();
+    buttons()[2].click();
 
     expect(emitSpy).toHaveBeenCalledTimes(1);
   });
@@ -52,7 +60,7 @@ describe('EditorToolbarComponent', () => {
 
     const emitSpy = vi.spyOn(component.discardRequested, 'emit');
 
-    buttons()[2].click();
+    buttons()[3].click();
 
     expect(emitSpy).toHaveBeenCalledTimes(1);
   });
@@ -62,7 +70,7 @@ describe('EditorToolbarComponent', () => {
     fixture.detectChanges();
     await fixture.whenStable();
 
-    expect(buttons()[0].disabled).toBe(true);
+    expect(buttons()[1].disabled).toBe(true);
   });
 
   it('should disable format button when formatDisabled is true', async () => {
@@ -70,12 +78,13 @@ describe('EditorToolbarComponent', () => {
     fixture.detectChanges();
     await fixture.whenStable();
 
-    expect(buttons()[1].disabled).toBe(true);
+    expect(buttons()[2].disabled).toBe(true);
   });
 
   it('should set aria-label from tooltips', () => {
-    const [save, format, discard] = Array.from(buttons());
+    const [newFile, save, format, discard] = Array.from(buttons());
 
+    expect(newFile.getAttribute('aria-label')).toBe(component.newFileTooltip);
     expect(save.getAttribute('aria-label')).toBe(component.saveTooltip());
     expect(format.getAttribute('aria-label')).toBe(component.formatTooltip());
     expect(discard.getAttribute('aria-label')).toBe(component.discardTooltip);
