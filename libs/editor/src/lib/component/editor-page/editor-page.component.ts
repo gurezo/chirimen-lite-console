@@ -242,7 +242,10 @@ export class EditorPageComponent implements OnInit {
       : null;
   }
 
-  private async confirmLeaveUnsaved(message: string): Promise<boolean> {
+  private async confirmLeaveUnsaved(
+    message: string,
+    confirmLabel = 'Discard',
+  ): Promise<boolean> {
     if (this.promptInFlight) {
       return this.promptInFlight;
     }
@@ -252,7 +255,7 @@ export class EditorPageComponent implements OnInit {
         data: {
           title: 'Unsaved changes',
           message,
-          confirmLabel: 'Discard',
+          confirmLabel,
           cancelLabel: 'Cancel',
         },
       });
@@ -316,6 +319,16 @@ export class EditorPageComponent implements OnInit {
     await this.fetchDeviceFile(path);
   }
 
+  async canDeactivate(): Promise<boolean> {
+    if (!this.isDirty()) {
+      return true;
+    }
+    return this.confirmLeaveUnsaved(
+      'You have unsaved changes. Leave the editor? Your local draft will be kept in this browser tab.',
+      'Leave',
+    );
+  }
+
   onEditorInitialized(editorInstance: editor.IStandaloneCodeEditor): void {
     this.editorService.initializeEditor(editorInstance);
   }
@@ -349,6 +362,15 @@ export class EditorPageComponent implements OnInit {
     this.saveStatus.set('unsavedChanges');
     this.draftService.save(path, code);
     this.saveStatus.set('draftSavedLocally');
+  }
+
+  @HostListener('window:beforeunload', ['$event'])
+  onBeforeUnload(event: BeforeUnloadEvent): void {
+    if (!this.isDirty()) {
+      return;
+    }
+    event.preventDefault();
+    event.returnValue = true;
   }
 
   @HostListener('window:keydown', ['$event'])
