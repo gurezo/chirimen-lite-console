@@ -2,56 +2,146 @@
   class="flex h-full min-h-0 min-w-0 flex-col gap-2 p-2"
   aria-label="File browser"
 >
-  @if (loading) {
-    <div
-      class="flex min-h-0 flex-1 flex-col items-center justify-center"
-      role="status"
-      aria-live="polite"
-    >
-      <mat-progress-spinner
-        mode="indeterminate"
-        diameter="84"
-        aria-label="Loading files"
-      />
-    </div>
-  } @else {
-    <div class="shrink-0 space-y-2">
-      <div class="flex items-center justify-between">
-        <h2 class="font-semibold">Files</h2>
-        <button type="button" class="text-xs underline" (click)="reload()">
-          reload
-        </button>
+  @switch (viewState) {
+    @case ('neverConnected') {
+      <div
+        class="flex min-h-0 flex-1 flex-col items-start justify-center gap-1 p-3"
+        role="status"
+      >
+        <p class="text-sm text-gray-700">
+          {{ viewMessages.neverConnected.title }}
+        </p>
+        <p class="text-xs text-gray-500">
+          {{ viewMessages.neverConnected.detail }}
+        </p>
+      </div>
+    }
+    @case ('disconnected') {
+      <div
+        class="flex min-h-0 flex-1 flex-col items-start justify-center gap-1 p-3"
+        role="status"
+      >
+        <p class="text-sm text-gray-700">
+          {{ viewMessages.disconnected.title }}
+        </p>
+        <p class="text-xs text-gray-500">
+          {{ viewMessages.disconnected.detail }}
+        </p>
+      </div>
+    }
+    @case ('connecting') {
+      <div
+        class="flex min-h-0 flex-1 flex-col items-center justify-center gap-3 p-3"
+        role="status"
+        aria-live="polite"
+      >
+        <mat-progress-spinner
+          mode="indeterminate"
+          diameter="84"
+          aria-label="Connecting to CHIRIMEN Lite"
+        />
+        <p class="text-sm text-gray-600">
+          {{ viewMessages.connecting.title }}
+        </p>
+      </div>
+    }
+    @case ('loading') {
+      <div
+        class="flex min-h-0 flex-1 flex-col items-center justify-center gap-3"
+        role="status"
+        aria-live="polite"
+      >
+        <mat-progress-spinner
+          mode="indeterminate"
+          diameter="84"
+          aria-label="Loading files"
+        />
+        <p class="text-sm text-gray-600">ファイル一覧を読み込んでいます…</p>
+      </div>
+    }
+    @case ('fetchFailed') {
+      <div class="flex min-h-0 flex-1 flex-col gap-2 p-3" role="alert">
+        <p class="text-sm text-red-700">
+          {{ viewMessages.fetchFailed.title }}
+        </p>
+        @if (errorMessage) {
+          <p class="text-xs text-red-600">{{ errorMessage }}</p>
+        }
+        @if (errorDetail) {
+          <details class="text-xs text-gray-600">
+            <summary class="cursor-pointer select-none">技術的詳細</summary>
+            <pre class="mt-1 whitespace-pre-wrap break-all">{{ errorDetail }}</pre>
+          </details>
+        }
+        <choh-button
+          label="再試行"
+          type="button"
+          (clickEvent)="reload()"
+        />
+      </div>
+    }
+    @default {
+      <div class="shrink-0 space-y-2">
+        <div class="flex items-center justify-between">
+          <h2 class="font-semibold">Files</h2>
+          @if (canRefresh) {
+            <button
+              type="button"
+              class="text-xs underline"
+              (click)="reload()"
+            >
+              更新
+            </button>
+          }
+        </div>
+
+        <p
+          class="min-w-0 truncate text-xs text-gray-500"
+          [attr.title]="currentPath()"
+        >
+          current: {{ currentPath() }}
+        </p>
+
+        @if (currentPath() !== '.' && !remoteOpsDisabled) {
+          <button type="button" class="text-xs underline" (click)="goParent()">
+            ← parent
+          </button>
+        }
       </div>
 
-      <p class="min-w-0 truncate text-xs text-gray-500" [attr.title]="currentPath()">
-        current: {{ currentPath() }}
-      </p>
+      <div
+        class="min-h-0 flex-1 overflow-y-auto overflow-x-hidden"
+        role="region"
+        aria-label="File list"
+        (contextmenu)="onBackgroundContextMenu($event)"
+      >
+        @if (viewState === 'empty') {
+          <p class="p-3 text-sm text-gray-600" role="status">
+            {{ viewMessages.empty.title }}
+          </p>
+        } @else {
+          <lib-file-tree
+            [nodes]="nodes"
+            [selectedPath]="selectedPath()"
+            (directorySelected)="onDirectorySelected($event)"
+            (fileSelected)="onFileSelected($event)"
+            (nodeContextMenu)="onNodeContextMenu($event)"
+          />
+        }
+      </div>
 
-      @if (currentPath() !== '.') {
-        <button type="button" class="text-xs underline" (click)="goParent()">
-          ← parent
-        </button>
+      @if (errorMessage && !listFetchFailed) {
+        <div class="shrink-0 space-y-1" role="alert">
+          <p class="text-xs text-red-600">操作に失敗しました: {{ errorMessage }}</p>
+          @if (errorDetail) {
+            <details class="text-xs text-gray-600">
+              <summary class="cursor-pointer select-none">技術的詳細</summary>
+              <pre class="mt-1 whitespace-pre-wrap break-all">{{ errorDetail }}</pre>
+            </details>
+          }
+        </div>
       }
-    </div>
-
-    <div
-      class="min-h-0 flex-1 overflow-y-auto overflow-x-hidden"
-      role="region"
-      aria-label="File list"
-      (contextmenu)="onBackgroundContextMenu($event)"
-    >
-      <lib-file-tree
-        [nodes]="nodes"
-        [selectedPath]="selectedPath()"
-        (directorySelected)="onDirectorySelected($event)"
-        (fileSelected)="onFileSelected($event)"
-        (nodeContextMenu)="onNodeContextMenu($event)"
-      />
-    </div>
-  }
-
-  @if (errorMessage) {
-    <p class="shrink-0 text-xs text-red-600">{{ errorMessage }}</p>
+    }
   }
 
   <lib-file-context-menu

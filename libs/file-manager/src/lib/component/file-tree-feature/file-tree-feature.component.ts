@@ -10,12 +10,17 @@ import {
 } from '@angular/core';
 import { MatProgressSpinner } from '@angular/material/progress-spinner';
 import { ConfirmDialogComponent, DialogService } from '@libs-dialogs';
+import { ButtonComponent } from '@libs-shared';
 import { SerialConnectionViewModelFacade } from '@libs-web-serial';
 import { firstValueFrom } from 'rxjs';
 import { joinPath, parentPathOf } from '../../functions';
 import type { FileContextMenuAction } from '../../models/file-context-menu.types';
 import type { FileRenamedEvent } from '../../models/file-lifecycle.types';
 import type { FileNameDialogData } from '../../models/file-name-dialog.types';
+import {
+  FILE_TREE_VIEW_MESSAGES,
+  type FileTreeViewState,
+} from '../../models/file-tree-view-state';
 import { FileTreeNode } from '../../models';
 import { FileService } from '../../service';
 import { FileContextMenuComponent } from '../file-context-menu/file-context-menu.component';
@@ -27,7 +32,12 @@ import {
 
 @Component({
   selector: 'lib-file-tree-feature',
-  imports: [FileTreeComponent, FileContextMenuComponent, MatProgressSpinner],
+  imports: [
+    FileTreeComponent,
+    FileContextMenuComponent,
+    MatProgressSpinner,
+    ButtonComponent,
+  ],
   host: {
     class: 'flex min-h-0 min-w-0 flex-1 flex-col',
   },
@@ -55,15 +65,24 @@ export class FileTreeFeatureComponent {
   readonly fileRenamed = output<FileRenamedEvent>();
   readonly fileDeleted = output<string>();
 
+  readonly viewMessages = FILE_TREE_VIEW_MESSAGES;
+
   nodes: FileTreeNode[] = [];
   loading = false;
+  /** User-facing list/operation error; technical detail may differ. */
   errorMessage: string | null = null;
+  /** Raw error detail for expandable technical info (#812). */
+  errorDetail: string | null = null;
+  /** True when the last `listTree` call failed (#812). */
+  listFetchFailed = false;
   contextTarget: FileTreeNode | null = null;
   operationBusy = false;
 
   private loadedForLogin = false;
   private lastVmKey = '';
   private lastLoadedPath: string | null = null;
+  /** Remembers a prior connected session to distinguish disconnect vs never connected. */
+  private hadConnectedSession = false;
 
   /** ログイン完了後・環境設定前の窓で初回 ls を走らせる（issue #717）。 */
   private canLoadTree(vm: {
@@ -81,16 +100,22 @@ export class FileTreeFeatureComponent {
       const vm = this.connectionVm.vm();
       const setupFailed = vm.setupStatus === 'failed' && !vm.isLoggedIn;
       const treeReady = this.canLoadTree(vm);
-      const vmKey = `${vm.isConnected}:${treeReady}:${setupFailed}`;
+      const vmKey = `${vm.isConnected}:${vm.isConnecting}:${vm.isInitializing}:${treeReady}:${setupFailed}`;
       if (vmKey === this.lastVmKey) {
         return;
       }
       this.lastVmKey = vmKey;
 
       untracked(() => {
+        if (vm.isConnected) {
+          this.hadConnectedSession = true;
+        }
+
         if (!vm.isConnected) {
           this.loading = false;
           this.errorMessage = null;
+          this.errorDetail = null;
+          this.listFetchFailed = false;
           this.nodes = [];
           this.loadedForLogin = false;
           this.lastLoadedPath = null;
@@ -104,15 +129,19 @@ export class FileTreeFeatureComponent {
 
         if (setupFailed) {
           this.loading = false;
+          this.listFetchFailed = true;
           this.errorMessage =
             'シェルの初期化に失敗しました。ターミナルを確認してください。';
+          this.errorDetail = vm.errorMessage;
           this.cdr.markForCheck();
           return;
         }
 
-        if (!treeReady) {
+        if (!treeReady || vm.isConnecting || vm.isInitializing) {
           this.loading = true;
           this.errorMessage = null;
+          this.errorDetail = null;
+          this.listFetchFailed = false;
           this.loadedForLogin = false;
           this.cdr.markForCheck();
           return;
@@ -122,6 +151,8 @@ export class FileTreeFeatureComponent {
           return;
         }
         this.loadedForLogin = true;
+        this.loading = true;
+        this.cdr.markForCheck();
         queueMicrotask(() => void this.loadAt(this.currentPath()));
       });
     });
@@ -141,8 +172,54 @@ export class FileTreeFeatureComponent {
     });
   }
 
+  get viewState(): FileTreeViewState {
+    const vm = this.connectionVm.vm();
+
+    if (!vm.isConnected) {
+      return this.hadConnectedSession ? 'disconnected' : 'neverConnected';
+    }
+
+    if (
+      vm.isConnecting ||
+      vm.isInitializing ||
+      (!this.canLoadTree(vm) && vm.setupStatus !== 'failed')
+    ) {
+      return 'connecting';
+    }
+
+    if (this.loading) {
+      return 'loading';
+    }
+
+    if (this.listFetchFailed || (vm.setupStatus === 'failed' && !vm.isLoggedIn)) {
+      return 'fetchFailed';
+    }
+
+    if (!this.nodes.length) {
+      return 'empty';
+    }
+
+    return 'ready';
+  }
+
+  get remoteOpsDisabled(): boolean {
+    const state = this.viewState;
+    return (
+      this.operationBusy ||
+      state === 'neverConnected' ||
+      state === 'disconnected' ||
+      state === 'connecting' ||
+      state === 'loading'
+    );
+  }
+
   get contextMenuDisabled(): boolean {
-    return this.operationBusy || !this.connectionVm.vm().isConnected;
+    return this.remoteOpsDisabled;
+  }
+
+  get canRefresh(): boolean {
+    const state = this.viewState;
+    return state === 'ready' || state === 'empty';
   }
 
   async reload(): Promise<void> {
@@ -193,6 +270,9 @@ export class FileTreeFeatureComponent {
   }
 
   async goParent(): Promise<void> {
+    if (this.remoteOpsDisabled) {
+      return;
+    }
     const path = this.currentPath();
     if (path === '.') {
       return;
@@ -341,12 +421,14 @@ export class FileTreeFeatureComponent {
     }
     this.operationBusy = true;
     this.errorMessage = null;
+    this.errorDetail = null;
     this.cdr.markForCheck();
     try {
       await fn();
     } catch (error: unknown) {
-      this.errorMessage =
-        error instanceof Error ? error.message : String(error);
+      const message = error instanceof Error ? error.message : String(error);
+      this.errorMessage = message;
+      this.errorDetail = message;
     } finally {
       this.operationBusy = false;
       this.cdr.markForCheck();
@@ -364,12 +446,17 @@ export class FileTreeFeatureComponent {
     this.lastLoadedPath = path;
     this.loading = true;
     this.errorMessage = null;
+    this.errorDetail = null;
+    this.listFetchFailed = false;
     this.cdr.markForCheck();
     try {
       this.nodes = await this.file.listTree(path);
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : String(error);
       this.errorMessage = message;
+      this.errorDetail = message;
+      this.listFetchFailed = true;
+      this.nodes = [];
       this.loadedForLogin = false;
     } finally {
       this.loading = false;

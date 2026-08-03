@@ -1,29 +1,25 @@
 <div class="file-tree text-sm">
-  @if (!nodes().length) {
-    <p class="text-gray-500">No files</p>
-  } @else {
-    <ul class="space-y-1">
-      @for (node of nodes(); track node.path) {
-        <li>
-          <button
-            type="button"
-            class="inline-flex w-full items-center gap-1 text-left px-2 py-1 rounded hover:bg-gray-100"
-            [class.bg-blue-50]="isSelected(node)"
-            [class.font-medium]="isSelected(node)"
-            [attr.aria-current]="isSelected(node) ? 'true' : null"
-            (click)="onSelect(node)"
-            (contextmenu)="onContextMenu($event, node)"
-          >
-            @if (node.isDirectory) {
-              <mat-icon aria-hidden="true" class="shrink-0 text-amber-500">folder</mat-icon>
-              <span class="min-w-0 truncate" [attr.title]="node.name">{{ node.name }}</span>
-            } @else {
-              <mat-icon aria-hidden="true" class="shrink-0">article</mat-icon>
-              <span class="min-w-0 truncate" [attr.title]="node.name">{{ node.name }}</span>
-            }
-          </button>
-        </li>
-      }
-    </ul>
-  }
+  <ul class="space-y-1">
+    @for (node of nodes(); track node.path) {
+      <li>
+        <button
+          type="button"
+          class="inline-flex w-full items-center gap-1 text-left px-2 py-1 rounded hover:bg-gray-100"
+          [class.bg-blue-50]="isSelected(node)"
+          [class.font-medium]="isSelected(node)"
+          [attr.aria-current]="isSelected(node) ? 'true' : null"
+          (click)="onSelect(node)"
+          (contextmenu)="onContextMenu($event, node)"
+        >
+          @if (node.isDirectory) {
+            <mat-icon aria-hidden="true" class="shrink-0 text-amber-500">folder</mat-icon>
+            <span class="min-w-0 truncate" [attr.title]="node.name">{{ node.name }}</span>
+          } @else {
+            <mat-icon aria-hidden="true" class="shrink-0">article</mat-icon>
+            <span class="min-w-0 truncate" [attr.title]="node.name">{{ node.name }}</span>
+          }
+        </button>
+      </li>
+    }
+  </ul>
 </div>
