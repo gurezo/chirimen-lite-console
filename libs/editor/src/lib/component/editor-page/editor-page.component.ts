@@ -13,6 +13,7 @@ import { ConsoleShellStore, NotificationService } from '@libs-shared';
 import { SerialFacadeService } from '@libs-web-serial';
 import type { editor } from 'monaco-editor';
 import { firstValueFrom } from 'rxjs';
+import { resolveEditorLanguage } from '../../functions';
 import { EditorDraft, EditorDraftService, EditorService } from '../../service';
 import {
   EditorDraftResolveChoice,
@@ -20,7 +21,10 @@ import {
 } from '../editor-draft-resolve-dialog/editor-draft-resolve-dialog.component';
 import { EditorToolbarComponent } from '../editor-toolbar/editor-toolbar.component';
 import { FileNameDisplayComponent } from '../file-name-display/file-name-display.component';
-import { MonacoEditorComponent } from '../monaco-editor/monaco-editor.component';
+import {
+  MonacoEditorComponent,
+  MonacoEditorOptions,
+} from '../monaco-editor/monaco-editor.component';
 import { EditorSaveStatus, isEditorDirtyStatus } from './editor-save-status';
 
 export interface EditorLoadError {
@@ -43,10 +47,30 @@ export class EditorPageComponent implements OnInit {
   saveStatus = signal<EditorSaveStatus | null>(null);
   loadError = signal<EditorLoadError | null>(null);
   saveError = signal<string | null>(null);
+  lastDeviceSavedAt = signal<number | null>(null);
+  isReadOnly = signal(false);
 
   readonly isDirty = computed(() => isEditorDirtyStatus(this.saveStatus()));
   readonly isSaving = computed(() => this.saveStatus() === 'saving');
   readonly isLoading = computed(() => this.saveStatus() === 'loading');
+
+  readonly languageInfo = computed(() =>
+    resolveEditorLanguage(this.activeFilePath()),
+  );
+
+  readonly languageLabel = computed(() => {
+    if (!this.activeFilePath()) {
+      return null;
+    }
+    return this.languageInfo().label;
+  });
+
+  readonly monacoOptions = computed<MonacoEditorOptions>(() => ({
+    theme: 'vs-dark',
+    language: this.languageInfo().monacoLanguage,
+    automaticLayout: true,
+    readOnly: this.isReadOnly(),
+  }));
 
   private editorService = inject(EditorService);
   private draftService = inject(EditorDraftService);
@@ -108,7 +132,7 @@ export class EditorPageComponent implements OnInit {
     );
   }
 
-  private currentFilePath(): string | null {
+  currentFilePath(): string | null {
     return this.activeFilePath();
   }
 
@@ -168,6 +192,8 @@ export class EditorPageComponent implements OnInit {
     this.saveStatus.set('loading');
     this.loadError.set(null);
     this.saveError.set(null);
+    this.lastDeviceSavedAt.set(null);
+    this.isReadOnly.set(false);
 
     try {
       const loaded = await this.editorService.loadTextFile(path);
@@ -197,6 +223,8 @@ export class EditorPageComponent implements OnInit {
     this.baselineReady = true;
     this.saveStatus.set('savedToDevice');
     this.saveError.set(null);
+    this.lastDeviceSavedAt.set(null);
+    this.isReadOnly.set(false);
   }
 
   private async resolveDraft(draft: EditorDraft): Promise<void> {
@@ -223,6 +251,8 @@ export class EditorPageComponent implements OnInit {
     this.saveStatus.set('draftSavedLocally');
     this.saveError.set(null);
     this.loadError.set(null);
+    this.lastDeviceSavedAt.set(null);
+    this.isReadOnly.set(false);
 
     try {
       this.baselineContent = await this.editorService.loadTextFile(draft.path);
@@ -295,6 +325,8 @@ export class EditorPageComponent implements OnInit {
       await this.editorService.saveTextFile(path, this.code());
       this.baselineContent = this.code();
       this.baselineReady = true;
+      this.lastDeviceSavedAt.set(Date.now());
+      this.isReadOnly.set(false);
       this.saveStatus.set('savedToDevice');
       this.draftService.clear(path);
       this.notify.success('Save', 'Saved to device');
@@ -307,6 +339,9 @@ export class EditorPageComponent implements OnInit {
       // Keep editor content and local draft so the user can retry after reconnect.
       this.saveStatus.set('saveFailed');
       this.notify.error('Save', message);
+      if (isWritePermissionDenied(message)) {
+        this.isReadOnly.set(true);
+      }
     }
   }
 
@@ -431,4 +466,12 @@ export class EditorPageComponent implements OnInit {
     event.preventDefault();
     await this.formatCurrentFile();
   }
+}
+
+function isWritePermissionDenied(message: string): boolean {
+  const lower = message.toLowerCase();
+  return (
+    lower.includes('write permission was denied') ||
+    lower.includes('permission denied')
+  );
 }
