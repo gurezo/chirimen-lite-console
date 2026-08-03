@@ -19,6 +19,7 @@ describe('FileTreeFeatureComponent', () => {
   const moveMock = vi.fn<() => Promise<void>>();
   const removeMock = vi.fn<() => Promise<void>>();
   const existsMock = vi.fn<() => Promise<boolean>>();
+  const hasUnsavedDraftMock = vi.fn<(path: string) => boolean>();
   const dialogOpen = vi.fn();
   let vmSignal: ReturnType<typeof signal<SerialConnectionViewModel>>;
 
@@ -100,6 +101,8 @@ describe('FileTreeFeatureComponent', () => {
     removeMock.mockResolvedValue(undefined);
     existsMock.mockReset();
     existsMock.mockResolvedValue(false);
+    hasUnsavedDraftMock.mockReset();
+    hasUnsavedDraftMock.mockReturnValue(false);
     dialogOpen.mockReset();
   });
 
@@ -475,8 +478,9 @@ describe('FileTreeFeatureComponent', () => {
 
   it('warns about unsaved drafts in the delete confirm message', async () => {
     dialogOpen.mockReturnValue({ closed: of(false) });
+    hasUnsavedDraftMock.mockReturnValue(true);
     const fixture = await compileAndCreate();
-    fixture.componentRef.setInput('pathsWithUnsavedDrafts', ['./docs']);
+    fixture.componentRef.setInput('hasUnsavedDraft', hasUnsavedDraftMock);
     await connectReady(fixture);
 
     fixture.componentInstance.onMenuAction('delete');

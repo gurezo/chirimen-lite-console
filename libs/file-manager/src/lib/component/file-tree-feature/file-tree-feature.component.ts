@@ -45,8 +45,10 @@ export class FileTreeFeatureComponent {
   readonly currentPath = input<string>('.');
   /** Currently open file path for tree highlight (issue #805). */
   readonly selectedPath = input<string | null>(null);
-  /** Paths that currently have an unsaved editor draft (issue #810). */
-  readonly pathsWithUnsavedDrafts = input<readonly string[]>([]);
+  /** Returns true when the path has an unsaved editor draft (issue #810). */
+  readonly hasUnsavedDraft = input<(path: string) => boolean>(
+    (_path: string) => false,
+  );
   readonly currentPathChange = output<string>();
   readonly fileSelected = output<string>();
   readonly fileCreated = output<string>();
@@ -317,7 +319,7 @@ export class FileTreeFeatureComponent {
   }
 
   private async confirmDelete(target: FileTreeNode): Promise<boolean> {
-    const hasUnsavedDraft = this.pathsWithUnsavedDrafts().includes(target.path);
+    const hasUnsavedDraft = this.hasUnsavedDraft()(target.path);
     const message = hasUnsavedDraft
       ? `「${target.name}」には未保存の変更があります。削除しますか？`
       : `「${target.name}」を削除しますか？`;
