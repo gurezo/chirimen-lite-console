@@ -52,3 +52,60 @@ describe('EditorService.saveTextFile', () => {
     ).rejects.toThrow(/write permission was denied/);
   });
 });
+
+describe('EditorService.formatDocument', () => {
+  let service: EditorService;
+
+  beforeEach(() => {
+    TestBed.configureTestingModule({
+      providers: [
+        EditorService,
+        {
+          provide: FileContentService,
+          useValue: { writeTextFile: vi.fn(), readFile: vi.fn() },
+        },
+        {
+          provide: SerialFacadeService,
+          useValue: { isConnected: vi.fn().mockReturnValue(true) },
+        },
+      ],
+    });
+
+    service = TestBed.inject(EditorService);
+  });
+
+  it('returns false when the editor is not initialized', async () => {
+    await expect(service.formatDocument()).resolves.toBe(false);
+  });
+
+  it('returns false when format action is unsupported', async () => {
+    const run = vi.fn();
+    service.initializeEditor({
+      onDidChangeModelContent: vi.fn(),
+      getAction: vi.fn().mockReturnValue({
+        isSupported: () => false,
+        run,
+      }),
+      getValue: vi.fn().mockReturnValue(''),
+    } as never);
+
+    await expect(service.formatDocument()).resolves.toBe(false);
+    expect(run).not.toHaveBeenCalled();
+  });
+
+  it('runs the format document action when supported', async () => {
+    const run = vi.fn().mockResolvedValue(undefined);
+    service.initializeEditor({
+      onDidChangeModelContent: vi.fn(),
+      getAction: vi.fn().mockReturnValue({
+        isSupported: () => true,
+        run,
+      }),
+      getValue: vi.fn().mockReturnValue('formatted'),
+    } as never);
+
+    await expect(service.formatDocument()).resolves.toBe(true);
+    expect(run).toHaveBeenCalledTimes(1);
+    expect(service.getValue()).toBe('formatted');
+  });
+});
