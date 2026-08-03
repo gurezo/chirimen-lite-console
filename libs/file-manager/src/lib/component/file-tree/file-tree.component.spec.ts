@@ -40,4 +40,17 @@ describe('FileTreeComponent', () => {
     expect(payload?.event.clientX).toBe(12);
     expect(event.defaultPrevented).toBe(true);
   });
+
+  it('highlights the selected file path', () => {
+    fixture.componentRef.setInput('selectedPath', './main.ts');
+    fixture.detectChanges();
+
+    const buttons: NodeListOf<HTMLButtonElement> =
+      fixture.nativeElement.querySelectorAll('button');
+    const fileButton = buttons[1];
+
+    expect(fileButton?.getAttribute('aria-current')).toBe('true');
+    expect(fileButton?.classList.contains('bg-blue-50')).toBe(true);
+    expect(buttons[0]?.getAttribute('aria-current')).toBeNull();
+  });
 });
