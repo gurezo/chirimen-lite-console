@@ -18,6 +18,7 @@ describe('FileTreeFeatureComponent', () => {
   const mkdirMock = vi.fn<() => Promise<void>>();
   const moveMock = vi.fn<() => Promise<void>>();
   const removeMock = vi.fn<() => Promise<void>>();
+  const existsMock = vi.fn<() => Promise<boolean>>();
   const dialogOpen = vi.fn();
   let vmSignal: ReturnType<typeof signal<SerialConnectionViewModel>>;
 
@@ -52,6 +53,7 @@ describe('FileTreeFeatureComponent', () => {
             mkdir: mkdirMock,
             move: moveMock,
             remove: removeMock,
+            exists: existsMock,
           },
         },
         {
@@ -96,6 +98,8 @@ describe('FileTreeFeatureComponent', () => {
     moveMock.mockResolvedValue(undefined);
     removeMock.mockReset();
     removeMock.mockResolvedValue(undefined);
+    existsMock.mockReset();
+    existsMock.mockResolvedValue(false);
     dialogOpen.mockReset();
   });
 
@@ -387,6 +391,38 @@ describe('FileTreeFeatureComponent', () => {
     await vi.waitFor(() => {
       expect(moveMock).toHaveBeenCalledWith('./main.ts', './app.ts');
     });
+  });
+
+  it('does not create a file when the path already exists', async () => {
+    dialogOpen.mockReturnValue({ closed: of('main.ts') });
+    existsMock.mockResolvedValue(true);
+    const fixture = await compileAndCreate();
+    await connectReady(fixture);
+    fixture.componentInstance.contextTarget = treeNodes[1];
+
+    fixture.componentInstance.onMenuAction('new-file');
+    await vi.waitFor(() => {
+      expect(fixture.componentInstance.errorMessage).toBe(
+        '「main.ts」は既に存在します',
+      );
+    });
+    expect(touchMock).not.toHaveBeenCalled();
+  });
+
+  it('does not rename when the destination already exists', async () => {
+    dialogOpen.mockReturnValue({ closed: of('docs') });
+    existsMock.mockResolvedValue(true);
+    const fixture = await compileAndCreate();
+    await connectReady(fixture);
+    fixture.componentInstance.contextTarget = treeNodes[1];
+
+    fixture.componentInstance.onMenuAction('rename');
+    await vi.waitFor(() => {
+      expect(fixture.componentInstance.errorMessage).toBe(
+        '「docs」は既に存在します',
+      );
+    });
+    expect(moveMock).not.toHaveBeenCalled();
   });
 
   it('deletes a directory recursively after confirm', async () => {

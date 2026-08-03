@@ -224,7 +224,11 @@ export class FileTreeFeatureComponent {
       return;
     }
     const parent = this.createParentPath(target);
-    await this.file.touch(joinPath(parent, name));
+    const path = joinPath(parent, name);
+    if (await this.file.exists(path)) {
+      throw new Error(`「${name}」は既に存在します`);
+    }
+    await this.file.touch(path);
     await this.refreshAfterCreate(parent);
   }
 
@@ -272,6 +276,9 @@ export class FileTreeFeatureComponent {
       return;
     }
     const destination = joinPath(parentPathOf(target.path), name);
+    if (await this.file.exists(destination)) {
+      throw new Error(`「${name}」は既に存在します`);
+    }
     await this.file.move(target.path, destination);
     await this.reload();
   }
