@@ -109,6 +109,28 @@ describe('LeftSidebarComponent', () => {
     expect(store.selectedFilePath()).toBeNull();
   });
 
+  it('passes selected file path to the file tree feature', () => {
+    const store = TestBed.inject(ConsoleShellStore);
+    store.setSelectedFilePath('./main.ts');
+    fixture.detectChanges();
+
+    const tree = fixture.debugElement.query(By.css('lib-file-tree-feature'));
+    expect(tree).not.toBeNull();
+    expect(tree.componentInstance.selectedPath()).toBe('./main.ts');
+  });
+
+  it('sets selected file path and navigates to editor on file select', () => {
+    const store = TestBed.inject(ConsoleShellStore);
+    const router = TestBed.inject(Router);
+
+    component.onFileSelected('./home/pi/app.js');
+
+    expect(store.selectedFilePath()).toBe('./home/pi/app.js');
+    expect(router.navigate).toHaveBeenCalledWith(['editor'], {
+      relativeTo: TestBed.inject(ActivatedRoute),
+    });
+  });
+
   it('should set tooltip on panel toggle based on open state', () => {
     const openButton = fixture.debugElement.query(
       By.css('button[aria-label="ファイツリー閉じる"]'),
