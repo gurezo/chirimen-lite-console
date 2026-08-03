@@ -4,7 +4,8 @@ import { ApplicationConfig, provideZoneChangeDetection } from '@angular/core';
 import { MAT_ICON_DEFAULT_OPTIONS } from '@angular/material/icon';
 import { provideAnimationsAsync } from '@angular/platform-browser/animations/async';
 import { provideRouter } from '@angular/router';
-import { monacoConfig } from '@libs-editor';
+import { EditorDraftService, monacoConfig } from '@libs-editor';
+import { EDITOR_DRAFT_LIFECYCLE } from '@libs-shared';
 import { provideRouterStore } from '@ngrx/router-store';
 import { provideStore } from '@ngrx/store';
 import { provideStoreDevtools } from '@ngrx/store-devtools';
@@ -33,6 +34,10 @@ export const appConfig: ApplicationConfig = {
     }),
     provideHttpClient(),
     provideMonacoEditor(monacoConfig),
+    {
+      provide: EDITOR_DRAFT_LIFECYCLE,
+      useExisting: EditorDraftService,
+    },
     provideStore({}),
     provideStoreDevtools({
       maxAge: 25,
