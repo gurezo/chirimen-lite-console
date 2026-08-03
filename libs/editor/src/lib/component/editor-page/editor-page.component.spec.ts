@@ -155,7 +155,7 @@ describe('EditorPageComponent', () => {
     component.onCodeChange('updated');
     component.onContentEdited();
     editorServiceMock.saveTextFile.mockRejectedValueOnce(
-      new Error('device busy'),
+      new Error('Save failed: write permission was denied for the target file.'),
     );
 
     await component.saveCurrentFile();
@@ -163,7 +163,27 @@ describe('EditorPageComponent', () => {
     expect(component.code()).toBe('updated');
     expect(component.isDirty()).toBe(true);
     expect(component.saveStatus()).toBe('saveFailed');
-    expect(component.saveError()).toBe('device busy');
+    expect(component.saveError()).toBe(
+      'Save failed: write permission was denied for the target file.',
+    );
+    expect(draftServiceMock.clear).not.toHaveBeenCalled();
+  });
+
+  it('should surface disconnect errors without clearing draft', async () => {
+    await loadPath('/home/pi/main.js', 'loaded content');
+    component.onCodeChange('updated');
+    component.onContentEdited();
+    editorServiceMock.saveTextFile.mockRejectedValueOnce(
+      new Error(
+        'Save failed: serial connection was lost or cancelled. Reconnect and try again.',
+      ),
+    );
+
+    await component.saveCurrentFile();
+
+    expect(component.saveStatus()).toBe('saveFailed');
+    expect(component.saveError()).toContain('connection was lost or cancelled');
+    expect(component.code()).toBe('updated');
     expect(draftServiceMock.clear).not.toHaveBeenCalled();
   });
 
