@@ -22,6 +22,11 @@ export const RIGHT_DIAGRAM_WIDTH = {
 
 export const RAIL_WIDTH_PX = 48;
 
+export const CONSOLE_SHELL_LEFT_PANE_WIDTH_STORAGE_KEY =
+  'chirimen.console-shell.leftPaneWidthPx';
+export const CONSOLE_SHELL_RIGHT_DIAGRAM_WIDTH_STORAGE_KEY =
+  'chirimen.console-shell.rightDiagramWidthPx';
+
 export interface ConsoleShellState {
   activePanel: ConsoleShellPanel;
   leftNavOpen: boolean;
@@ -54,13 +59,72 @@ function clampPaneWidth(value: number, min: number, max: number): number {
   return Math.min(max, Math.max(min, Math.round(value)));
 }
 
+function readLocalStorageItem(key: string): string | null {
+  try {
+    const storage = globalThis.localStorage;
+    if (!storage) {
+      return null;
+    }
+    return storage.getItem(key);
+  } catch {
+    return null;
+  }
+}
+
+function writeLocalStorageItem(key: string, value: string): void {
+  try {
+    const storage = globalThis.localStorage;
+    if (!storage) {
+      return;
+    }
+    storage.setItem(key, value);
+  } catch {
+    // Ignore quota / private-mode failures
+  }
+}
+
+function readPersistedPaneWidth(
+  key: string,
+  min: number,
+  max: number,
+  fallback: number,
+): number {
+  const raw = readLocalStorageItem(key);
+  if (raw === null) {
+    return fallback;
+  }
+  const parsed = Number(raw);
+  if (!Number.isFinite(parsed)) {
+    return fallback;
+  }
+  return clampPaneWidth(parsed, min, max);
+}
+
+function createInitialConsoleShellState(): ConsoleShellState {
+  return {
+    ...DEFAULT_CONSOLE_SHELL_STATE,
+    leftPaneWidthPx: readPersistedPaneWidth(
+      CONSOLE_SHELL_LEFT_PANE_WIDTH_STORAGE_KEY,
+      LEFT_PANE_WIDTH.min,
+      LEFT_PANE_WIDTH.max,
+      LEFT_PANE_WIDTH.default,
+    ),
+    rightDiagramWidthPx: readPersistedPaneWidth(
+      CONSOLE_SHELL_RIGHT_DIAGRAM_WIDTH_STORAGE_KEY,
+      RIGHT_DIAGRAM_WIDTH.min,
+      RIGHT_DIAGRAM_WIDTH.max,
+      RIGHT_DIAGRAM_WIDTH.default,
+    ),
+  };
+}
+
 @Injectable({
   providedIn: 'root',
 })
 export class ConsoleShellStore {
-  private readonly stateSignal = signal<ConsoleShellState>({
-    ...DEFAULT_CONSOLE_SHELL_STATE,
-  });
+  private readonly stateSignal = signal<ConsoleShellState>(
+    createInitialConsoleShellState(),
+  );
 
   readonly state = this.stateSignal.asReadonly();
 
@@ -176,25 +240,35 @@ export class ConsoleShellStore {
   }
 
   setLeftPaneWidth(widthPx: number): void {
+    const leftPaneWidthPx = clampPaneWidth(
+      widthPx,
+      LEFT_PANE_WIDTH.min,
+      LEFT_PANE_WIDTH.max,
+    );
     this.stateSignal.update((state) => ({
       ...state,
-      leftPaneWidthPx: clampPaneWidth(
-        widthPx,
-        LEFT_PANE_WIDTH.min,
-        LEFT_PANE_WIDTH.max,
-      ),
+      leftPaneWidthPx,
     }));
+    writeLocalStorageItem(
+      CONSOLE_SHELL_LEFT_PANE_WIDTH_STORAGE_KEY,
+      String(leftPaneWidthPx),
+    );
   }
 
   setRightDiagramWidth(widthPx: number): void {
+    const rightDiagramWidthPx = clampPaneWidth(
+      widthPx,
+      RIGHT_DIAGRAM_WIDTH.min,
+      RIGHT_DIAGRAM_WIDTH.max,
+    );
     this.stateSignal.update((state) => ({
       ...state,
-      rightDiagramWidthPx: clampPaneWidth(
-        widthPx,
-        RIGHT_DIAGRAM_WIDTH.min,
-        RIGHT_DIAGRAM_WIDTH.max,
-      ),
+      rightDiagramWidthPx,
     }));
+    writeLocalStorageItem(
+      CONSOLE_SHELL_RIGHT_DIAGRAM_WIDTH_STORAGE_KEY,
+      String(rightDiagramWidthPx),
+    );
   }
 
   setSelectedFilePath(selectedFilePath: string | null): void {
