@@ -251,4 +251,24 @@ describe('EditorPageComponent', () => {
     expect(component.saveStatus()).toBe('savedToDevice');
     expect(draftServiceMock.clear).toHaveBeenCalledWith('/home/pi/main.js');
   });
+
+  it('should allow deactivation when clean', async () => {
+    await loadPath('/home/pi/main.js', 'loaded content');
+
+    await expect(component.canDeactivate()).resolves.toBe(true);
+    expect(dialogServiceMock.open).not.toHaveBeenCalled();
+  });
+
+  it('should confirm before deactivating while dirty', async () => {
+    await loadPath('/home/pi/main.js', 'loaded content');
+    component.onCodeChange('dirty');
+    component.onContentEdited();
+
+    const closed = mockDialogResult(false);
+    const deactivatePromise = component.canDeactivate();
+    closed.next(false);
+    closed.complete();
+
+    await expect(deactivatePromise).resolves.toBe(false);
+  });
 });
