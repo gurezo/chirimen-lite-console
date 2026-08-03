@@ -395,4 +395,68 @@ describe('EditorPageComponent', () => {
 
     expect(editorServiceMock.formatDocument).not.toHaveBeenCalled();
   });
+
+  it('should resolve monaco language from the open file extension', async () => {
+    await loadPath('/home/pi/readme.md', '# hi');
+
+    expect(component.languageLabel()).toBe('Markdown');
+    expect(component.monacoOptions().language).toBe('markdown');
+    expect(component.currentFilePath()).toBe('/home/pi/readme.md');
+  });
+
+  it('should fall back to plaintext for unknown extensions', async () => {
+    await loadPath('/home/pi/data.bin', 'raw');
+
+    expect(component.languageLabel()).toBe('Plain Text');
+    expect(component.monacoOptions().language).toBe('plaintext');
+  });
+
+  it('should record last device save time after a successful save', async () => {
+    await loadPath('/home/pi/main.js', 'loaded content');
+    expect(component.lastDeviceSavedAt()).toBeNull();
+
+    component.onCodeChange('updated');
+    component.onContentEdited();
+    await component.saveCurrentFile();
+
+    expect(component.saveStatus()).toBe('savedToDevice');
+    expect(component.lastDeviceSavedAt()).toEqual(expect.any(Number));
+  });
+
+  it('should mark read-only when save fails with permission denied', async () => {
+    await loadPath('/home/pi/main.js', 'loaded content');
+    component.onCodeChange('updated');
+    component.onContentEdited();
+    editorServiceMock.saveTextFile.mockRejectedValueOnce(
+      new Error('Save failed: write permission was denied for the target file.'),
+    );
+
+    await component.saveCurrentFile();
+
+    expect(component.isReadOnly()).toBe(true);
+    expect(component.monacoOptions().readOnly).toBe(true);
+  });
+
+  it('should clear read-only when opening another file', async () => {
+    await loadPath('/home/pi/main.js', 'loaded content');
+    component.onCodeChange('updated');
+    component.onContentEdited();
+    editorServiceMock.saveTextFile.mockRejectedValueOnce(
+      new Error('Save failed: write permission was denied for the target file.'),
+    );
+    await component.saveCurrentFile();
+    expect(component.isReadOnly()).toBe(true);
+
+    const closed = mockDialogResult(true);
+    const switchPromise = (
+      component as unknown as { loadFile: (path: string) => Promise<void> }
+    ).loadFile('/home/pi/other.js');
+    closed.next(true);
+    closed.complete();
+    await switchPromise;
+    await fixture.whenStable();
+
+    expect(component.isReadOnly()).toBe(false);
+    expect(component.lastDeviceSavedAt()).toBeNull();
+  });
 });
