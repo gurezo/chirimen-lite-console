@@ -2,7 +2,7 @@
 import { signal } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { DialogService } from '@libs-dialogs';
-import { ConsoleShellStore } from '@libs-shared';
+import { ConsoleShellStore, NotificationService } from '@libs-shared';
 import { SerialFacadeService } from '@libs-web-serial';
 import { provideMonacoEditor } from 'ngx-monaco-editor-v2';
 import { Subject } from 'rxjs';
@@ -39,6 +39,12 @@ describe('EditorPageComponent', () => {
   const serialFacadeMock = {
     isConnected: () => isConnectedSignal(),
   };
+  const notifyMock = {
+    success: vi.fn(),
+    error: vi.fn(),
+    info: vi.fn(),
+    warning: vi.fn(),
+  };
 
   async function loadPath(path: string, content = 'loaded content'): Promise<void> {
     editorServiceMock.loadTextFile.mockResolvedValue(content);
@@ -72,6 +78,7 @@ describe('EditorPageComponent', () => {
       .overrideProvider(ConsoleShellStore, { useValue: shellStoreMock })
       .overrideProvider(DialogService, { useValue: dialogServiceMock })
       .overrideProvider(SerialFacadeService, { useValue: serialFacadeMock })
+      .overrideProvider(NotificationService, { useValue: notifyMock })
       .compileComponents();
 
     fixture = TestBed.createComponent(EditorPageComponent);
@@ -155,6 +162,7 @@ describe('EditorPageComponent', () => {
     expect(component.isDirty()).toBe(false);
     expect(component.saveStatus()).toBe('savedToDevice');
     expect(draftServiceMock.clear).toHaveBeenCalledWith('/home/pi/main.js');
+    expect(notifyMock.success).toHaveBeenCalledWith('Save', 'Saved to device');
   });
 
   it('should keep edits and draft when save fails', async () => {
@@ -174,6 +182,10 @@ describe('EditorPageComponent', () => {
       'Save failed: write permission was denied for the target file.',
     );
     expect(draftServiceMock.clear).not.toHaveBeenCalled();
+    expect(notifyMock.error).toHaveBeenCalledWith(
+      'Save',
+      'Save failed: write permission was denied for the target file.',
+    );
   });
 
   it('should surface disconnect errors without clearing draft', async () => {
