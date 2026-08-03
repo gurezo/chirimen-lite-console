@@ -1,3 +1,4 @@
+export * from './classify-file-write-error';
 export * from './file.utils';
 export * from './pi-zero-shell-exec-options';
 export * from './sanitize-serial-stdout';
