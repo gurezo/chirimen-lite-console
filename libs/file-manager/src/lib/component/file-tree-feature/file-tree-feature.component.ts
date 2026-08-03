@@ -14,6 +14,7 @@ import { SerialConnectionViewModelFacade } from '@libs-web-serial';
 import { firstValueFrom } from 'rxjs';
 import { joinPath, parentPathOf } from '../../functions';
 import type { FileContextMenuAction } from '../../models/file-context-menu.types';
+import type { FileRenamedEvent } from '../../models/file-lifecycle.types';
 import type { FileNameDialogData } from '../../models/file-name-dialog.types';
 import { FileTreeNode } from '../../models';
 import { FileService } from '../../service';
@@ -44,8 +45,13 @@ export class FileTreeFeatureComponent {
   readonly currentPath = input<string>('.');
   /** Currently open file path for tree highlight (issue #805). */
   readonly selectedPath = input<string | null>(null);
+  /** Paths that currently have an unsaved editor draft (issue #810). */
+  readonly pathsWithUnsavedDrafts = input<readonly string[]>([]);
   readonly currentPathChange = output<string>();
   readonly fileSelected = output<string>();
+  readonly fileCreated = output<string>();
+  readonly fileRenamed = output<FileRenamedEvent>();
+  readonly fileDeleted = output<string>();
 
   nodes: FileTreeNode[] = [];
   loading = false;
@@ -215,21 +221,23 @@ export class FileTreeFeatureComponent {
   }
 
   private async createFile(target: FileTreeNode): Promise<void> {
+    const parent = this.createParentPath(target);
     const name = await this.promptName({
       title: '新規ファイル',
       confirmLabel: '作成',
       label: 'ファイル名',
+      description: `作成先: ${parent}`,
     });
     if (!name) {
       return;
     }
-    const parent = this.createParentPath(target);
     const path = joinPath(parent, name);
     if (await this.file.exists(path)) {
       throw new Error(`「${name}」は既に存在します`);
     }
     await this.file.touch(path);
     await this.refreshAfterCreate(parent);
+    this.fileCreated.emit(path);
   }
 
   private async createDirectory(target: FileTreeNode): Promise<void> {
@@ -271,6 +279,7 @@ export class FileTreeFeatureComponent {
       initialValue: target.name,
       confirmLabel: '変更',
       label: '新しい名前',
+      description: `変更前: ${target.path}`,
     });
     if (!name || name === target.name) {
       return;
@@ -281,10 +290,11 @@ export class FileTreeFeatureComponent {
     }
     await this.file.move(target.path, destination);
     await this.reload();
+    this.fileRenamed.emit({ from: target.path, to: destination });
   }
 
   private async deleteNode(target: FileTreeNode): Promise<void> {
-    const confirmed = await this.confirmDelete(target.name);
+    const confirmed = await this.confirmDelete(target);
     if (!confirmed) {
       return;
     }
@@ -292,6 +302,7 @@ export class FileTreeFeatureComponent {
       recursive: target.isDirectory,
     });
     await this.reload();
+    this.fileDeleted.emit(target.path);
   }
 
   private async promptName(
@@ -305,12 +316,16 @@ export class FileTreeFeatureComponent {
     return typeof result === 'string' ? result : null;
   }
 
-  private async confirmDelete(name: string): Promise<boolean> {
+  private async confirmDelete(target: FileTreeNode): Promise<boolean> {
+    const hasUnsavedDraft = this.pathsWithUnsavedDrafts().includes(target.path);
+    const message = hasUnsavedDraft
+      ? `「${target.name}」には未保存の変更があります。削除しますか？`
+      : `「${target.name}」を削除しますか？`;
     const ref = this.dialog.open(ConfirmDialogComponent, {
       width: '400px',
       data: {
         title: '削除の確認',
-        message: `「${name}」を削除しますか？`,
+        message,
         confirmLabel: '削除',
         cancelLabel: 'キャンセル',
       },

@@ -2,6 +2,9 @@
   class="flex min-w-[280px] flex-col gap-4 rounded-lg bg-white p-4 text-gray-900 shadow-lg"
 >
   <h2 class="m-0 text-lg font-medium">{{ title }}</h2>
+  @if (description) {
+    <p class="m-0 text-sm text-gray-600 break-all">{{ description }}</p>
+  }
   <form
     class="flex flex-col gap-3"
     (ngSubmit)="$event.preventDefault(); submit()"
