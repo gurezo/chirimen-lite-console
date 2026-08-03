@@ -212,6 +212,28 @@ describe('EditorPageComponent', () => {
     expect(component.saveStatus()).toBe('draftSavedLocally');
   });
 
+  it('should reload from device when draft resolve chooses reload', async () => {
+    const closed = mockDialogResult('reload');
+    draftServiceMock.list.mockReturnValueOnce([
+      {
+        path: '/home/pi/draft.js',
+        content: 'restored draft',
+        updatedAt: Date.now(),
+      },
+    ]);
+    editorServiceMock.loadTextFile.mockResolvedValue('device content');
+
+    const initPromise = component.ngOnInit();
+    closed.next('reload');
+    closed.complete();
+    await initPromise;
+
+    expect(draftServiceMock.clear).toHaveBeenCalledWith('/home/pi/draft.js');
+    expect(component.code()).toBe('device content');
+    expect(component.saveStatus()).toBe('savedToDevice');
+    expect(component.isDirty()).toBe(false);
+  });
+
   it('should confirm before switching files while dirty', async () => {
     await loadPath('/home/pi/main.js', 'loaded content');
     component.onCodeChange('dirty');
