@@ -20,13 +20,24 @@ describe('FileNameDisplayComponent', () => {
     expect(component).toBeTruthy();
   });
 
-  it('should render file name with dirty marker', async () => {
+  it('should render file name with dirty marker and status label', async () => {
     fixture.componentRef.setInput('fileName', 'main.js');
-    fixture.componentRef.setInput('isDirty', true);
+    fixture.componentRef.setInput('saveStatus', 'unsavedChanges');
     fixture.detectChanges();
     await fixture.whenStable();
 
     expect(fixture.nativeElement.textContent).toContain('main.js');
     expect(fixture.nativeElement.textContent).toContain('*');
+    expect(fixture.nativeElement.textContent).toContain('Unsaved changes');
+  });
+
+  it('should show saved to device without dirty marker', async () => {
+    fixture.componentRef.setInput('fileName', 'main.js');
+    fixture.componentRef.setInput('saveStatus', 'savedToDevice');
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    expect(fixture.nativeElement.textContent).toContain('Saved to device');
+    expect(fixture.nativeElement.textContent).not.toContain('*');
   });
 });

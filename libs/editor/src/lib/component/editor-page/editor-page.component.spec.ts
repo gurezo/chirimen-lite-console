@@ -28,7 +28,7 @@ describe('EditorPageComponent', () => {
   };
 
   async function loadPath(path: string, content = 'loaded content'): Promise<void> {
-    editorServiceMock.loadTextFile.mockResolvedValueOnce(content);
+    editorServiceMock.loadTextFile.mockResolvedValue(content);
     selectedFilePathSignal.set(path);
     fixture.detectChanges();
     await fixture.whenStable();
@@ -75,6 +75,7 @@ describe('EditorPageComponent', () => {
     expect(component.code()).toBe('console.log(1)');
     expect(component.currentFileName()).toBe('main.js');
     expect(component.isDirty()).toBe(false);
+    expect(component.saveStatus()).toBe('savedToDevice');
     expect(component.loadError()).toBeNull();
   });
 
@@ -90,7 +91,7 @@ describe('EditorPageComponent', () => {
     await loadPath('/home/pi/ok.js', 'previous');
     const previousCode = component.code();
 
-    editorServiceMock.loadTextFile.mockRejectedValueOnce(
+    editorServiceMock.loadTextFile.mockRejectedValue(
       new Error('Target file is not a text file'),
     );
     selectedFilePathSignal.set('/home/pi/binary.bin');
@@ -118,8 +119,8 @@ describe('EditorPageComponent', () => {
 
   it('should save current file and clear dirty state', async () => {
     await loadPath('/home/pi/main.js', 'loaded content');
-    component.isDirty.set(true);
-    component.code.set('updated');
+    component.onCodeChange('updated');
+    component.onContentEdited();
 
     await component.saveCurrentFile();
 
@@ -128,18 +129,36 @@ describe('EditorPageComponent', () => {
       'updated',
     );
     expect(component.isDirty()).toBe(false);
+    expect(component.saveStatus()).toBe('savedToDevice');
     expect(draftServiceMock.clear).toHaveBeenCalledWith('/home/pi/main.js');
   });
 
+  it('should keep edits and draft when save fails', async () => {
+    await loadPath('/home/pi/main.js', 'loaded content');
+    component.onCodeChange('updated');
+    component.onContentEdited();
+    editorServiceMock.saveTextFile.mockRejectedValueOnce(
+      new Error('device busy'),
+    );
+
+    await component.saveCurrentFile();
+
+    expect(component.code()).toBe('updated');
+    expect(component.isDirty()).toBe(true);
+    expect(component.saveStatus()).toBe('saveFailed');
+    expect(component.saveError()).toBe('device busy');
+    expect(draftServiceMock.clear).not.toHaveBeenCalled();
+  });
+
   it('should skip save when dirty state is false', async () => {
-    component.isDirty.set(false);
+    await loadPath('/home/pi/main.js', 'loaded content');
 
     await component.saveCurrentFile();
 
     expect(editorServiceMock.saveTextFile).not.toHaveBeenCalled();
   });
 
-  it('should store edits as a session draft', async () => {
+  it('should mark unsaved then draft-saved without claiming device save', async () => {
     await loadPath('/home/pi/main.js', 'loaded content');
     component.onCodeChange('updated draft');
     component.onContentEdited();
@@ -148,6 +167,9 @@ describe('EditorPageComponent', () => {
       '/home/pi/main.js',
       'updated draft',
     );
+    expect(component.saveStatus()).toBe('draftSavedLocally');
+    expect(component.saveStatus()).not.toBe('savedToDevice');
+    expect(component.isDirty()).toBe(true);
   });
 
   it('should restore a session draft before loading the remote file', async () => {
@@ -165,6 +187,7 @@ describe('EditorPageComponent', () => {
     expect(component.code()).toBe('restored draft');
     expect(component.currentFileName()).toBe('draft.js');
     expect(component.isDirty()).toBe(true);
+    expect(component.saveStatus()).toBe('draftSavedLocally');
     expect(editorServiceMock.loadTextFile).not.toHaveBeenCalled();
   });
 });

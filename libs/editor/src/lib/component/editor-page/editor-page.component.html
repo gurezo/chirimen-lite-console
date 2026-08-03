@@ -9,7 +9,7 @@
   <choh-file-name-display
     class="shrink-0"
     [fileName]="currentFileName()"
-    [isDirty]="isDirty()"
+    [saveStatus]="saveStatus()"
   />
 
   @if (loadError(); as error) {
@@ -19,6 +19,16 @@
       aria-live="assertive"
     >
       Failed to load {{ error.path }}: {{ error.message }}
+    </p>
+  }
+
+  @if (saveError(); as error) {
+    <p
+      class="shrink-0 px-3 py-2 text-sm text-red-600"
+      role="alert"
+      aria-live="assertive"
+    >
+      Failed to save: {{ error }}
     </p>
   }
 
