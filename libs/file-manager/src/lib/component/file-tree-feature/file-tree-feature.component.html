@@ -42,6 +42,7 @@
     >
       <lib-file-tree
         [nodes]="nodes"
+        [selectedPath]="selectedPath()"
         (directorySelected)="onDirectorySelected($event)"
         (fileSelected)="onFileSelected($event)"
         (nodeContextMenu)="onNodeContextMenu($event)"

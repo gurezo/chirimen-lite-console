@@ -14,10 +14,16 @@ export interface FileTreeContextMenuEvent {
 })
 export class FileTreeComponent {
   readonly nodes = input<FileTreeNode[]>([]);
+  readonly selectedPath = input<string | null>(null);
 
   readonly directorySelected = output<FileTreeNode>();
   readonly fileSelected = output<FileTreeNode>();
   readonly nodeContextMenu = output<FileTreeContextMenuEvent>();
+
+  isSelected(node: FileTreeNode): boolean {
+    const selected = this.selectedPath();
+    return selected !== null && selected === node.path;
+  }
 
   onSelect(node: FileTreeNode): void {
     if (node.isDirectory) {

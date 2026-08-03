@@ -42,6 +42,8 @@ export class FileTreeFeatureComponent {
 
   /** Bound from ConsoleShellStore via LeftSidebar (issue #727). */
   readonly currentPath = input<string>('.');
+  /** Currently open file path for tree highlight (issue #805). */
+  readonly selectedPath = input<string | null>(null);
   readonly currentPathChange = output<string>();
   readonly fileSelected = output<string>();
 

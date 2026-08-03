@@ -8,6 +8,9 @@
           <button
             type="button"
             class="inline-flex w-full items-center gap-1 text-left px-2 py-1 rounded hover:bg-gray-100"
+            [class.bg-blue-50]="isSelected(node)"
+            [class.font-medium]="isSelected(node)"
+            [attr.aria-current]="isSelected(node) ? 'true' : null"
             (click)="onSelect(node)"
             (contextmenu)="onContextMenu($event, node)"
           >
