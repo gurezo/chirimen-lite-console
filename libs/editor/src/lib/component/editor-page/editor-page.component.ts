@@ -9,7 +9,7 @@ import {
 } from '@angular/core';
 import { MatProgressSpinner } from '@angular/material/progress-spinner';
 import { ConfirmDialogComponent, DialogService } from '@libs-dialogs';
-import { ConsoleShellStore } from '@libs-shared';
+import { ConsoleShellStore, NotificationService } from '@libs-shared';
 import { SerialFacadeService } from '@libs-web-serial';
 import type { editor } from 'monaco-editor';
 import { firstValueFrom } from 'rxjs';
@@ -53,6 +53,7 @@ export class EditorPageComponent implements OnInit {
   private shellStore = inject(ConsoleShellStore);
   private dialog = inject(DialogService);
   private readonly serial = inject(SerialFacadeService);
+  private readonly notify = inject(NotificationService);
 
   readonly isSerialConnected = this.serial.isConnected;
   private readonly activeFilePath = signal<string | null>(null);
@@ -296,6 +297,7 @@ export class EditorPageComponent implements OnInit {
       this.baselineReady = true;
       this.saveStatus.set('savedToDevice');
       this.draftService.clear(path);
+      this.notify.success('Save', 'Saved to device');
     } catch (error: unknown) {
       const message =
         error instanceof Error
@@ -304,6 +306,7 @@ export class EditorPageComponent implements OnInit {
       this.saveError.set(message);
       // Keep editor content and local draft so the user can retry after reconnect.
       this.saveStatus.set('saveFailed');
+      this.notify.error('Save', message);
     }
   }
 
