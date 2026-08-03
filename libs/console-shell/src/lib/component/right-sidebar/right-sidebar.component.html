@@ -9,6 +9,8 @@
       type="button"
       [matTooltip]="panelToggleLabel()"
       [attr.aria-label]="panelToggleLabel()"
+      [attr.aria-expanded]="rightNavOpen()"
+      aria-controls="console-shell-right-pane"
       (click)="toggleRightSidebar.emit()"
     >
       <mat-icon>fiber_pin</mat-icon>
@@ -18,6 +20,8 @@
       type="button"
       [matTooltip]="panelToggleLabel()"
       [attr.aria-label]="panelToggleLabel()"
+      [attr.aria-expanded]="rightNavOpen()"
+      aria-controls="console-shell-right-pane"
       (click)="toggleRightSidebar.emit()"
     >
       <mat-icon>
@@ -42,6 +46,7 @@
   @if (rightNavOpen()) {
     @if (isOverlay()) {
       <div
+        id="console-shell-right-pane"
         class="absolute top-0 right-full bottom-0 z-40 flex min-h-0 min-w-0 flex-col overflow-hidden border-l border-gray-200 bg-white shadow-lg"
         [style.width]="overlayWidth()"
       >
@@ -57,6 +62,7 @@
       </div>
     } @else {
       <div
+        id="console-shell-right-pane"
         class="flex min-h-0 min-w-0 flex-col overflow-hidden bg-white"
         [style.width.px]="diagramWidthPx()"
       >

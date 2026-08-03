@@ -172,6 +172,7 @@ describe('LeftSidebarComponent', () => {
     expect(openButton.injector.get(MatTooltip).message).toBe(
       'ファイツリー閉じる',
     );
+    expect(openButton.attributes['aria-expanded']).toBe('true');
 
     fixture.componentRef.setInput('leftNavOpen', false);
     fixture.detectChanges();
@@ -183,5 +184,6 @@ describe('LeftSidebarComponent', () => {
     expect(closedButton.injector.get(MatTooltip).message).toBe(
       'ファイツリー開く',
     );
+    expect(closedButton.attributes['aria-expanded']).toBe('false');
   });
 });
