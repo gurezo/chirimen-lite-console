@@ -1,9 +1,9 @@
 <div
-  class="editor-page flex h-full min-h-0 min-w-0 flex-col"
+  class="editor-page relative flex h-full min-h-0 min-w-0 flex-col"
 >
   <choh-editor-toolbar
     class="shrink-0"
-    [saveDisabled]="!isDirty() || isSaving()"
+    [saveDisabled]="!isDirty() || isSaving() || !currentFileName()"
     (saveRequested)="saveCurrentFile()"
   />
   <choh-file-name-display
@@ -11,11 +11,38 @@
     [fileName]="currentFileName()"
     [isDirty]="isDirty()"
   />
-  <choh-monaco-editor
-    class="min-h-0 min-w-0 flex-1"
-    [code]="code()"
-    (codeChange)="onCodeChange($event)"
-    (editorInitialized)="onEditorInitialized($event)"
-    (contentEdited)="onContentEdited()"
-  />
+
+  @if (loadError(); as error) {
+    <p
+      class="shrink-0 px-3 py-2 text-sm text-red-600"
+      role="alert"
+      aria-live="assertive"
+    >
+      Failed to load {{ error.path }}: {{ error.message }}
+    </p>
+  }
+
+  <div class="relative min-h-0 min-w-0 flex-1">
+    @if (isLoading()) {
+      <div
+        class="absolute inset-0 z-10 flex items-center justify-center bg-white/70"
+        role="status"
+        aria-live="polite"
+      >
+        <mat-progress-spinner
+          mode="indeterminate"
+          diameter="84"
+          aria-label="Loading file"
+        />
+      </div>
+    }
+
+    <choh-monaco-editor
+      class="flex h-full min-h-0 min-w-0"
+      [code]="code()"
+      (codeChange)="onCodeChange($event)"
+      (editorInitialized)="onEditorInitialized($event)"
+      (contentEdited)="onContentEdited()"
+    />
+  </div>
 </div>
