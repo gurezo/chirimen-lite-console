@@ -1,10 +1,14 @@
 import {
   Component,
+  DestroyRef,
+  ElementRef,
   effect,
+  inject,
   output,
   input,
   model,
   untracked,
+  viewChild,
 } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { MonacoEditorModule } from 'ngx-monaco-editor-v2';
@@ -30,8 +34,17 @@ declare const monaco: {
   selector: 'choh-monaco-editor',
   imports: [FormsModule, MonacoEditorModule],
   templateUrl: './monaco-editor.component.html',
+  host: {
+    class: 'block h-full min-h-0 min-w-0',
+  },
 })
 export class MonacoEditorComponent {
+  private readonly destroyRef = inject(DestroyRef);
+
+  private readonly hostRef = viewChild.required<ElementRef<HTMLElement>>(
+    'monacoHost',
+  );
+
   code = model<string>('');
   contentEdited = output<void>();
   editorInitialized = output<editor.IStandaloneCodeEditor>();
@@ -44,6 +57,7 @@ export class MonacoEditorComponent {
   });
 
   private editorInstance: editor.IStandaloneCodeEditor | null = null;
+  private resizeObserver?: ResizeObserver;
 
   constructor() {
     effect(() => {
@@ -54,18 +68,46 @@ export class MonacoEditorComponent {
       }
       this.applyEditorOptions(instance, options);
     });
+
+    this.destroyRef.onDestroy(() => this.teardownResizeObserver());
   }
 
   onEditorInit(editorInstance: editor.IStandaloneCodeEditor): void {
     this.editorInstance = editorInstance;
     this.applyEditorOptions(editorInstance, this.editorOptions());
     this.editorInitialized.emit(editorInstance);
+    this.observeContainerResize(editorInstance);
     editorInstance.onDidChangeModelContent((event) => {
       if (event.isFlush) {
         return;
       }
       this.contentEdited.emit();
     });
+  }
+
+  private observeContainerResize(
+    editorInstance: editor.IStandaloneCodeEditor,
+  ): void {
+    this.teardownResizeObserver();
+    const host = this.hostRef().nativeElement;
+    this.resizeObserver = new ResizeObserver(() => {
+      try {
+        editorInstance.layout();
+      } catch {
+        // Dimensions may be zero before layout stabilizes
+      }
+    });
+    this.resizeObserver.observe(host);
+    try {
+      editorInstance.layout();
+    } catch {
+      // Dimensions may be zero before layout stabilizes
+    }
+  }
+
+  private teardownResizeObserver(): void {
+    this.resizeObserver?.disconnect();
+    this.resizeObserver = undefined;
   }
 
   private applyEditorOptions(
