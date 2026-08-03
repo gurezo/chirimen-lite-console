@@ -15,7 +15,7 @@ import {
   joinPath,
 } from '@libs-file-manager';
 import { ConsoleShellStore, NotificationService } from '@libs-shared';
-import { SerialFacadeService } from '@libs-web-serial';
+import { SerialConnectionViewModelFacade } from '@libs-web-serial';
 import type { editor } from 'monaco-editor';
 import { firstValueFrom } from 'rxjs';
 import { resolveEditorLanguage } from '../../functions';
@@ -34,7 +34,15 @@ import { EditorSaveStatus, isEditorDirtyStatus } from './editor-save-status';
 
 export interface EditorLoadError {
   path: string;
+  /** User-facing summary (not color-only). */
   message: string;
+  /** Technical detail shown in an expandable section. */
+  detail: string;
+}
+
+export interface EditorSaveError {
+  message: string;
+  detail: string;
 }
 
 @Component({
@@ -51,7 +59,7 @@ export class EditorPageComponent implements OnInit {
   code = signal('');
   saveStatus = signal<EditorSaveStatus | null>(null);
   loadError = signal<EditorLoadError | null>(null);
-  saveError = signal<string | null>(null);
+  saveError = signal<EditorSaveError | null>(null);
   lastDeviceSavedAt = signal<number | null>(null);
   isReadOnly = signal(false);
 
@@ -82,10 +90,15 @@ export class EditorPageComponent implements OnInit {
   private shellStore = inject(ConsoleShellStore);
   private dialog = inject(DialogService);
   private readonly fileService = inject(FileService);
-  private readonly serial = inject(SerialFacadeService);
+  private readonly connectionVm = inject(SerialConnectionViewModelFacade);
   private readonly notify = inject(NotificationService);
 
-  readonly isSerialConnected = this.serial.isConnected;
+  readonly connection = this.connectionVm.vm;
+  readonly isSerialConnected = computed(() => this.connection().isConnected);
+  readonly isConnecting = computed(
+    () =>
+      this.connection().isConnecting || this.connection().isInitializing,
+  );
   private readonly activeFilePath = signal<string | null>(null);
   private baselineContent = '';
   private baselineReady = false;
@@ -254,15 +267,28 @@ export class EditorPageComponent implements OnInit {
       if (generation !== this.loadGeneration) {
         return;
       }
-      const message =
+      const detail =
         error instanceof Error ? error.message : 'Failed to load file';
-      this.loadError.set({ path, message });
+      this.loadError.set({
+        path,
+        message: `ファイルの読み込みに失敗しました: ${path}`,
+        detail,
+      });
+      this.notify.error('読込失敗', `ファイルの読み込みに失敗しました: ${path}`);
       if (this.activeFilePath()) {
         this.saveStatus.set(previousStatus ?? 'savedToDevice');
       } else {
         this.saveStatus.set(null);
       }
     }
+  }
+
+  async retryLoadCurrentFile(): Promise<void> {
+    const path = this.loadError()?.path ?? this.activeFilePath();
+    if (!path || !this.isSerialConnected() || this.isLoading()) {
+      return;
+    }
+    await this.fetchDeviceFile(path);
   }
 
   private applyDeviceContent(path: string, content: string): void {
@@ -413,32 +439,40 @@ export class EditorPageComponent implements OnInit {
       this.isReadOnly.set(false);
       this.saveStatus.set('savedToDevice');
       this.draftService.clear(path);
-      this.notify.success('Save', 'Saved to device');
+      this.notify.success('保存成功', 'デバイスへ保存しました');
     } catch (error: unknown) {
-      const message =
+      const detail =
         error instanceof Error
           ? error.message
           : 'Save failed: unexpected error while writing to the device';
-      this.saveError.set(message);
+      this.saveError.set({
+        message: 'デバイスへの保存に失敗しました。内容は Editor / Draft に保持されています。',
+        detail,
+      });
       // Keep editor content and local draft so the user can retry after reconnect.
       this.saveStatus.set('saveFailed');
-      this.notify.error('Save', message);
-      if (isWritePermissionDenied(message)) {
+      this.notify.error('保存失敗', 'デバイスへの保存に失敗しました');
+      if (isWritePermissionDenied(detail)) {
         this.isReadOnly.set(true);
       }
     }
   }
 
   async formatCurrentFile(): Promise<void> {
-    if (!this.currentFilePath() || this.isLoading() || this.isSaving()) {
+    if (
+      !this.currentFilePath() ||
+      this.isLoading() ||
+      this.isSaving() ||
+      !this.isSerialConnected()
+    ) {
       return;
     }
 
     const formatted = await this.editorService.formatDocument();
     if (!formatted) {
       this.notify.warning(
-        'Format',
-        'No formatter is available for this language.',
+        'フォーマット',
+        'この言語向けのフォーマッターはありません。',
       );
       return;
     }

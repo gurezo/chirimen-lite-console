@@ -7,7 +7,12 @@
       !isDirty() || isSaving() || !currentFileName() || !isSerialConnected()
     "
     [discardDisabled]="!isDirty() || isSaving() || !currentFileName()"
-    [formatDisabled]="!currentFileName() || isLoading() || isSaving()"
+    [formatDisabled]="
+      !currentFileName() ||
+      isLoading() ||
+      isSaving() ||
+      !isSerialConnected()
+    "
     [newFileDisabled]="!isSerialConnected() || isSaving() || isLoading()"
     [isSaving]="isSaving()"
     (saveRequested)="saveCurrentFile()"
@@ -24,24 +29,64 @@
     [readOnly]="isReadOnly()"
   />
 
+  @if (!isSerialConnected() && !isConnecting()) {
+    <div
+      class="shrink-0 border-b border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900"
+      role="status"
+      aria-live="polite"
+    >
+      <p>CHIRIMEN Lite に接続されていません。</p>
+      <p class="text-xs text-amber-800">
+        Terminal または接続操作からデバイスへ接続してください。未保存の変更は
+        Editor または Draft に保持されています。
+      </p>
+    </div>
+  }
+
+  @if (isConnecting()) {
+    <div
+      class="shrink-0 border-b border-blue-100 bg-blue-50 px-3 py-2 text-sm text-blue-900"
+      role="status"
+      aria-live="polite"
+    >
+      CHIRIMEN Lite に接続しています…
+    </div>
+  }
+
   @if (loadError(); as error) {
-    <p
-      class="shrink-0 px-3 py-2 text-sm text-red-600"
+    <div
+      class="shrink-0 space-y-2 border-b border-red-100 bg-red-50 px-3 py-2 text-sm text-red-800"
       role="alert"
       aria-live="assertive"
     >
-      Failed to load {{ error.path }}: {{ error.message }}
-    </p>
+      <p>読込失敗: {{ error.message }}</p>
+      <details class="text-xs text-red-700">
+        <summary class="cursor-pointer select-none">技術的詳細</summary>
+        <pre class="mt-1 whitespace-pre-wrap break-all">{{ error.detail }}</pre>
+      </details>
+      <button
+        type="button"
+        class="text-xs font-medium underline disabled:cursor-not-allowed disabled:no-underline disabled:opacity-50"
+        [disabled]="!isSerialConnected() || isLoading()"
+        (click)="retryLoadCurrentFile()"
+      >
+        再試行
+      </button>
+    </div>
   }
 
   @if (saveError(); as error) {
-    <p
-      class="shrink-0 px-3 py-2 text-sm text-red-600"
+    <div
+      class="shrink-0 space-y-2 border-b border-red-100 bg-red-50 px-3 py-2 text-sm text-red-800"
       role="alert"
       aria-live="assertive"
     >
-      Failed to save: {{ error }}
-    </p>
+      <p>保存失敗: {{ error.message }}</p>
+      <details class="text-xs text-red-700">
+        <summary class="cursor-pointer select-none">技術的詳細</summary>
+        <pre class="mt-1 whitespace-pre-wrap break-all">{{ error.detail }}</pre>
+      </details>
+    </div>
   }
 
   <div class="relative min-h-0 min-w-0 flex-1">
