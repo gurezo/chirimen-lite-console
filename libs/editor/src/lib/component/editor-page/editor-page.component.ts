@@ -1,5 +1,6 @@
 import {
   Component,
+  computed,
   effect,
   HostListener,
   inject,
@@ -13,6 +14,10 @@ import { EditorDraftService, EditorService } from '../../service';
 import { EditorToolbarComponent } from '../editor-toolbar/editor-toolbar.component';
 import { FileNameDisplayComponent } from '../file-name-display/file-name-display.component';
 import { MonacoEditorComponent } from '../monaco-editor/monaco-editor.component';
+import {
+  EditorSaveStatus,
+  isEditorDirtyStatus,
+} from './editor-save-status';
 
 export interface EditorLoadError {
   path: string;
@@ -31,15 +36,19 @@ export interface EditorLoadError {
 })
 export class EditorPageComponent implements OnInit {
   code = signal('');
-  isDirty = signal(false);
-  isSaving = signal(false);
-  isLoading = signal(false);
+  saveStatus = signal<EditorSaveStatus | null>(null);
   loadError = signal<EditorLoadError | null>(null);
+  saveError = signal<string | null>(null);
+
+  readonly isDirty = computed(() => isEditorDirtyStatus(this.saveStatus()));
+  readonly isSaving = computed(() => this.saveStatus() === 'saving');
+  readonly isLoading = computed(() => this.saveStatus() === 'loading');
 
   private editorService = inject(EditorService);
   private draftService = inject(EditorDraftService);
   private shellStore = inject(ConsoleShellStore);
   private readonly activeFilePath = signal<string | null>(null);
+  private baselineContent = '';
   private initialized = false;
   private loadGeneration = 0;
 
@@ -62,7 +71,8 @@ export class EditorPageComponent implements OnInit {
     if (draft) {
       this.activeFilePath.set(draft.path);
       this.code.set(draft.content);
-      this.isDirty.set(true);
+      this.baselineContent = '';
+      this.saveStatus.set('draftSavedLocally');
       this.initialized = true;
       return;
     }
@@ -89,23 +99,23 @@ export class EditorPageComponent implements OnInit {
     if (
       path === this.activeFilePath() &&
       !this.loadError() &&
-      !this.isLoading()
+      this.saveStatus() !== 'loading'
     ) {
       return;
     }
 
     const generation = ++this.loadGeneration;
-    this.isLoading.set(true);
+    const previousStatus = this.saveStatus();
+    this.saveStatus.set('loading');
     this.loadError.set(null);
+    this.saveError.set(null);
 
     try {
       const loaded = await this.editorService.loadTextFile(path);
       if (generation !== this.loadGeneration) {
         return;
       }
-      this.activeFilePath.set(path);
-      this.code.set(loaded);
-      this.isDirty.set(false);
+      this.applyDeviceContent(path, loaded);
     } catch (error: unknown) {
       if (generation !== this.loadGeneration) {
         return;
@@ -113,11 +123,20 @@ export class EditorPageComponent implements OnInit {
       const message =
         error instanceof Error ? error.message : 'Failed to load file';
       this.loadError.set({ path, message });
-    } finally {
-      if (generation === this.loadGeneration) {
-        this.isLoading.set(false);
+      if (this.activeFilePath()) {
+        this.saveStatus.set(previousStatus ?? 'savedToDevice');
+      } else {
+        this.saveStatus.set(null);
       }
     }
+  }
+
+  private applyDeviceContent(path: string, content: string): void {
+    this.activeFilePath.set(path);
+    this.code.set(content);
+    this.baselineContent = content;
+    this.saveStatus.set('savedToDevice');
+    this.saveError.set(null);
   }
 
   async saveCurrentFile(): Promise<void> {
@@ -126,13 +145,18 @@ export class EditorPageComponent implements OnInit {
       return;
     }
 
-    this.isSaving.set(true);
+    this.saveStatus.set('saving');
+    this.saveError.set(null);
     try {
       await this.editorService.saveTextFile(path, this.code());
-      this.isDirty.set(false);
+      this.baselineContent = this.code();
+      this.saveStatus.set('savedToDevice');
       this.draftService.clear(path);
-    } finally {
-      this.isSaving.set(false);
+    } catch (error: unknown) {
+      const message =
+        error instanceof Error ? error.message : 'Failed to save file';
+      this.saveError.set(message);
+      this.saveStatus.set('saveFailed');
     }
   }
 
@@ -142,19 +166,29 @@ export class EditorPageComponent implements OnInit {
 
   onCodeChange(code: string): void {
     this.code.set(code);
-    const path = this.currentFilePath();
-    if (this.isDirty() && path) {
-      this.draftService.save(path, code);
-    }
+    this.syncDirtyStateFromCode(code);
   }
 
   onContentEdited(): void {
+    this.syncDirtyStateFromCode(this.code());
+  }
+
+  private syncDirtyStateFromCode(code: string): void {
     const path = this.currentFilePath();
-    if (!path) {
+    if (!path || this.saveStatus() === 'loading' || this.saveStatus() === 'saving') {
       return;
     }
-    this.isDirty.set(true);
-    this.draftService.save(path, this.code());
+
+    if (code === this.baselineContent) {
+      this.saveStatus.set('savedToDevice');
+      this.saveError.set(null);
+      this.draftService.clear(path);
+      return;
+    }
+
+    this.saveStatus.set('unsavedChanges');
+    this.draftService.save(path, code);
+    this.saveStatus.set('draftSavedLocally');
   }
 
   @HostListener('window:keydown', ['$event'])
