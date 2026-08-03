@@ -16,17 +16,31 @@ describe('EditorToolbarComponent', () => {
     fixture.detectChanges();
   });
 
+  const buttons = (): NodeListOf<HTMLButtonElement> =>
+    fixture.nativeElement.querySelectorAll(
+      'button',
+    ) as NodeListOf<HTMLButtonElement>;
+
   it('should create', () => {
     expect(component).toBeTruthy();
   });
 
   it('should emit saveRequested when save button is clicked', () => {
     const emitSpy = vi.spyOn(component.saveRequested, 'emit');
-    const buttons = fixture.nativeElement.querySelectorAll(
-      'button',
-    ) as NodeListOf<HTMLButtonElement>;
 
-    buttons[0].click();
+    buttons()[0].click();
+
+    expect(emitSpy).toHaveBeenCalledTimes(1);
+  });
+
+  it('should emit formatRequested when format button is clicked', async () => {
+    fixture.componentRef.setInput('formatDisabled', false);
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    const emitSpy = vi.spyOn(component.formatRequested, 'emit');
+
+    buttons()[1].click();
 
     expect(emitSpy).toHaveBeenCalledTimes(1);
   });
@@ -37,11 +51,8 @@ describe('EditorToolbarComponent', () => {
     await fixture.whenStable();
 
     const emitSpy = vi.spyOn(component.discardRequested, 'emit');
-    const buttons = fixture.nativeElement.querySelectorAll(
-      'button',
-    ) as NodeListOf<HTMLButtonElement>;
 
-    buttons[1].click();
+    buttons()[2].click();
 
     expect(emitSpy).toHaveBeenCalledTimes(1);
   });
@@ -51,10 +62,32 @@ describe('EditorToolbarComponent', () => {
     fixture.detectChanges();
     await fixture.whenStable();
 
-    const buttons = fixture.nativeElement.querySelectorAll(
-      'button',
-    ) as NodeListOf<HTMLButtonElement>;
+    expect(buttons()[0].disabled).toBe(true);
+  });
 
-    expect(buttons[0].disabled).toBe(true);
+  it('should disable format button when formatDisabled is true', async () => {
+    fixture.componentRef.setInput('formatDisabled', true);
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    expect(buttons()[1].disabled).toBe(true);
+  });
+
+  it('should set aria-label from tooltips', () => {
+    const [save, format, discard] = Array.from(buttons());
+
+    expect(save.getAttribute('aria-label')).toBe(component.saveTooltip());
+    expect(format.getAttribute('aria-label')).toBe(component.formatTooltip());
+    expect(discard.getAttribute('aria-label')).toBe(component.discardTooltip);
+  });
+
+  it('should show a spinner while saving', async () => {
+    fixture.componentRef.setInput('isSaving', true);
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    expect(
+      fixture.nativeElement.querySelector('mat-progress-spinner'),
+    ).toBeTruthy();
   });
 });

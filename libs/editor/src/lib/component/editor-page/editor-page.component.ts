@@ -298,6 +298,11 @@ export class EditorPageComponent implements OnInit {
     }
   }
 
+  /** Wired to Format toolbar action; implementation lands with formatDocument. */
+  async formatCurrentFile(): Promise<void> {
+    return;
+  }
+
   async discardChanges(): Promise<void> {
     const path = this.currentFilePath();
     if (!path || !this.isDirty()) {
