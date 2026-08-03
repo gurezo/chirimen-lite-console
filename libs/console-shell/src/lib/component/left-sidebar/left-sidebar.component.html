@@ -4,6 +4,7 @@
   @if (leftNavOpen()) {
     @if (isOverlay()) {
       <div
+        id="console-shell-left-pane"
         class="absolute top-0 bottom-0 left-full z-40 flex min-h-0 min-w-0 flex-col overflow-hidden border-r border-gray-200 bg-white shadow-lg"
         [style.width]="overlayWidth()"
       >
@@ -28,6 +29,7 @@
       </div>
     } @else {
       <div
+        id="console-shell-left-pane"
         class="flex min-h-0 min-w-0 flex-col overflow-hidden bg-white"
         [style.width.px]="treeWidthPx()"
       >
@@ -52,6 +54,8 @@
       type="button"
       [matTooltip]="panelToggleLabel()"
       [attr.aria-label]="panelToggleLabel()"
+      [attr.aria-expanded]="leftNavOpen()"
+      aria-controls="console-shell-left-pane"
       (click)="toggleLeftSidebar.emit()"
     >
       <mat-icon>folder</mat-icon>
@@ -61,6 +65,8 @@
       type="button"
       [matTooltip]="panelToggleLabel()"
       [attr.aria-label]="panelToggleLabel()"
+      [attr.aria-expanded]="leftNavOpen()"
+      aria-controls="console-shell-left-pane"
       (click)="toggleLeftSidebar.emit()"
     >
       <mat-icon>

@@ -57,6 +57,7 @@ describe('RightSidebarComponent', () => {
     );
     expect(openButton).not.toBeNull();
     expect(openButton.injector.get(MatTooltip).message).toBe('ピン配置閉じる');
+    expect(openButton.attributes['aria-expanded']).toBe('true');
 
     fixture.componentRef.setInput('rightNavOpen', false);
     fixture.detectChanges();
@@ -66,5 +67,6 @@ describe('RightSidebarComponent', () => {
     );
     expect(closedButton).not.toBeNull();
     expect(closedButton.injector.get(MatTooltip).message).toBe('ピン配置開く');
+    expect(closedButton.attributes['aria-expanded']).toBe('false');
   });
 });
