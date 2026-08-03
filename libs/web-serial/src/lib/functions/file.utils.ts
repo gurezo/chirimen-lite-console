@@ -147,4 +147,53 @@ export class FileUtils {
     const jsonString = JSON.stringify(String(path));
     return jsonString.replace(/^"/, `$$'`).replace(/"$/, `'`);
   }
+
+  /**
+   * 同一ディレクトリ上の一時保存パスを生成する（`mv` で atomic 置換するため）。
+   */
+  static buildTempSavePath(
+    targetPath: string,
+    suffix: string = FileUtils.createTempSaveSuffix(),
+  ): string {
+    const dir = FileUtils.getDirectoryPath(targetPath);
+    const base = FileUtils.getFileName(targetPath);
+    const tempName = `.${base}.chirimen-saving.${suffix}`;
+    return dir === '.' ? tempName : `${dir}/${tempName}`;
+  }
+
+  static createTempSaveSuffix(): string {
+    return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
+  }
+
+  /** UTF-8 バイト長（シリアル転送・サイズ検証用） */
+  static utf8ByteLength(content: string): number {
+    return new TextEncoder().encode(content).byteLength;
+  }
+
+  /**
+   * heredoc ではなくチャンク転送へ切り替えるサイズしきい値（UTF-8 バイト）。
+   */
+  static readonly TEXT_CHUNK_THRESHOLD_BYTES = 16 * 1024;
+
+  static generateByteSizeCommand(path: string): string {
+    return `wc -c -- ${FileUtils.escapePath(path)}`;
+  }
+
+  /**
+   * `wc -c -- path` の stdout からバイト数を取り出す。
+   * 例: `12 /path/to/file` / `12`
+   */
+  static parseByteSizeOutput(stdout: string): number | null {
+    const cleaned = String(stdout)
+      .split('\n')
+      .map((line) => line.trim())
+      .filter(Boolean);
+    for (const line of cleaned) {
+      const match = /^(\d+)\b/.exec(line);
+      if (match) {
+        return Number(match[1]);
+      }
+    }
+    return null;
+  }
 }
