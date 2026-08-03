@@ -64,4 +64,27 @@ export class EditorService {
       throw classifyFileWriteError(error);
     }
   }
+
+  /**
+   * Monaco の Document Format Action を実行します。
+   * Formatter が無い／未対応の場合は false を返します。
+   */
+  async formatDocument(): Promise<boolean> {
+    if (!this.editor) {
+      return false;
+    }
+
+    const action = this.editor.getAction('editor.action.formatDocument');
+    if (!action || !action.isSupported()) {
+      return false;
+    }
+
+    await action.run();
+    return true;
+  }
+
+  /** 現在の Monaco バッファ内容。未初期化時は null。 */
+  getValue(): string | null {
+    return this.editor?.getValue() ?? null;
+  }
 }
