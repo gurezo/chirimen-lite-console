@@ -289,8 +289,11 @@ export class EditorPageComponent implements OnInit {
       this.draftService.clear(path);
     } catch (error: unknown) {
       const message =
-        error instanceof Error ? error.message : 'Failed to save file';
+        error instanceof Error
+          ? error.message
+          : 'Save failed: unexpected error while writing to the device';
       this.saveError.set(message);
+      // Keep editor content and local draft so the user can retry after reconnect.
       this.saveStatus.set('saveFailed');
     }
   }
