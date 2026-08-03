@@ -6,16 +6,18 @@ type ConsoleShellDialog = 'none' | 'setup' | 'remote';
 /** docked: in-flow side panes; overlay: rails only in-flow, panes float over center. */
 export type ConsoleShellLayoutMode = 'docked' | 'overlay';
 
-/** Left column width (tree + rail) default and minimum (px). No upper bound. */
+/** Left column width (tree + rail) default, minimum, and maximum (px). */
 export const LEFT_PANE_WIDTH = {
   default: 280,
   min: 180,
+  max: 480,
 } as const;
 
-/** Right pin-diagram track width (excludes chrome rail) default and minimum (px). No upper bound. */
+/** Right pin-diagram track width (excludes chrome rail) default, minimum, and maximum (px). */
 export const RIGHT_DIAGRAM_WIDTH = {
   default: 300,
   min: 160,
+  max: 480,
 } as const;
 
 export const RAIL_WIDTH_PX = 48;
@@ -48,8 +50,8 @@ export const DEFAULT_CONSOLE_SHELL_STATE: ConsoleShellState = {
   rightDiagramWidthPx: RIGHT_DIAGRAM_WIDTH.default,
 };
 
-function clampMin(value: number, min: number): number {
-  return Math.max(min, Math.round(value));
+function clampPaneWidth(value: number, min: number, max: number): number {
+  return Math.min(max, Math.max(min, Math.round(value)));
 }
 
 @Injectable({
@@ -176,14 +178,22 @@ export class ConsoleShellStore {
   setLeftPaneWidth(widthPx: number): void {
     this.stateSignal.update((state) => ({
       ...state,
-      leftPaneWidthPx: clampMin(widthPx, LEFT_PANE_WIDTH.min),
+      leftPaneWidthPx: clampPaneWidth(
+        widthPx,
+        LEFT_PANE_WIDTH.min,
+        LEFT_PANE_WIDTH.max,
+      ),
     }));
   }
 
   setRightDiagramWidth(widthPx: number): void {
     this.stateSignal.update((state) => ({
       ...state,
-      rightDiagramWidthPx: clampMin(widthPx, RIGHT_DIAGRAM_WIDTH.min),
+      rightDiagramWidthPx: clampPaneWidth(
+        widthPx,
+        RIGHT_DIAGRAM_WIDTH.min,
+        RIGHT_DIAGRAM_WIDTH.max,
+      ),
     }));
   }
 
