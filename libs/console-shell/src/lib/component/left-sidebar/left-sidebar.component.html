@@ -10,8 +10,12 @@
         <lib-file-tree-feature
           [currentPath]="shellStore.fileManagerCurrentPath()"
           [selectedPath]="shellStore.selectedFilePath()"
+          [hasUnsavedDraft]="hasUnsavedDraft"
           (currentPathChange)="onCurrentPathChange($event)"
           (fileSelected)="onFileSelected($event)"
+          (fileCreated)="onFileCreated($event)"
+          (fileRenamed)="onFileRenamed($event)"
+          (fileDeleted)="onFileDeleted($event)"
         />
         <div
           role="separator"
@@ -30,8 +34,12 @@
         <lib-file-tree-feature
           [currentPath]="shellStore.fileManagerCurrentPath()"
           [selectedPath]="shellStore.selectedFilePath()"
+          [hasUnsavedDraft]="hasUnsavedDraft"
           (currentPathChange)="onCurrentPathChange($event)"
           (fileSelected)="onFileSelected($event)"
+          (fileCreated)="onFileCreated($event)"
+          (fileRenamed)="onFileRenamed($event)"
+          (fileDeleted)="onFileDeleted($event)"
         />
       </div>
     }
