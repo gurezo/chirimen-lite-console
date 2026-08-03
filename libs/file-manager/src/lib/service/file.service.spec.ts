@@ -142,6 +142,22 @@ describe('FileService', () => {
     });
   });
 
+  describe('exists', () => {
+    it('returns true when stdout contains __EXISTS__', async () => {
+      exec.mockResolvedValue({ stdout: '__EXISTS__\n' });
+      await expect(svc.exists('./file.txt')).resolves.toBe(true);
+      expect(exec).toHaveBeenCalledWith(
+        `if test -e -- ${FileUtils.escapePath('./file.txt')}; then echo __EXISTS__; else echo __MISSING__; fi`,
+        expect.objectContaining({ timeout: SERIAL_TIMEOUT.DEFAULT }),
+      );
+    });
+
+    it('returns false when stdout contains __MISSING__', async () => {
+      exec.mockResolvedValue({ stdout: '__MISSING__\n' });
+      await expect(svc.exists('./missing.txt')).resolves.toBe(false);
+    });
+  });
+
   describe('remove', () => {
     it('runs rm with escaped path', async () => {
       await svc.remove('./old.txt');

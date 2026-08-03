@@ -73,6 +73,26 @@ export class FileService {
     );
   }
 
+  /**
+   * Returns whether a path exists on the device.
+   * Uses `test -e` with stdout markers because serial exec may not expose exit codes.
+   */
+  async exists(path: string): Promise<boolean> {
+    const escaped = FileUtils.escapePath(path);
+    const command = `if test -e -- ${escaped}; then echo __EXISTS__; else echo __MISSING__; fi`;
+    const stdout = (
+      await firstValueFrom(
+        this.serial.exec$(command, this.shellExecOptions()),
+      )
+    ).stdout;
+    const cleaned = sanitizeSerialStdout(
+      typeof stdout === 'string' ? stdout : '',
+      command,
+      '',
+    );
+    return cleaned.split('\n').some((line) => line.trim() === '__EXISTS__');
+  }
+
   async remove(
     path: string,
     options?: { recursive?: boolean },
