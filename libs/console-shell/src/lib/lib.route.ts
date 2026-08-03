@@ -1,5 +1,13 @@
-import { Routes } from '@angular/router';
+import { CanDeactivateFn, Routes } from '@angular/router';
 import { browserCheckGuard } from '@libs-shared';
+
+type CanComponentDeactivate = {
+  canDeactivate?: () => boolean | Promise<boolean>;
+};
+
+const canDeactivateGuard: CanDeactivateFn<CanComponentDeactivate> = (
+  component,
+) => component.canDeactivate?.() ?? true;
 
 export const consoleShellRoutes: Routes = [
   {
@@ -20,6 +28,7 @@ export const consoleShellRoutes: Routes = [
         path: 'editor',
         loadComponent: () =>
           import('@libs-editor').then((m) => m.EditorPageComponent),
+        canDeactivate: [canDeactivateGuard],
       },
       {
         path: 'example',
