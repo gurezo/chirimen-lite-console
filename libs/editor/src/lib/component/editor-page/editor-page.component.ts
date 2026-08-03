@@ -10,6 +10,7 @@ import {
 import { MatProgressSpinner } from '@angular/material/progress-spinner';
 import { ConfirmDialogComponent, DialogService } from '@libs-dialogs';
 import { ConsoleShellStore } from '@libs-shared';
+import { SerialFacadeService } from '@libs-web-serial';
 import type { editor } from 'monaco-editor';
 import { firstValueFrom } from 'rxjs';
 import { EditorDraft, EditorDraftService, EditorService } from '../../service';
@@ -51,6 +52,9 @@ export class EditorPageComponent implements OnInit {
   private draftService = inject(EditorDraftService);
   private shellStore = inject(ConsoleShellStore);
   private dialog = inject(DialogService);
+  private readonly serial = inject(SerialFacadeService);
+
+  readonly isSerialConnected = this.serial.isConnected;
   private readonly activeFilePath = signal<string | null>(null);
   private baselineContent = '';
   private baselineReady = false;
@@ -275,7 +279,12 @@ export class EditorPageComponent implements OnInit {
 
   async saveCurrentFile(): Promise<void> {
     const path = this.currentFilePath();
-    if (!path || !this.isDirty() || this.isSaving()) {
+    if (
+      !path ||
+      !this.isDirty() ||
+      this.isSaving() ||
+      !this.isSerialConnected()
+    ) {
       return;
     }
 
