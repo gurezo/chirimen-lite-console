@@ -1,5 +1,7 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import {
+  CONSOLE_SHELL_LEFT_PANE_WIDTH_STORAGE_KEY,
+  CONSOLE_SHELL_RIGHT_DIAGRAM_WIDTH_STORAGE_KEY,
   ConsoleShellStore,
   DEFAULT_CONSOLE_SHELL_STATE,
   LEFT_PANE_WIDTH,
@@ -10,6 +12,8 @@ describe('ConsoleShellStore', () => {
   let store: ConsoleShellStore;
 
   beforeEach(() => {
+    localStorage.removeItem(CONSOLE_SHELL_LEFT_PANE_WIDTH_STORAGE_KEY);
+    localStorage.removeItem(CONSOLE_SHELL_RIGHT_DIAGRAM_WIDTH_STORAGE_KEY);
     store = new ConsoleShellStore();
   });
 
@@ -80,5 +84,36 @@ describe('ConsoleShellStore', () => {
     store.applyConnectedLayout();
     expect(store.leftPaneWidthPx()).toBe(320);
     expect(store.rightDiagramWidthPx()).toBe(260);
+  });
+
+  it('persists pane widths to localStorage', () => {
+    store.setLeftPaneWidth(340);
+    store.setRightDiagramWidth(220);
+    expect(localStorage.getItem(CONSOLE_SHELL_LEFT_PANE_WIDTH_STORAGE_KEY)).toBe(
+      '340',
+    );
+    expect(
+      localStorage.getItem(CONSOLE_SHELL_RIGHT_DIAGRAM_WIDTH_STORAGE_KEY),
+    ).toBe('220');
+  });
+
+  it('restores persisted pane widths on init', () => {
+    localStorage.setItem(CONSOLE_SHELL_LEFT_PANE_WIDTH_STORAGE_KEY, '360');
+    localStorage.setItem(CONSOLE_SHELL_RIGHT_DIAGRAM_WIDTH_STORAGE_KEY, '240');
+
+    const restored = new ConsoleShellStore();
+
+    expect(restored.leftPaneWidthPx()).toBe(360);
+    expect(restored.rightDiagramWidthPx()).toBe(240);
+  });
+
+  it('falls back to defaults for invalid persisted widths', () => {
+    localStorage.setItem(CONSOLE_SHELL_LEFT_PANE_WIDTH_STORAGE_KEY, 'abc');
+    localStorage.setItem(CONSOLE_SHELL_RIGHT_DIAGRAM_WIDTH_STORAGE_KEY, 'NaN');
+
+    const restored = new ConsoleShellStore();
+
+    expect(restored.leftPaneWidthPx()).toBe(LEFT_PANE_WIDTH.default);
+    expect(restored.rightDiagramWidthPx()).toBe(RIGHT_DIAGRAM_WIDTH.default);
   });
 });
