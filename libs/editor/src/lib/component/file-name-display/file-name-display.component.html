@@ -1,23 +1,52 @@
-<div class="file-name-display flex flex-wrap items-center gap-x-2 gap-y-1 px-3 py-1 text-sm">
-  @if (fileName()) {
-    <span>
-      {{ fileName() }}
+<div
+  class="file-name-display flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1 px-3 py-1 text-sm"
+>
+  @if (hasFile()) {
+    <span
+      class="min-w-0 max-w-full truncate font-medium"
+      [attr.title]="filePath()"
+      data-testid="editor-file-path"
+    >
+      {{ filePath() }}
       @if (isDirty()) {
         <span aria-hidden="true"> *</span>
       }
     </span>
-  } @else {
-    <span>—</span>
-  }
 
-  @if (statusLabel(); as label) {
+    @if (languageLabel(); as language) {
+      <span
+        class="shrink-0 text-xs text-neutral-600"
+        data-testid="editor-language-label"
+      >
+        {{ language }}
+      </span>
+    }
+
+    @if (readOnly()) {
+      <span
+        class="shrink-0 rounded border border-neutral-300 px-1.5 py-0.5 text-xs text-neutral-700"
+        data-testid="editor-readonly-badge"
+      >
+        Read-only
+      </span>
+    }
+
+    @if (statusLabel(); as label) {
+      <span
+        class="shrink-0 text-xs text-neutral-600"
+        role="status"
+        aria-live="polite"
+        data-testid="editor-save-status"
+      >
+        {{ label }}
+      </span>
+    }
+  } @else {
     <span
-      class="text-xs text-neutral-600"
-      role="status"
-      aria-live="polite"
-      data-testid="editor-save-status"
+      class="text-neutral-500"
+      data-testid="editor-no-file-selected"
     >
-      {{ label }}
+      No file selected
     </span>
   }
 </div>
