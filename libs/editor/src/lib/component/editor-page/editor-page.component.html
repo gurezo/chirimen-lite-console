@@ -15,8 +15,11 @@
   />
   <choh-file-name-display
     class="shrink-0"
-    [fileName]="currentFileName()"
+    [filePath]="currentFilePath()"
+    [languageLabel]="languageLabel()"
     [saveStatus]="saveStatus()"
+    [lastSavedAt]="lastDeviceSavedAt()"
+    [readOnly]="isReadOnly()"
   />
 
   @if (loadError(); as error) {
@@ -57,6 +60,7 @@
     <choh-monaco-editor
       class="flex h-full min-h-0 min-w-0"
       [code]="code()"
+      [editorOptions]="monacoOptions()"
       (codeChange)="onCodeChange($event)"
       (editorInitialized)="onEditorInitialized($event)"
       (contentEdited)="onContentEdited()"
