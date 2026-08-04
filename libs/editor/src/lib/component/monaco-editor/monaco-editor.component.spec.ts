@@ -46,6 +46,59 @@ describe('MonacoEditorComponent', () => {
     expect(component).toBeTruthy();
   });
 
+  it('should expose a stable baseEditorOptions reference for ngx', () => {
+    const first = component.baseEditorOptions;
+    fixture.componentRef.setInput('editorOptions', {
+      theme: 'vs-dark',
+      language: 'markdown',
+      automaticLayout: true,
+      readOnly: true,
+    });
+    fixture.detectChanges();
+
+    expect(component.baseEditorOptions).toBe(first);
+    expect(component.baseEditorOptions).toEqual({
+      theme: 'vs-dark',
+      automaticLayout: true,
+    });
+    expect(component.baseEditorOptions).not.toHaveProperty('language');
+    expect(component.baseEditorOptions).not.toHaveProperty('readOnly');
+  });
+
+  it('should soft-apply language and readOnly when editorOptions change', () => {
+    const setModelLanguage = vi.fn();
+    vi.stubGlobal('monaco', {
+      KeyMod: { CtrlCmd: 2048, Shift: 1024, Alt: 512 },
+      KeyCode: { KeyS: 49, KeyF: 36 },
+      editor: { setModelLanguage },
+    });
+
+    const updateOptions = vi.fn();
+    const model = {} as editor.ITextModel;
+    const editorInstance = {
+      layout: vi.fn(),
+      updateOptions,
+      getModel: () => model,
+      onDidChangeModelContent: vi.fn(),
+      addCommand: vi.fn(),
+    } as unknown as editor.IStandaloneCodeEditor;
+
+    component.onEditorInit(editorInstance);
+    updateOptions.mockClear();
+    setModelLanguage.mockClear();
+
+    fixture.componentRef.setInput('editorOptions', {
+      theme: 'vs-dark',
+      language: 'javascript',
+      automaticLayout: true,
+      readOnly: true,
+    });
+    fixture.detectChanges();
+
+    expect(updateOptions).toHaveBeenCalledWith({ readOnly: true });
+    expect(setModelLanguage).toHaveBeenCalledWith(model, 'javascript');
+  });
+
   it('should call layout when the container resizes', () => {
     vi.stubGlobal('monaco', {
       KeyMod: { CtrlCmd: 2048, Shift: 1024, Alt: 512 },
