@@ -4,6 +4,23 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { FileTreeNode } from '../../models';
 import { FileTreeComponent } from './file-tree.component';
 
+function createDragEvent(
+  type: string,
+  dataTransfer?: Pick<
+    DataTransfer,
+    'getData' | 'setData' | 'effectAllowed' | 'dropEffect'
+  >,
+): DragEvent {
+  const event = new Event(type, {
+    bubbles: true,
+    cancelable: true,
+  }) as DragEvent;
+  if (dataTransfer) {
+    Object.defineProperty(event, 'dataTransfer', { value: dataTransfer });
+  }
+  return event;
+}
+
 describe('FileTreeComponent', () => {
   let fixture: ComponentFixture<FileTreeComponent>;
   const nodes: FileTreeNode[] = [
@@ -95,5 +112,51 @@ describe('FileTreeComponent', () => {
     buttons[1]?.click();
 
     expect(spy).toHaveBeenCalledWith(nodes[1]);
+  });
+
+  it('emits nodeDropped when a node is dropped onto a directory', () => {
+    const spy = vi.spyOn(fixture.componentInstance.nodeDropped, 'emit');
+    const component = fixture.componentInstance;
+
+    component.onDragStart(createDragEvent('dragstart'), nodes[1]);
+    const dropEvent = createDragEvent('drop');
+    component.onDrop(dropEvent, nodes[0]);
+
+    expect(spy).toHaveBeenCalledWith({
+      source: nodes[1],
+      targetDirectory: nodes[0],
+    });
+    expect(dropEvent.defaultPrevented).toBe(true);
+  });
+
+  it('does not emit nodeDropped when dropped onto a file', () => {
+    const spy = vi.spyOn(fixture.componentInstance.nodeDropped, 'emit');
+    const component = fixture.componentInstance;
+
+    component.onDragStart(createDragEvent('dragstart'), nodes[0]);
+    component.onDrop(createDragEvent('drop'), nodes[1]);
+
+    expect(spy).not.toHaveBeenCalled();
+  });
+
+  it('does not emit nodeDropped when a directory is dropped onto itself', () => {
+    const spy = vi.spyOn(fixture.componentInstance.nodeDropped, 'emit');
+    const component = fixture.componentInstance;
+
+    component.onDragStart(createDragEvent('dragstart'), nodes[0]);
+    component.onDrop(createDragEvent('drop'), nodes[0]);
+
+    expect(spy).not.toHaveBeenCalled();
+  });
+
+  it('suppresses the click that follows a drag', () => {
+    const spy = vi.spyOn(fixture.componentInstance.directorySelected, 'emit');
+    const component = fixture.componentInstance;
+
+    component.onDragStart(createDragEvent('dragstart'), nodes[0]);
+    component.onDragEnd();
+    component.onSelect(nodes[0]);
+
+    expect(spy).not.toHaveBeenCalled();
   });
 });
