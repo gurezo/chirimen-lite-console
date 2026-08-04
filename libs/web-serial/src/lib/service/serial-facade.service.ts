@@ -84,6 +84,11 @@ export class SerialFacadeService {
     return this.command.readUntilPrompt$(options);
   }
 
+  /** Cancel queued/in-flight shell commands (e.g. mid file transfer). */
+  cancelAllCommands(): void {
+    this.command.cancelAllCommands();
+  }
+
   isRaspberryPiZero(): Promise<boolean> {
     return this.transport.isRaspberryPiZero();
   }
