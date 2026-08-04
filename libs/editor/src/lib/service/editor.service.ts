@@ -1,10 +1,19 @@
 import { Injectable, inject } from '@angular/core';
+import type { TextFileMeta, TextLineEnding } from '@libs-shared';
 import type { editor } from 'monaco-editor';
 import {
   classifyFileWriteError,
   FileContentService,
+  type FileTransferOptions,
   SerialFacadeService,
+  serializeTextFileForSave,
 } from '@libs-web-serial';
+
+export interface EditorLoadedTextFile {
+  content: string;
+  meta: TextFileMeta;
+  size: number;
+}
 
 /**
  * エディターサービス
@@ -38,31 +47,66 @@ export class EditorService {
     });
   }
 
+  /** Remote UTF-8 byte size (`wc -c`) for large-file preflight. */
+  async getByteSize(path: string): Promise<number> {
+    return this.fileContent.getByteSize(path);
+  }
+
   /**
    * デバイス上のテキストファイルを読み込みます。
    */
-  async loadTextFile(path: string): Promise<string> {
+  async loadTextFile(path: string): Promise<EditorLoadedTextFile> {
     const info = await this.fileContent.readFile(path);
-    if (!info.isText || typeof info.content !== 'string') {
+    if (!info.isText || typeof info.content !== 'string' || !info.meta) {
       throw new Error('Target file is not a text file');
     }
-    return info.content;
+    return {
+      content: info.content,
+      meta: info.meta,
+      size: info.size,
+    };
   }
 
   /**
    * デバイス上のテキストファイルを安全に保存します。
    * 未接続時は実ファイルへ書き込まず失敗します。
+   * `editorContent` は Monaco 上の LF 正規化テキスト。`meta` で BOM/EOL を再適用する。
    */
-  async saveTextFile(path: string, content: string): Promise<void> {
+  async saveTextFile(
+    path: string,
+    editorContent: string,
+    meta: TextFileMeta,
+    options?: FileTransferOptions,
+  ): Promise<void> {
     if (!this.serial.isConnected()) {
       throw classifyFileWriteError(new Error('not connected'));
     }
 
+    const payload = serializeTextFileForSave(editorContent, meta);
+
     try {
-      await this.fileContent.writeTextFile(path, content);
+      await this.fileContent.writeTextFile(path, payload, options);
     } catch (error: unknown) {
       throw classifyFileWriteError(error);
     }
+  }
+
+  /** Abort in-flight serial commands used by load/save transfers. */
+  cancelTransfer(): void {
+    this.serial.cancelAllCommands();
+  }
+
+  /** Apply Monaco model EOL to match preserved file meta. */
+  applyLineEnding(lineEnding: TextLineEnding): void {
+    const model = this.editor?.getModel();
+    if (!model || typeof monaco === 'undefined') {
+      return;
+    }
+    const sequence =
+      lineEnding === 'crlf'
+        ? monaco.editor.EndOfLineSequence.CRLF
+        : monaco.editor.EndOfLineSequence.LF;
+    model.setEOL(sequence);
   }
 
   /**
@@ -88,3 +132,12 @@ export class EditorService {
     return this.editor?.getValue() ?? null;
   }
 }
+
+declare const monaco: {
+  editor: {
+    EndOfLineSequence: {
+      LF: number;
+      CRLF: number;
+    };
+  };
+};
