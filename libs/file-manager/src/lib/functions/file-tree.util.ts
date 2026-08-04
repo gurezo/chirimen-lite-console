@@ -33,6 +33,30 @@ export function parentPathOf(path: string): string {
   return joinPath('.', segments.join('/'));
 }
 
+/** Destination path when moving `source` into `targetDirectoryPath`. */
+export function buildMoveDestination(
+  source: Pick<FileTreeNode, 'name'>,
+  targetDirectoryPath: string,
+): string {
+  return joinPath(targetDirectoryPath, source.name);
+}
+
+/**
+ * Whether `source` can be moved into `targetDirectoryPath`.
+ * Rejects self-drop and dropping a node onto its own path.
+ */
+export function canMoveNode(
+  source: Pick<FileTreeNode, 'path'>,
+  targetDirectoryPath: string,
+): boolean {
+  const target = normalizeDirectoryPath(targetDirectoryPath);
+  const sourcePath = normalizeDirectoryPath(source.path);
+  if (!target || sourcePath === target) {
+    return false;
+  }
+  return true;
+}
+
 export function parseLsLine(
   line: string,
   basePath: string,
