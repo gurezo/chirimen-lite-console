@@ -11,12 +11,21 @@ import { ToastrService } from 'ngx-toastr';
 export class NotificationService {
   private toastr = inject(ToastrService);
 
+  /** Suppress identical consecutive toasts within this window (#812). */
+  private static readonly DEDUPE_WINDOW_MS = 2500;
+
+  private lastKey: string | null = null;
+  private lastAt = 0;
+
   /**
    * 成功メッセージを表示
    * @param title タイトル
    * @param message メッセージ
    */
   success(title: string, message: string): void {
+    if (this.shouldSkip(title, message, 'success')) {
+      return;
+    }
     this.toastr.success(message, title);
   }
 
@@ -26,6 +35,9 @@ export class NotificationService {
    * @param message メッセージ
    */
   error(title: string, message: string): void {
+    if (this.shouldSkip(title, message, 'error')) {
+      return;
+    }
     this.toastr.error(message, title);
   }
 
@@ -35,6 +47,9 @@ export class NotificationService {
    * @param message メッセージ
    */
   info(title: string, message: string): void {
+    if (this.shouldSkip(title, message, 'info')) {
+      return;
+    }
     this.toastr.info(message, title);
   }
 
@@ -44,6 +59,24 @@ export class NotificationService {
    * @param message メッセージ
    */
   warning(title: string, message: string): void {
+    if (this.shouldSkip(title, message, 'warning')) {
+      return;
+    }
     this.toastr.warning(message, title);
+  }
+
+  private shouldSkip(
+    title: string,
+    message: string,
+    severity: 'success' | 'error' | 'info' | 'warning',
+  ): boolean {
+    const key = `${severity}|${title}|${message}`;
+    const now = Date.now();
+    if (this.lastKey === key && now - this.lastAt < NotificationService.DEDUPE_WINDOW_MS) {
+      return true;
+    }
+    this.lastKey = key;
+    this.lastAt = now;
+    return false;
   }
 }
