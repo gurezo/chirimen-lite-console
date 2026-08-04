@@ -95,15 +95,14 @@ export class LeftSidebarComponent {
   }
 
   onResizeKeydown(event: KeyboardEvent): void {
-    let delta = 0;
     if (event.key === 'ArrowRight') {
-      delta = LEFT_PANE_RESIZE_STEP_PX;
-    } else if (event.key === 'ArrowLeft') {
-      delta = -LEFT_PANE_RESIZE_STEP_PX;
-    } else {
+      event.preventDefault();
+      this.paneResizeBy.emit(LEFT_PANE_RESIZE_STEP_PX);
       return;
     }
-    event.preventDefault();
-    this.paneResizeBy.emit(delta);
+    if (event.key === 'ArrowLeft') {
+      event.preventDefault();
+      this.paneResizeBy.emit(-LEFT_PANE_RESIZE_STEP_PX);
+    }
   }
 }

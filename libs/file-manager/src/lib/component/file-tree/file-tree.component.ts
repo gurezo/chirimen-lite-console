@@ -48,7 +48,7 @@ export class FileTreeComponent {
       return;
     }
 
-    let nextIndex: number | null = null;
+    let nextIndex: number;
     switch (event.key) {
       case 'ArrowDown':
         nextIndex = Math.min(index + 1, buttons.length - 1);

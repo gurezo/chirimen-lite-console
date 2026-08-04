@@ -47,6 +47,7 @@ export class MonacoEditorService {
       theme: 'vs-dark',
     });
     // Intentionally no CtrlCmd+S binding — see class JSDoc.
+    void _onSave;
     this.editor.onDidChangeModelContent(() => {
       this.editedFlag = true;
       // UI上のファイル名色変更などは呼び出し元で対応
