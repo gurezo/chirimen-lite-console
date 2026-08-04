@@ -49,15 +49,14 @@ export class RightSidebarComponent {
 
   onResizeKeydown(event: KeyboardEvent): void {
     // Separator is on the left edge: ArrowLeft grows the pane, ArrowRight shrinks.
-    let delta = 0;
     if (event.key === 'ArrowLeft') {
-      delta = RIGHT_PANE_RESIZE_STEP_PX;
-    } else if (event.key === 'ArrowRight') {
-      delta = -RIGHT_PANE_RESIZE_STEP_PX;
-    } else {
+      event.preventDefault();
+      this.paneResizeBy.emit(RIGHT_PANE_RESIZE_STEP_PX);
       return;
     }
-    event.preventDefault();
-    this.paneResizeBy.emit(delta);
+    if (event.key === 'ArrowRight') {
+      event.preventDefault();
+      this.paneResizeBy.emit(-RIGHT_PANE_RESIZE_STEP_PX);
+    }
   }
 }
