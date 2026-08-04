@@ -638,7 +638,7 @@ describe('EditorPageComponent', () => {
   });
 
   it('should refuse files larger than the max size', async () => {
-    const { EDITOR_FILE_MAX_BYTES } = await import('@libs-shared');
+    const { EDITOR_FILE_MAX_BYTES } = await import('@libs-web-serial');
     editorServiceMock.getByteSize.mockResolvedValue(EDITOR_FILE_MAX_BYTES + 1);
     editorServiceMock.loadTextFile.mockClear();
 
@@ -652,7 +652,7 @@ describe('EditorPageComponent', () => {
   });
 
   it('should confirm before opening warn-sized files', async () => {
-    const { EDITOR_FILE_WARN_BYTES } = await import('@libs-shared');
+    const { EDITOR_FILE_WARN_BYTES } = await import('@libs-web-serial');
     const confirmClosed = new Subject<unknown>();
     dialogServiceMock.open
       .mockReturnValueOnce({ closed: confirmClosed.asObservable() })
@@ -683,7 +683,7 @@ describe('EditorPageComponent', () => {
   });
 
   it('should abort warn-sized open when the user cancels', async () => {
-    const { EDITOR_FILE_WARN_BYTES } = await import('@libs-shared');
+    const { EDITOR_FILE_WARN_BYTES } = await import('@libs-web-serial');
     const confirmClosed = new Subject<unknown>();
     dialogServiceMock.open.mockReturnValueOnce({
       closed: confirmClosed.asObservable(),

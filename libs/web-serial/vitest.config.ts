@@ -8,7 +8,6 @@ export default defineConfig({
   resolve: {
     alias: {
       '@libs-web-serial': resolve(__dirname, './src/index.ts'),
-      '@libs-shared': resolve(__dirname, '../shared/src/index.ts'),
     },
   },
   test: {

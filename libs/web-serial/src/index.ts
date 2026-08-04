@@ -5,7 +5,17 @@ export type {
   CommandExecutionConfig,
   CommandResult,
 } from './lib/models';
-export type { FileContentInfo, FileTransferOptions } from './lib/models/file-content.types';
+export type {
+  FileContentInfo,
+  FileTransferOptions,
+  TextFileMeta,
+  TextLineEnding,
+} from './lib/models/file-content.types';
+export {
+  DEFAULT_NEW_TEXT_FILE_META,
+  EDITOR_FILE_MAX_BYTES,
+  EDITOR_FILE_WARN_BYTES,
+} from './lib/models/file-content.types';
 export type { SerialCommandEnqueueOptions } from './lib/service/serial-command/serial-command-pipeline.service';
 export * from './lib/service/file-content.service';
 export * from './lib/functions/file.utils';

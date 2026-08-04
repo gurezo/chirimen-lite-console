@@ -1,5 +1,4 @@
 import { Injectable, inject } from '@angular/core';
-import type { TextFileMeta, TextLineEnding } from '@libs-shared';
 import type { editor } from 'monaco-editor';
 import {
   classifyFileWriteError,
@@ -7,6 +6,8 @@ import {
   type FileTransferOptions,
   SerialFacadeService,
   serializeTextFileForSave,
+  type TextFileMeta,
+  type TextLineEnding,
 } from '@libs-web-serial';
 
 export interface EditorLoadedTextFile {

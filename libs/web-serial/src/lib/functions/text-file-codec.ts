@@ -1,4 +1,4 @@
-import type { TextFileMeta, TextLineEnding } from '@libs-shared';
+import type { TextFileMeta, TextLineEnding } from '../models/file-content.types';
 
 const UTF8_BOM = '\uFEFF';
 

@@ -1,4 +1,4 @@
-import { DEFAULT_NEW_TEXT_FILE_META } from '@libs-shared';
+import { DEFAULT_NEW_TEXT_FILE_META } from '../models/file-content.types';
 import {
   NonUtf8TextError,
   decodeUtf8Fatal,

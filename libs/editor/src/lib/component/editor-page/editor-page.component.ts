@@ -19,18 +19,15 @@ import {
   FileService,
   joinPath,
 } from '@libs-file-manager';
+import { ConsoleShellStore, NotificationService } from '@libs-shared';
 import {
-  ConsoleShellStore,
   DEFAULT_NEW_TEXT_FILE_META,
   EDITOR_FILE_MAX_BYTES,
   EDITOR_FILE_WARN_BYTES,
-  NotificationService,
-  type TextFileMeta,
-} from '@libs-shared';
-import {
   FileUtils,
   isNonUtf8TextError,
   SerialConnectionViewModelFacade,
+  type TextFileMeta,
 } from '@libs-web-serial';
 import type { editor } from 'monaco-editor';
 import { firstValueFrom } from 'rxjs';

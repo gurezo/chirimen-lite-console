@@ -1,6 +1,9 @@
 import { TestBed } from '@angular/core/testing';
-import { DEFAULT_NEW_TEXT_FILE_META } from '@libs-shared';
-import { FileContentService, SerialFacadeService } from '@libs-web-serial';
+import {
+  DEFAULT_NEW_TEXT_FILE_META,
+  FileContentService,
+  SerialFacadeService,
+} from '@libs-web-serial';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { EditorService } from './editor.service';
 
