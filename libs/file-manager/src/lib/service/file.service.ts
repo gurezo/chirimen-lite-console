@@ -7,9 +7,19 @@ import {
   SERIAL_TIMEOUT,
   SerialFacadeService,
 } from '@libs-web-serial';
-import { parseLsOutput } from '../functions';
+import {
+  basenameOfPath,
+  buildMoveDestination,
+  canMoveNode,
+  parseLsOutput,
+} from '../functions';
 import { FileTreeNode } from '../models';
 import { firstValueFrom } from 'rxjs';
+
+export interface FileMoveResult {
+  from: string;
+  to: string;
+}
 
 @Injectable({ providedIn: 'root' })
 export class FileService {
@@ -123,6 +133,32 @@ export class FileService {
         this.shellExecOptions(),
       ),
     );
+  }
+
+  /**
+   * Moves a file or directory into `targetDirectoryPath`.
+   * Returns the move result, or `null` when the operation is a no-op / rejected.
+   */
+  async moveIntoDirectory(
+    sourcePath: string,
+    targetDirectoryPath: string,
+  ): Promise<FileMoveResult | null> {
+    if (!canMoveNode({ path: sourcePath }, targetDirectoryPath)) {
+      return null;
+    }
+    const name = basenameOfPath(sourcePath);
+    if (!name) {
+      return null;
+    }
+    const destination = buildMoveDestination({ name }, targetDirectoryPath);
+    if (destination === sourcePath) {
+      return null;
+    }
+    if (await this.exists(destination)) {
+      throw new Error(`「${name}」は既に存在します`);
+    }
+    await this.move(sourcePath, destination);
+    return { from: sourcePath, to: destination };
   }
 
   /**

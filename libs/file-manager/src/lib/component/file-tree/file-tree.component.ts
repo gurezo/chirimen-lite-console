@@ -13,7 +13,8 @@ export interface FileTreeNodeDropEvent {
   targetDirectory: FileTreeNode;
 }
 
-const DRAG_MIME = 'application/x-chirimen-file-tree-path';
+/** MIME type used when dragging a node from the file tree. */
+export const FILE_TREE_DRAG_MIME = 'application/x-chirimen-file-tree-path';
 
 @Component({
   selector: 'lib-file-tree',
@@ -69,7 +70,7 @@ export class FileTreeComponent {
     const transfer = event.dataTransfer;
     if (transfer) {
       transfer.effectAllowed = 'move';
-      transfer.setData(DRAG_MIME, node.path);
+      transfer.setData(FILE_TREE_DRAG_MIME, node.path);
       transfer.setData('text/plain', node.path);
     }
   }
@@ -155,7 +156,7 @@ export class FileTreeComponent {
       return this.dragSource;
     }
     const path =
-      event.dataTransfer?.getData(DRAG_MIME) ||
+      event.dataTransfer?.getData(FILE_TREE_DRAG_MIME) ||
       event.dataTransfer?.getData('text/plain');
     if (!path) {
       return null;

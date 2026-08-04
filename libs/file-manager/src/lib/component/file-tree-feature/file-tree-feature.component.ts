@@ -13,12 +13,7 @@ import { ConfirmDialogComponent, DialogService } from '@libs-dialogs';
 import { ButtonComponent } from '@libs-shared';
 import { SerialConnectionViewModelFacade } from '@libs-web-serial';
 import { firstValueFrom } from 'rxjs';
-import {
-  buildMoveDestination,
-  canMoveNode,
-  joinPath,
-  parentPathOf,
-} from '../../functions';
+import { fileTreeNodeFromPath, joinPath, parentPathOf } from '../../functions';
 import type { FileContextMenuAction } from '../../models/file-context-menu.types';
 import type { FileRenamedEvent } from '../../models/file-lifecycle.types';
 import type { FileNameDialogData } from '../../models/file-name-dialog.types';
@@ -31,6 +26,7 @@ import { FileService } from '../../service';
 import { FileContextMenuComponent } from '../file-context-menu/file-context-menu.component';
 import { FileNameDialogComponent } from '../file-name-dialog/file-name-dialog.component';
 import {
+  FILE_TREE_DRAG_MIME,
   FileTreeComponent,
   FileTreeContextMenuEvent,
   FileTreeNodeDropEvent,
@@ -426,29 +422,28 @@ export class FileTreeFeatureComponent {
     source: FileTreeNode,
     targetDirectoryPath: string,
   ): Promise<void> {
-    if (!canMoveNode(source, targetDirectoryPath)) {
+    const result = await this.file.moveIntoDirectory(
+      source.path,
+      targetDirectoryPath,
+    );
+    if (!result) {
       return;
     }
-    const destination = buildMoveDestination(source, targetDirectoryPath);
-    if (destination === source.path) {
-      return;
-    }
-    if (await this.file.exists(destination)) {
-      throw new Error(`「${source.name}」は既に存在します`);
-    }
-    await this.file.move(source.path, destination);
     await this.reload();
-    this.fileRenamed.emit({ from: source.path, to: destination });
+    this.fileRenamed.emit(result);
   }
 
   private resolveDroppedNode(event: DragEvent): FileTreeNode | null {
     const path =
-      event.dataTransfer?.getData('application/x-chirimen-file-tree-path') ||
+      event.dataTransfer?.getData(FILE_TREE_DRAG_MIME) ||
       event.dataTransfer?.getData('text/plain');
     if (!path) {
       return null;
     }
-    return this.nodes.find((node) => node.path === path) ?? null;
+    return (
+      this.nodes.find((node) => node.path === path) ??
+      fileTreeNodeFromPath(path)
+    );
   }
 
   private async deleteNode(target: FileTreeNode): Promise<void> {

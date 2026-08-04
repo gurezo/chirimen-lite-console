@@ -226,6 +226,55 @@ describe('FileService', () => {
     });
   });
 
+  describe('moveIntoDirectory', () => {
+    it('moves into the target directory when destination is free', async () => {
+      exec.mockImplementation(async (command: string) => {
+        if (String(command).includes('test -e')) {
+          return { stdout: '__MISSING__\n' };
+        }
+        return { stdout: '' };
+      });
+
+      await expect(
+        svc.moveIntoDirectory('./main.ts', './docs'),
+      ).resolves.toEqual({
+        from: './main.ts',
+        to: './docs/main.ts',
+      });
+      expect(exec).toHaveBeenCalledWith(
+        `mv -- ${FileUtils.escapePath('./main.ts')} ${FileUtils.escapePath('./docs/main.ts')}`,
+        expect.objectContaining({ timeout: SERIAL_TIMEOUT.DEFAULT }),
+      );
+    });
+
+    it('returns null when dropping onto the same directory path', async () => {
+      await expect(
+        svc.moveIntoDirectory('./docs', './docs'),
+      ).resolves.toBeNull();
+      expect(exec).not.toHaveBeenCalled();
+    });
+
+    it('returns null when destination equals source path', async () => {
+      await expect(
+        svc.moveIntoDirectory('./main.ts', '.'),
+      ).resolves.toBeNull();
+      expect(exec).not.toHaveBeenCalled();
+    });
+
+    it('throws when the destination already exists', async () => {
+      exec.mockImplementation(async (command: string) => {
+        if (String(command).includes('test -e')) {
+          return { stdout: '__EXISTS__\n' };
+        }
+        return { stdout: '' };
+      });
+
+      await expect(
+        svc.moveIntoDirectory('./main.ts', './docs'),
+      ).rejects.toThrow('「main.ts」は既に存在します');
+    });
+  });
+
   describe('writeBinary', () => {
     it('delegates to FileContentService.writeBinaryFile', async () => {
       const buffer = new ArrayBuffer(8);
