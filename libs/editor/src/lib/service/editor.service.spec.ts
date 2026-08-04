@@ -1,4 +1,5 @@
 import { TestBed } from '@angular/core/testing';
+import { DEFAULT_NEW_TEXT_FILE_META } from '@libs-shared';
 import { FileContentService, SerialFacadeService } from '@libs-web-serial';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { EditorService } from './editor.service';
@@ -17,11 +18,11 @@ describe('EditorService.saveTextFile', () => {
         EditorService,
         {
           provide: FileContentService,
-          useValue: { writeTextFile, readFile: vi.fn() },
+          useValue: { writeTextFile, readFile: vi.fn(), getByteSize: vi.fn() },
         },
         {
           provide: SerialFacadeService,
-          useValue: { isConnected },
+          useValue: { isConnected, cancelAllCommands: vi.fn() },
         },
       ],
     });
@@ -29,16 +30,19 @@ describe('EditorService.saveTextFile', () => {
     service = TestBed.inject(EditorService);
   });
 
-  it('delegates to FileContentService when connected', async () => {
-    await service.saveTextFile('/home/pi/a.js', 'x = 1');
-    expect(writeTextFile).toHaveBeenCalledWith('/home/pi/a.js', 'x = 1');
+  it('serializes meta then delegates to FileContentService when connected', async () => {
+    await service.saveTextFile('/home/pi/a.js', 'x = 1', {
+      ...DEFAULT_NEW_TEXT_FILE_META,
+      trailingNewline: true,
+    });
+    expect(writeTextFile).toHaveBeenCalledWith('/home/pi/a.js', 'x = 1\n', undefined);
   });
 
   it('fails without writing when disconnected', async () => {
     isConnected.mockReturnValue(false);
 
     await expect(
-      service.saveTextFile('/home/pi/a.js', 'x = 1'),
+      service.saveTextFile('/home/pi/a.js', 'x', DEFAULT_NEW_TEXT_FILE_META),
     ).rejects.toThrow(/connection was lost or cancelled/);
 
     expect(writeTextFile).not.toHaveBeenCalled();
@@ -48,8 +52,54 @@ describe('EditorService.saveTextFile', () => {
     writeTextFile.mockRejectedValueOnce(new Error('Permission denied'));
 
     await expect(
-      service.saveTextFile('/home/pi/a.js', 'x = 1'),
+      service.saveTextFile('/home/pi/a.js', 'x', DEFAULT_NEW_TEXT_FILE_META),
     ).rejects.toThrow(/write permission was denied/);
+  });
+});
+
+describe('EditorService.loadTextFile', () => {
+  let service: EditorService;
+  let readFile: ReturnType<typeof vi.fn>;
+
+  beforeEach(() => {
+    readFile = vi.fn().mockResolvedValue({
+      content: 'hello',
+      isText: true,
+      size: 5,
+      encoding: 'utf-8',
+      meta: DEFAULT_NEW_TEXT_FILE_META,
+    });
+
+    TestBed.configureTestingModule({
+      providers: [
+        EditorService,
+        {
+          provide: FileContentService,
+          useValue: {
+            writeTextFile: vi.fn(),
+            readFile,
+            getByteSize: vi.fn().mockResolvedValue(5),
+          },
+        },
+        {
+          provide: SerialFacadeService,
+          useValue: {
+            isConnected: vi.fn().mockReturnValue(true),
+            cancelAllCommands: vi.fn(),
+          },
+        },
+      ],
+    });
+
+    service = TestBed.inject(EditorService);
+  });
+
+  it('returns content and meta for text files', async () => {
+    await expect(service.loadTextFile('/home/pi/a.js')).resolves.toEqual({
+      content: 'hello',
+      meta: DEFAULT_NEW_TEXT_FILE_META,
+      size: 5,
+    });
   });
 });
 
@@ -62,11 +112,14 @@ describe('EditorService.formatDocument', () => {
         EditorService,
         {
           provide: FileContentService,
-          useValue: { writeTextFile: vi.fn(), readFile: vi.fn() },
+          useValue: { writeTextFile: vi.fn(), readFile: vi.fn(), getByteSize: vi.fn() },
         },
         {
           provide: SerialFacadeService,
-          useValue: { isConnected: vi.fn().mockReturnValue(true) },
+          useValue: {
+            isConnected: vi.fn().mockReturnValue(true),
+            cancelAllCommands: vi.fn(),
+          },
         },
       ],
     });
@@ -87,6 +140,7 @@ describe('EditorService.formatDocument', () => {
         run,
       }),
       getValue: vi.fn().mockReturnValue(''),
+      getModel: vi.fn().mockReturnValue(null),
     } as never);
 
     await expect(service.formatDocument()).resolves.toBe(false);
@@ -102,6 +156,7 @@ describe('EditorService.formatDocument', () => {
         run,
       }),
       getValue: vi.fn().mockReturnValue('formatted'),
+      getModel: vi.fn().mockReturnValue(null),
     } as never);
 
     await expect(service.formatDocument()).resolves.toBe(true);
