@@ -1,9 +1,14 @@
 <div class="dialog-content">
-  @if (message()) {
-    <p>{{ message() }}</p>
+  @if (viewMessage) {
+    <p>{{ viewMessage }}</p>
   }
-  <p>Progress: {{ progress() }}%</p>
-  <div class="progress-bar">
-    <div class="progress-fill" [style.width.%]="progress()"></div>
+  <p class="progress-label">Progress: {{ viewProgress() }}%</p>
+  <div class="progress-bar" role="progressbar" [attr.aria-valuenow]="viewProgress()" aria-valuemin="0" aria-valuemax="100">
+    <div class="progress-fill" [style.width.%]="viewProgress()"></div>
   </div>
+  @if (!viewHideCancel) {
+    <div class="dialog-actions">
+      <button type="button" (click)="cancel()">{{ viewCancelLabel }}</button>
+    </div>
+  }
 </div>
