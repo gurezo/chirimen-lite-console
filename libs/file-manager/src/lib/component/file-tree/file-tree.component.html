@@ -1,14 +1,16 @@
 <div class="file-tree text-sm">
-  <ul class="space-y-1">
-    @for (node of nodes(); track node.path) {
+  <ul class="space-y-1" role="list">
+    @for (node of nodes(); track node.path; let i = $index) {
       <li>
         <button
+          #nodeButton
           type="button"
-          class="inline-flex w-full items-center gap-1 text-left px-2 py-1 rounded hover:bg-gray-100"
+          class="file-tree__node inline-flex w-full items-center gap-1 text-left px-2 py-1 rounded hover:bg-gray-100"
           [class.bg-blue-50]="isSelected(node)"
           [class.font-medium]="isSelected(node)"
           [attr.aria-current]="isSelected(node) ? 'true' : null"
           (click)="onSelect(node)"
+          (keydown)="onNodeKeydown($event, i)"
           (contextmenu)="onContextMenu($event, node)"
         >
           @if (node.isDirectory) {
