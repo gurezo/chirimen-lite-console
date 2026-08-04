@@ -10,7 +10,6 @@ import {
   untracked,
   viewChild,
 } from '@angular/core';
-import { FormsModule } from '@angular/forms';
 import { MonacoEditorModule } from 'ngx-monaco-editor-v2';
 import type { editor } from 'monaco-editor';
 
@@ -41,11 +40,29 @@ declare const monaco: {
 
 @Component({
   selector: 'choh-monaco-editor',
-  imports: [FormsModule, MonacoEditorModule],
+  imports: [MonacoEditorModule],
   templateUrl: './monaco-editor.component.html',
   host: {
     class: 'block h-full min-h-0 min-w-0',
   },
+  styles: `
+    :host {
+      display: block;
+      height: 100%;
+      min-height: 0;
+      min-width: 0;
+    }
+
+    /* ngx-monaco-editor-v2 hardcodes :host { height: 200px }; override so the
+       editor fills the flex panel instead of looking empty/clipped. */
+    ngx-monaco-editor {
+      display: block;
+      height: 100% !important;
+      min-height: 0;
+      min-width: 0;
+      flex: 1 1 0%;
+    }
+  `,
 })
 export class MonacoEditorComponent {
   private readonly destroyRef = inject(DestroyRef);
@@ -77,8 +94,22 @@ export class MonacoEditorComponent {
 
   private editorInstance: editor.IStandaloneCodeEditor | null = null;
   private resizeObserver?: ResizeObserver;
+  /** Skip echoing setValue-driven model changes back into the code model. */
+  private applyingExternalValue = false;
 
   constructor() {
+    // Push parent/model code into Monaco directly. ngx-monaco-editor-v2's
+    // ngModel writeValue uses setTimeout and races with dispose/reinit,
+    // which can leave the buffer empty after a successful file load.
+    effect(() => {
+      const value = this.code();
+      const instance = untracked(() => this.editorInstance);
+      if (!instance) {
+        return;
+      }
+      this.syncValueToEditor(instance, value);
+    });
+
     effect(() => {
       const options = this.editorOptions();
       const instance = untracked(() => this.editorInstance);
@@ -94,12 +125,17 @@ export class MonacoEditorComponent {
   onEditorInit(editorInstance: editor.IStandaloneCodeEditor): void {
     this.editorInstance = editorInstance;
     this.applyEditorOptions(editorInstance, this.editorOptions());
+    this.syncValueToEditor(editorInstance, this.code());
     this.bindPageOwnedShortcuts(editorInstance);
     this.editorInitialized.emit(editorInstance);
     this.observeContainerResize(editorInstance);
     editorInstance.onDidChangeModelContent((event) => {
-      if (event.isFlush) {
+      if (event.isFlush || this.applyingExternalValue) {
         return;
+      }
+      const next = editorInstance.getValue();
+      if (next !== this.code()) {
+        this.code.set(next);
       }
       this.contentEdited.emit();
     });
@@ -150,6 +186,26 @@ export class MonacoEditorComponent {
   private teardownResizeObserver(): void {
     this.resizeObserver?.disconnect();
     this.resizeObserver = undefined;
+  }
+
+  private syncValueToEditor(
+    instance: editor.IStandaloneCodeEditor,
+    value: string,
+  ): void {
+    if (instance.getValue() === value) {
+      return;
+    }
+    this.applyingExternalValue = true;
+    try {
+      instance.setValue(value);
+    } finally {
+      this.applyingExternalValue = false;
+    }
+    try {
+      instance.layout();
+    } catch {
+      // Dimensions may be zero before layout stabilizes
+    }
   }
 
   private applyEditorOptions(
