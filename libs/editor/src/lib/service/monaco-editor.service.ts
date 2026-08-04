@@ -1,3 +1,5 @@
+import { Injectable } from '@angular/core';
+
 /**
  * Legacy Monaco helper — not used by the active ngx-monaco-editor path
  * (`MonacoEditorComponent` + `EditorPageComponent`).
