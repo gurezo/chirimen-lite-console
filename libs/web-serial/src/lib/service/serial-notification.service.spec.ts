@@ -20,10 +20,55 @@ describe('SerialNotificationService', () => {
     service.notifyManualDisconnect();
 
     expect(info).toHaveBeenCalledWith(
-      'Web Serial 接続を切断しました',
+      'CHIRIMEN Lite との接続が切断されました。未保存の変更は Editor または Draft に保持されています。',
       '切断',
-      { timeOut: 4000 },
+      { timeOut: 5000 },
     );
+  });
+
+  it('notifyUnexpectedDisconnect shows warning toast', () => {
+    const warning = vi.fn();
+    const service = Object.create(
+      SerialNotificationService.prototype,
+    ) as SerialNotificationService;
+    (
+      service as unknown as { toastr: { warning: typeof warning } }
+    ).toastr = { warning };
+    (
+      service as unknown as {
+        expectedDisconnect: SerialExpectedDisconnectService;
+      }
+    ).expectedDisconnect = new SerialExpectedDisconnectService();
+
+    service.notifyUnexpectedDisconnect();
+
+    expect(warning).toHaveBeenCalledWith(
+      'CHIRIMEN Lite との接続が切断されました。未保存の変更は Editor または Draft に保持されています。',
+      '切断',
+      { timeOut: 6000 },
+    );
+  });
+
+  it('notifyUnexpectedDisconnect is suppressed during expected disconnect', () => {
+    const warning = vi.fn();
+    const expectedDisconnect = new SerialExpectedDisconnectService();
+    expectedDisconnect.beginExpectedDisconnect('reboot');
+
+    const service = Object.create(
+      SerialNotificationService.prototype,
+    ) as SerialNotificationService;
+    (
+      service as unknown as { toastr: { warning: typeof warning } }
+    ).toastr = { warning };
+    (
+      service as unknown as {
+        expectedDisconnect: SerialExpectedDisconnectService;
+      }
+    ).expectedDisconnect = expectedDisconnect;
+
+    service.notifyUnexpectedDisconnect();
+
+    expect(warning).not.toHaveBeenCalled();
   });
 
   it('notifyAutoLoginFailed shows error toast with message', () => {

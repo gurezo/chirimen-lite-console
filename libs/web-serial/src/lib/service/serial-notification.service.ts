@@ -53,12 +53,16 @@ export class SerialNotificationService {
   }
 
   /**
-   * ヘッダーの Web Serial DisConnect で接続前状態へ戻すときの通知（#753）。
+   * ヘッダーの Web Serial DisConnect で接続前状態へ戻すときの通知（#753 / #812）。
    */
   notifyManualDisconnect(): void {
-    this.toastr.info('Web Serial 接続を切断しました', '切断', {
-      timeOut: 4000,
-    });
+    this.toastr.info(
+      'CHIRIMEN Lite との接続が切断されました。未保存の変更は Editor または Draft に保持されています。',
+      '切断',
+      {
+        timeOut: 5000,
+      },
+    );
   }
 
   /**
@@ -83,6 +87,22 @@ export class SerialNotificationService {
       'ログインエラー',
       {
         timeOut: 8000,
+      },
+    );
+  }
+
+  /**
+   * 予期しない切断時の通知（#812）。未保存内容が Draft に残ることを明示する。
+   */
+  notifyUnexpectedDisconnect(): void {
+    if (this.expectedDisconnect.isExpectedDisconnect()) {
+      return;
+    }
+    this.toastr.warning(
+      'CHIRIMEN Lite との接続が切断されました。未保存の変更は Editor または Draft に保持されています。',
+      '切断',
+      {
+        timeOut: 6000,
       },
     );
   }
