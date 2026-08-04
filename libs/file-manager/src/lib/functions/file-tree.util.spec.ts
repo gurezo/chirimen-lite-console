@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { parentPathOf, parseLsLine, parseLsOutput } from './file-tree.util';
+import {
+  buildMoveDestination,
+  canMoveNode,
+  parentPathOf,
+  parseLsLine,
+  parseLsOutput,
+} from './file-tree.util';
 
 describe('file-tree util', () => {
   it('parses a file entry', () => {
@@ -43,5 +49,19 @@ describe('file-tree util', () => {
     expect(parentPathOf('./docs')).toBe('.');
     expect(parentPathOf('./docs/readme.md')).toBe('./docs');
     expect(parentPathOf('.')).toBe('.');
+  });
+
+  it('builds move destinations under the target directory', () => {
+    expect(buildMoveDestination({ name: 'main.ts' }, './docs')).toBe(
+      './docs/main.ts',
+    );
+    expect(buildMoveDestination({ name: 'main.ts' }, '.')).toBe('./main.ts');
+  });
+
+  it('rejects moving a node onto itself', () => {
+    expect(canMoveNode({ path: './docs' }, './docs')).toBe(false);
+    expect(canMoveNode({ path: './docs/' }, './docs')).toBe(false);
+    expect(canMoveNode({ path: './main.ts' }, './docs')).toBe(true);
+    expect(canMoveNode({ path: './docs' }, '.')).toBe(true);
   });
 });
