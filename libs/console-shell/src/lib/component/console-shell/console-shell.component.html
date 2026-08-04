@@ -20,6 +20,7 @@
       <lib-breadcrumb
         [segments]="breadcrumbSegments()"
         (segmentNavigate)="onBreadcrumbNavigate($event)"
+        (segmentDrop)="onBreadcrumbSegmentDrop($event)"
       />
     }
   </div>
