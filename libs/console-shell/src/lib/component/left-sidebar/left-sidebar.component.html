@@ -23,8 +23,9 @@
           aria-orientation="vertical"
           aria-label="Resize left panel"
           tabindex="0"
-          class="absolute top-0 right-0 bottom-0 z-50 w-1.5 cursor-col-resize touch-none bg-transparent hover:bg-blue-500/40"
+          class="shell-pane-separator absolute top-0 right-0 bottom-0 z-50 w-1.5 cursor-col-resize touch-none bg-transparent hover:bg-blue-500/40"
           (pointerdown)="onResizePointerDown($event)"
+          (keydown)="onResizeKeydown($event)"
         ></div>
       </div>
     } @else {
@@ -52,24 +53,26 @@
     <button
       mat-icon-button
       type="button"
-      [matTooltip]="panelToggleLabel()"
-      [attr.aria-label]="panelToggleLabel()"
+      class="shell-rail-button"
+      [matTooltip]="contentLabel"
+      [attr.aria-label]="contentLabel"
       [attr.aria-expanded]="leftNavOpen()"
       aria-controls="console-shell-left-pane"
       (click)="toggleLeftSidebar.emit()"
     >
-      <mat-icon>folder</mat-icon>
+      <mat-icon aria-hidden="true">folder</mat-icon>
     </button>
     <button
       mat-icon-button
       type="button"
+      class="shell-rail-button"
       [matTooltip]="panelToggleLabel()"
       [attr.aria-label]="panelToggleLabel()"
       [attr.aria-expanded]="leftNavOpen()"
       aria-controls="console-shell-left-pane"
       (click)="toggleLeftSidebar.emit()"
     >
-      <mat-icon>
+      <mat-icon aria-hidden="true">
         @if (leftNavOpen()) {
           left_panel_close
         } @else {
@@ -83,8 +86,9 @@
         aria-orientation="vertical"
         aria-label="Resize left panel"
         tabindex="0"
-        class="absolute top-0 right-0 bottom-0 z-50 w-1.5 cursor-col-resize touch-none bg-transparent hover:bg-blue-500/40"
+        class="shell-pane-separator absolute top-0 right-0 bottom-0 z-50 w-1.5 cursor-col-resize touch-none bg-transparent hover:bg-blue-500/40"
         (pointerdown)="onResizePointerDown($event)"
+        (keydown)="onResizeKeydown($event)"
       ></div>
     }
   </div>

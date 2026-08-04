@@ -52,21 +52,45 @@ describe('RightSidebarComponent', () => {
   });
 
   it('should set tooltip on panel toggle based on open state', () => {
+    const contentButton = fixture.debugElement.query(
+      By.css('button[aria-label="ピン配置"]'),
+    );
+    expect(contentButton).not.toBeNull();
+    expect(contentButton.injector.get(MatTooltip).message).toBe('ピン配置');
+
     const openButton = fixture.debugElement.query(
-      By.css('button[aria-label="ピン配置閉じる"]'),
+      By.css('button[aria-label="ピン配置を閉じる"]'),
     );
     expect(openButton).not.toBeNull();
-    expect(openButton.injector.get(MatTooltip).message).toBe('ピン配置閉じる');
+    expect(openButton.injector.get(MatTooltip).message).toBe('ピン配置を閉じる');
     expect(openButton.attributes['aria-expanded']).toBe('true');
 
     fixture.componentRef.setInput('rightNavOpen', false);
     fixture.detectChanges();
 
     const closedButton = fixture.debugElement.query(
-      By.css('button[aria-label="ピン配置開く"]'),
+      By.css('button[aria-label="ピン配置を開く"]'),
     );
     expect(closedButton).not.toBeNull();
-    expect(closedButton.injector.get(MatTooltip).message).toBe('ピン配置開く');
+    expect(closedButton.injector.get(MatTooltip).message).toBe('ピン配置を開く');
     expect(closedButton.attributes['aria-expanded']).toBe('false');
+  });
+
+  it('emits paneResizeBy on separator arrow keys', () => {
+    const emitSpy = vi.spyOn(component.paneResizeBy, 'emit');
+    const separator = fixture.nativeElement.querySelector(
+      '[role="separator"]',
+    ) as HTMLElement;
+    expect(separator).not.toBeNull();
+
+    separator.dispatchEvent(
+      new KeyboardEvent('keydown', { key: 'ArrowLeft', bubbles: true }),
+    );
+    separator.dispatchEvent(
+      new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true }),
+    );
+
+    expect(emitSpy).toHaveBeenCalledWith(16);
+    expect(emitSpy).toHaveBeenCalledWith(-16);
   });
 });

@@ -165,12 +165,20 @@ describe('LeftSidebarComponent', () => {
   });
 
   it('should set tooltip on panel toggle based on open state', () => {
+    const contentButton = fixture.debugElement.query(
+      By.css('button[aria-label="ファイルツリー"]'),
+    );
+    expect(contentButton).not.toBeNull();
+    expect(contentButton.injector.get(MatTooltip).message).toBe(
+      'ファイルツリー',
+    );
+
     const openButton = fixture.debugElement.query(
-      By.css('button[aria-label="ファイツリー閉じる"]'),
+      By.css('button[aria-label="ファイルツリーを閉じる"]'),
     );
     expect(openButton).not.toBeNull();
     expect(openButton.injector.get(MatTooltip).message).toBe(
-      'ファイツリー閉じる',
+      'ファイルツリーを閉じる',
     );
     expect(openButton.attributes['aria-expanded']).toBe('true');
 
@@ -178,12 +186,30 @@ describe('LeftSidebarComponent', () => {
     fixture.detectChanges();
 
     const closedButton = fixture.debugElement.query(
-      By.css('button[aria-label="ファイツリー開く"]'),
+      By.css('button[aria-label="ファイルツリーを開く"]'),
     );
     expect(closedButton).not.toBeNull();
     expect(closedButton.injector.get(MatTooltip).message).toBe(
-      'ファイツリー開く',
+      'ファイルツリーを開く',
     );
     expect(closedButton.attributes['aria-expanded']).toBe('false');
+  });
+
+  it('emits paneResizeBy on separator arrow keys', () => {
+    const emitSpy = vi.spyOn(component.paneResizeBy, 'emit');
+    const separator = fixture.nativeElement.querySelector(
+      '[role="separator"]',
+    ) as HTMLElement;
+    expect(separator).not.toBeNull();
+
+    separator.dispatchEvent(
+      new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true }),
+    );
+    separator.dispatchEvent(
+      new KeyboardEvent('keydown', { key: 'ArrowLeft', bubbles: true }),
+    );
+
+    expect(emitSpy).toHaveBeenCalledWith(16);
+    expect(emitSpy).toHaveBeenCalledWith(-16);
   });
 });
