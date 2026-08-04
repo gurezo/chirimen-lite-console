@@ -214,4 +214,64 @@ describe('attachTerminalInput', () => {
     expect(onSend).toHaveBeenCalledWith('\x7f');
     expect(terminal.write).not.toHaveBeenCalled();
   });
+
+  it('sends ETX and clears buffer on Ctrl+C', () => {
+    let keyHandler: ((e: TerminalKeyEvent) => void) | undefined;
+    const onSend = vi.fn();
+    const onCommand = vi.fn();
+
+    const terminal = {
+      onKey: (cb: (e: TerminalKeyEvent) => void) => {
+        keyHandler = cb;
+      },
+      write: vi.fn(),
+      writeln: vi.fn(),
+    } as unknown as Parameters<typeof attachTerminalInput>[0];
+
+    attachTerminalInput(terminal, onCommand, () => true, onSend);
+
+    keyHandler?.({
+      domEvent: createDomEvent({ code: 'KeyN', key: 'n' }),
+    });
+    const ctrlC = createDomEvent({
+      code: 'KeyC',
+      key: 'c',
+      ctrlKey: true,
+    });
+    keyHandler?.({ domEvent: ctrlC });
+    keyHandler?.({
+      domEvent: createDomEvent({ code: 'Enter', key: 'Enter' }),
+    });
+
+    expect(onSend).toHaveBeenCalledWith('n');
+    expect(onSend).toHaveBeenCalledWith('\x03');
+    expect(ctrlC.preventDefault).toHaveBeenCalled();
+    expect(onCommand).not.toHaveBeenCalled();
+    expect(terminal.write).not.toHaveBeenCalled();
+  });
+
+  it('does not send Ctrl+C when input is disabled', () => {
+    let keyHandler: ((e: TerminalKeyEvent) => void) | undefined;
+    const onSend = vi.fn();
+
+    const terminal = {
+      onKey: (cb: (e: TerminalKeyEvent) => void) => {
+        keyHandler = cb;
+      },
+      write: vi.fn(),
+      writeln: vi.fn(),
+    } as unknown as Parameters<typeof attachTerminalInput>[0];
+
+    attachTerminalInput(terminal, undefined, () => false, onSend);
+
+    keyHandler?.({
+      domEvent: createDomEvent({
+        code: 'KeyC',
+        key: 'c',
+        ctrlKey: true,
+      }),
+    });
+
+    expect(onSend).not.toHaveBeenCalled();
+  });
 });
