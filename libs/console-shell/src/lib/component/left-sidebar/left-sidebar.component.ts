@@ -13,10 +13,14 @@ import {
   RAIL_WIDTH_PX,
 } from '@libs-shared';
 
+/** Keyboard resize step for the left panel separator (px). */
+export const LEFT_PANE_RESIZE_STEP_PX = 16;
+
 @Component({
   selector: 'lib-left-sidebar',
   imports: [FileTreeFeatureComponent, MatIconButton, MatIcon, MatTooltip],
   templateUrl: './left-sidebar.component.html',
+  styleUrl: './left-sidebar.component.css',
   host: {
     class: 'flex h-full min-h-0 min-w-0 flex-1 flex-col overflow-hidden',
   },
@@ -27,6 +31,7 @@ export class LeftSidebarComponent {
   paneWidthPx = input<number>(LEFT_PANE_WIDTH.default);
   toggleLeftSidebar = output<void>();
   paneResizeStart = output<PointerEvent>();
+  paneResizeBy = output<number>();
 
   readonly isOverlay = computed(() => this.layoutMode() === 'overlay');
   readonly isDockedOpen = computed(
@@ -42,8 +47,10 @@ export class LeftSidebarComponent {
     () => `min(${this.paneWidthPx()}px, 85vw)`,
   );
 
+  readonly contentLabel = 'ファイルツリー';
+
   readonly panelToggleLabel = computed(() =>
-    this.leftNavOpen() ? 'ファイツリー閉じる' : 'ファイツリー開く',
+    this.leftNavOpen() ? 'ファイルツリーを閉じる' : 'ファイルツリーを開く',
   );
 
   readonly shellStore = inject(ConsoleShellStore);
@@ -85,5 +92,18 @@ export class LeftSidebarComponent {
 
   onResizePointerDown(event: PointerEvent): void {
     this.paneResizeStart.emit(event);
+  }
+
+  onResizeKeydown(event: KeyboardEvent): void {
+    let delta = 0;
+    if (event.key === 'ArrowRight') {
+      delta = LEFT_PANE_RESIZE_STEP_PX;
+    } else if (event.key === 'ArrowLeft') {
+      delta = -LEFT_PANE_RESIZE_STEP_PX;
+    } else {
+      return;
+    }
+    event.preventDefault();
+    this.paneResizeBy.emit(delta);
   }
 }

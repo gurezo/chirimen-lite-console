@@ -45,6 +45,7 @@
             [paneWidthPx]="leftPaneWidthPx()"
             (toggleLeftSidebar)="onToggleLeftSidebar()"
             (paneResizeStart)="onLeftPaneResizeStart($event)"
+            (paneResizeBy)="onLeftPaneResizeBy($event)"
           />
         </div>
 
@@ -68,6 +69,7 @@
             [diagramWidthPx]="rightDiagramWidthPx()"
             (toggleRightSidebar)="onToggleRightSidebar()"
             (paneResizeStart)="onRightPaneResizeStart($event)"
+            (paneResizeBy)="onRightPaneResizeBy($event)"
           />
         </div>
       </div>

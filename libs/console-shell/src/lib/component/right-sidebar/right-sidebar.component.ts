@@ -8,10 +8,14 @@ import {
   RIGHT_DIAGRAM_WIDTH,
 } from '@libs-shared';
 
+/** Keyboard resize step for the right panel separator (px). */
+export const RIGHT_PANE_RESIZE_STEP_PX = 16;
+
 @Component({
   selector: 'lib-right-sidebar',
   imports: [MatIconButton, MatIcon, MatTooltip, PinAssignComponent],
   templateUrl: './right-sidebar.component.html',
+  styleUrl: './right-sidebar.component.css',
   host: {
     class: 'flex h-full min-h-0 min-w-0 flex-1 flex-col overflow-hidden',
   },
@@ -22,6 +26,7 @@ export class RightSidebarComponent {
   diagramWidthPx = input<number>(RIGHT_DIAGRAM_WIDTH.default);
   toggleRightSidebar = output<void>();
   paneResizeStart = output<PointerEvent>();
+  paneResizeBy = output<number>();
 
   readonly isOverlay = computed(() => this.layoutMode() === 'overlay');
   readonly isDockedOpen = computed(
@@ -32,11 +37,27 @@ export class RightSidebarComponent {
     () => `min(${this.diagramWidthPx()}px, 85vw)`,
   );
 
+  readonly contentLabel = 'ピン配置';
+
   readonly panelToggleLabel = computed(() =>
-    this.rightNavOpen() ? 'ピン配置閉じる' : 'ピン配置開く',
+    this.rightNavOpen() ? 'ピン配置を閉じる' : 'ピン配置を開く',
   );
 
   onResizePointerDown(event: PointerEvent): void {
     this.paneResizeStart.emit(event);
+  }
+
+  onResizeKeydown(event: KeyboardEvent): void {
+    // Separator is on the left edge: ArrowLeft grows the pane, ArrowRight shrinks.
+    let delta = 0;
+    if (event.key === 'ArrowLeft') {
+      delta = RIGHT_PANE_RESIZE_STEP_PX;
+    } else if (event.key === 'ArrowRight') {
+      delta = -RIGHT_PANE_RESIZE_STEP_PX;
+    } else {
+      return;
+    }
+    event.preventDefault();
+    this.paneResizeBy.emit(delta);
   }
 }

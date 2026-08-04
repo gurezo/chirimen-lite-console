@@ -321,6 +321,18 @@ export class ConsoleShellComponent implements OnInit, OnDestroy {
     this.startPaneResize(event, 'right');
   }
 
+  onLeftPaneResizeBy(delta: number): void {
+    this.shellStore.setLeftPaneWidth(
+      this.shellStore.leftPaneWidthPx() + delta,
+    );
+  }
+
+  onRightPaneResizeBy(delta: number): void {
+    this.shellStore.setRightDiagramWidth(
+      this.shellStore.rightDiagramWidthPx() + delta,
+    );
+  }
+
   private startPaneResize(
     event: PointerEvent,
     side: 'left' | 'right',
