@@ -33,12 +33,31 @@ export function parentPathOf(path: string): string {
   return joinPath('.', segments.join('/'));
 }
 
+/** Basename of a file or directory path (last non-empty segment). */
+export function basenameOfPath(path: string): string {
+  const normalized = path.startsWith('./') ? path.slice(2) : path;
+  if (!normalized || normalized === '.') {
+    return '';
+  }
+  const segments = normalized.split('/').filter(Boolean);
+  return segments[segments.length - 1] ?? '';
+}
+
 /** Destination path when moving `source` into `targetDirectoryPath`. */
 export function buildMoveDestination(
   source: Pick<FileTreeNode, 'name'>,
   targetDirectoryPath: string,
 ): string {
   return joinPath(targetDirectoryPath, source.name);
+}
+
+/** Minimal node used when only a drag path is available (e.g. breadcrumb drop). */
+export function fileTreeNodeFromPath(path: string): FileTreeNode {
+  return {
+    name: basenameOfPath(path) || path,
+    path,
+    isDirectory: false,
+  };
 }
 
 /**

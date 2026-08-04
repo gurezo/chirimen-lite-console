@@ -17,6 +17,8 @@ describe('FileTreeFeatureComponent', () => {
   const touchMock = vi.fn<() => Promise<void>>();
   const mkdirMock = vi.fn<() => Promise<void>>();
   const moveMock = vi.fn<() => Promise<void>>();
+  const moveIntoDirectoryMock =
+    vi.fn<() => Promise<{ from: string; to: string } | null>>();
   const removeMock = vi.fn<() => Promise<void>>();
   const existsMock = vi.fn<() => Promise<boolean>>();
   const hasUnsavedDraftMock = vi.fn<(path: string) => boolean>();
@@ -53,6 +55,7 @@ describe('FileTreeFeatureComponent', () => {
             touch: touchMock,
             mkdir: mkdirMock,
             move: moveMock,
+            moveIntoDirectory: moveIntoDirectoryMock,
             remove: removeMock,
             exists: existsMock,
           },
@@ -97,6 +100,24 @@ describe('FileTreeFeatureComponent', () => {
     mkdirMock.mockResolvedValue(undefined);
     moveMock.mockReset();
     moveMock.mockResolvedValue(undefined);
+    moveIntoDirectoryMock.mockReset();
+    moveIntoDirectoryMock.mockImplementation(
+      async (sourcePath: string, targetDirectoryPath: string) => {
+        const name = sourcePath.split('/').filter(Boolean).pop() ?? sourcePath;
+        const destination =
+          targetDirectoryPath === '.'
+            ? `./${name}`
+            : `${targetDirectoryPath}/${name}`;
+        if (destination === sourcePath || sourcePath === targetDirectoryPath) {
+          return null;
+        }
+        if (await existsMock(destination)) {
+          throw new Error(`「${name}」は既に存在します`);
+        }
+        await moveMock(sourcePath, destination);
+        return { from: sourcePath, to: destination };
+      },
+    );
     removeMock.mockReset();
     removeMock.mockResolvedValue(undefined);
     existsMock.mockReset();

@@ -1,7 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import {
+  basenameOfPath,
   buildMoveDestination,
   canMoveNode,
+  fileTreeNodeFromPath,
   parentPathOf,
   parseLsLine,
   parseLsOutput,
@@ -56,6 +58,21 @@ describe('file-tree util', () => {
       './docs/main.ts',
     );
     expect(buildMoveDestination({ name: 'main.ts' }, '.')).toBe('./main.ts');
+  });
+
+  it('resolves basename of paths', () => {
+    expect(basenameOfPath('./docs/readme.md')).toBe('readme.md');
+    expect(basenameOfPath('./docs')).toBe('docs');
+    expect(basenameOfPath('.')).toBe('');
+    expect(basenameOfPath('/app/src/main.js')).toBe('main.js');
+  });
+
+  it('builds a synthetic tree node from a path', () => {
+    expect(fileTreeNodeFromPath('./docs/main.ts')).toEqual({
+      name: 'main.ts',
+      path: './docs/main.ts',
+      isDirectory: false,
+    });
   });
 
   it('rejects moving a node onto itself', () => {
