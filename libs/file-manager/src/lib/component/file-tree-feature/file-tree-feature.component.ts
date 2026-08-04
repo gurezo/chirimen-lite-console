@@ -13,7 +13,12 @@ import { ConfirmDialogComponent, DialogService } from '@libs-dialogs';
 import { ButtonComponent } from '@libs-shared';
 import { SerialConnectionViewModelFacade } from '@libs-web-serial';
 import { firstValueFrom } from 'rxjs';
-import { joinPath, parentPathOf } from '../../functions';
+import {
+  buildMoveDestination,
+  canMoveNode,
+  joinPath,
+  parentPathOf,
+} from '../../functions';
 import type { FileContextMenuAction } from '../../models/file-context-menu.types';
 import type { FileRenamedEvent } from '../../models/file-lifecycle.types';
 import type { FileNameDialogData } from '../../models/file-name-dialog.types';
@@ -28,6 +33,7 @@ import { FileNameDialogComponent } from '../file-name-dialog/file-name-dialog.co
 import {
   FileTreeComponent,
   FileTreeContextMenuEvent,
+  FileTreeNodeDropEvent,
 } from '../file-tree/file-tree.component';
 
 @Component({
@@ -77,6 +83,7 @@ export class FileTreeFeatureComponent {
   listFetchFailed = false;
   contextTarget: FileTreeNode | null = null;
   operationBusy = false;
+  parentDropActive = false;
 
   private loadedForLogin = false;
   private lastVmKey = '';
@@ -236,6 +243,46 @@ export class FileTreeFeatureComponent {
     this.fileSelected.emit(node.path);
   }
 
+  onNodeDropped(event: FileTreeNodeDropEvent): void {
+    if (this.remoteOpsDisabled) {
+      return;
+    }
+    void this.withBusy(() =>
+      this.moveNodeToDirectory(event.source, event.targetDirectory.path),
+    );
+  }
+
+  onParentDragOver(event: DragEvent): void {
+    if (this.remoteOpsDisabled || this.currentPath() === '.') {
+      return;
+    }
+    event.preventDefault();
+    if (event.dataTransfer) {
+      event.dataTransfer.dropEffect = 'move';
+    }
+    this.parentDropActive = true;
+  }
+
+  onParentDragLeave(): void {
+    this.parentDropActive = false;
+  }
+
+  onParentDrop(event: DragEvent): void {
+    event.preventDefault();
+    this.parentDropActive = false;
+    if (this.remoteOpsDisabled || this.currentPath() === '.') {
+      return;
+    }
+    const source = this.resolveDroppedNode(event);
+    if (!source) {
+      return;
+    }
+    const targetDirectoryPath = parentPathOf(this.currentPath());
+    void this.withBusy(() =>
+      this.moveNodeToDirectory(source, targetDirectoryPath),
+    );
+  }
+
   onNodeContextMenu({ node, event }: FileTreeContextMenuEvent): void {
     event.preventDefault();
     event.stopPropagation();
@@ -373,6 +420,35 @@ export class FileTreeFeatureComponent {
     await this.file.move(target.path, destination);
     await this.reload();
     this.fileRenamed.emit({ from: target.path, to: destination });
+  }
+
+  private async moveNodeToDirectory(
+    source: FileTreeNode,
+    targetDirectoryPath: string,
+  ): Promise<void> {
+    if (!canMoveNode(source, targetDirectoryPath)) {
+      return;
+    }
+    const destination = buildMoveDestination(source, targetDirectoryPath);
+    if (destination === source.path) {
+      return;
+    }
+    if (await this.file.exists(destination)) {
+      throw new Error(`「${source.name}」は既に存在します`);
+    }
+    await this.file.move(source.path, destination);
+    await this.reload();
+    this.fileRenamed.emit({ from: source.path, to: destination });
+  }
+
+  private resolveDroppedNode(event: DragEvent): FileTreeNode | null {
+    const path =
+      event.dataTransfer?.getData('application/x-chirimen-file-tree-path') ||
+      event.dataTransfer?.getData('text/plain');
+    if (!path) {
+      return null;
+    }
+    return this.nodes.find((node) => node.path === path) ?? null;
   }
 
   private async deleteNode(target: FileTreeNode): Promise<void> {

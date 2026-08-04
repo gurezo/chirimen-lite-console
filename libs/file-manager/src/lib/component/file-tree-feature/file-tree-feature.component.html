@@ -103,7 +103,19 @@
         </p>
 
         @if (currentPath() !== '.' && !remoteOpsDisabled) {
-          <button type="button" class="text-xs underline" (click)="goParent()">
+          <button
+            type="button"
+            class="text-xs underline rounded px-1"
+            [class.bg-blue-100]="parentDropActive"
+            [class.outline]="parentDropActive"
+            [class.outline-2]="parentDropActive"
+            [class.outline-dashed]="parentDropActive"
+            [class.outline-blue-600]="parentDropActive"
+            (click)="goParent()"
+            (dragover)="onParentDragOver($event)"
+            (dragleave)="onParentDragLeave()"
+            (drop)="onParentDrop($event)"
+          >
             ← parent
           </button>
         }
@@ -126,6 +138,7 @@
             (directorySelected)="onDirectorySelected($event)"
             (fileSelected)="onFileSelected($event)"
             (nodeContextMenu)="onNodeContextMenu($event)"
+            (nodeDropped)="onNodeDropped($event)"
           />
         }
       </div>
