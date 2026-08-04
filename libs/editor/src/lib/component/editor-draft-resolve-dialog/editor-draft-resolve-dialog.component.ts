@@ -52,6 +52,10 @@ export interface EditorDraftResolveDialogData {
       .dialog-actions button:hover {
         background: rgba(0, 0, 0, 0.04);
       }
+      .dialog-actions button:focus-visible {
+        outline: 2px solid #2563eb;
+        outline-offset: 2px;
+      }
     `,
   ],
 })

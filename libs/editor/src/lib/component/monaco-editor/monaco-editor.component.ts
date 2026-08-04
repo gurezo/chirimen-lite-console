@@ -22,6 +22,15 @@ export type MonacoEditorOptions = {
 };
 
 declare const monaco: {
+  KeyMod: {
+    CtrlCmd: number;
+    Shift: number;
+    Alt: number;
+  };
+  KeyCode: {
+    KeyS: number;
+    KeyF: number;
+  };
   editor: {
     setModelLanguage: (
       model: editor.ITextModel,
@@ -75,6 +84,7 @@ export class MonacoEditorComponent {
   onEditorInit(editorInstance: editor.IStandaloneCodeEditor): void {
     this.editorInstance = editorInstance;
     this.applyEditorOptions(editorInstance, this.editorOptions());
+    this.bindPageOwnedShortcuts(editorInstance);
     this.editorInitialized.emit(editorInstance);
     this.observeContainerResize(editorInstance);
     editorInstance.onDidChangeModelContent((event) => {
@@ -83,6 +93,28 @@ export class MonacoEditorComponent {
       }
       this.contentEdited.emit();
     });
+  }
+
+  /**
+   * Steal Ctrl/Cmd+S and Shift+Alt/Option+F from Monaco so EditorPage's
+   * window:keydown handler remains the single owner (avoids double format /
+   * browser save dialog conflicts).
+   */
+  private bindPageOwnedShortcuts(
+    editorInstance: editor.IStandaloneCodeEditor,
+  ): void {
+    if (typeof monaco === 'undefined') {
+      return;
+    }
+    const noop = (): void => undefined;
+    editorInstance.addCommand(
+      monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyS,
+      noop,
+    );
+    editorInstance.addCommand(
+      monaco.KeyMod.Shift | monaco.KeyMod.Alt | monaco.KeyCode.KeyF,
+      noop,
+    );
   }
 
   private observeContainerResize(

@@ -47,18 +47,27 @@ describe('MonacoEditorComponent', () => {
   });
 
   it('should call layout when the container resizes', () => {
+    vi.stubGlobal('monaco', {
+      KeyMod: { CtrlCmd: 2048, Shift: 1024, Alt: 512 },
+      KeyCode: { KeyS: 49, KeyF: 36 },
+      editor: { setModelLanguage: vi.fn() },
+    });
+
     const layout = vi.fn();
+    const addCommand = vi.fn();
     const editorInstance = {
       layout,
       updateOptions: vi.fn(),
       getModel: () => null,
       onDidChangeModelContent: vi.fn(),
+      addCommand,
     } as unknown as editor.IStandaloneCodeEditor;
 
     component.onEditorInit(editorInstance);
 
     expect(observeSpy).toHaveBeenCalled();
     expect(layout).toHaveBeenCalled();
+    expect(addCommand).toHaveBeenCalledTimes(2);
 
     layout.mockClear();
     resizeCallback?.(
@@ -75,6 +84,7 @@ describe('MonacoEditorComponent', () => {
       updateOptions: vi.fn(),
       getModel: () => null,
       onDidChangeModelContent: vi.fn(),
+      addCommand: vi.fn(),
     } as unknown as editor.IStandaloneCodeEditor;
 
     component.onEditorInit(editorInstance);
