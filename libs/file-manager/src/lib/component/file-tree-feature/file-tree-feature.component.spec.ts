@@ -504,6 +504,22 @@ describe('FileTreeFeatureComponent', () => {
     });
   });
 
+  it('moves a path via moveDroppedPath for external drop targets', async () => {
+    const fixture = await compileAndCreate();
+    await connectReady(fixture);
+    const renamedSpy = vi.spyOn(fixture.componentInstance.fileRenamed, 'emit');
+
+    fixture.componentInstance.moveDroppedPath('./main.ts', './docs');
+
+    await vi.waitFor(() => {
+      expect(moveMock).toHaveBeenCalledWith('./main.ts', './docs/main.ts');
+    });
+    expect(renamedSpy).toHaveBeenCalledWith({
+      from: './main.ts',
+      to: './docs/main.ts',
+    });
+  });
+
   it('does not move when the drop destination already exists', async () => {
     existsMock.mockResolvedValue(true);
     const fixture = await compileAndCreate();
