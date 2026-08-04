@@ -1,0 +1,12 @@
+{
+  "projects": {
+    "default": "chirimen-lite-console"
+  },
+  "targets": {
+    "chirimen-lite-console": {
+      "hosting": {
+        "chirimen-lite-console": ["chirimen-lite-console"]
+      }
+    }
+  }
+}
