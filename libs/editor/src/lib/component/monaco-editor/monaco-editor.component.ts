@@ -65,6 +65,16 @@ export class MonacoEditorComponent {
     readOnly: false,
   });
 
+  /**
+   * Stable options for ngx-monaco-editor-v2. That library reinits (dispose +
+   * recreate) whenever the `[options]` input identity changes; language and
+   * readOnly are applied in-place via {@link applyEditorOptions} instead.
+   */
+  readonly baseEditorOptions: MonacoEditorOptions = {
+    theme: 'vs-dark',
+    automaticLayout: true,
+  };
+
   private editorInstance: editor.IStandaloneCodeEditor | null = null;
   private resizeObserver?: ResizeObserver;
 
