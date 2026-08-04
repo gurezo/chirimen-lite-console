@@ -204,7 +204,7 @@ Web Serial の物理接続と Linux シェルのログイン状態は別であ�
 - **接続直後の `login:` では発火しない**。一度シェル到達（`ready === true`）したあとに限りログアウト完了とみなす。
 - **`logout` 失敗でシェルが残る場合はリセットしない**（末尾がシェルプロンプトのままなら `logoutCompletedEpoch` は増えない）。
 - **再接続時**は新しい connection epoch と `resetSession()` によりオートログイン（`runAfterConnect$`）を再実行できる。
-- **Editor 未保存内容**はデバイスへ書き戻せず失われるため、`EditorDraftService` が同じタブの `sessionStorage` に **ファイルパス単位**でドラフトを保持する。Editor 再表示時は自動復元せず、Restore / Discard / Reload from device を選択できる。保存状態は `Saved to device` / `Unsaved changes` / `Draft saved locally` / `Saving` / `Save failed` を区別し、Draft 保存だけではデバイス保存済みとはみなさない。未保存のまま別ファイル選択・別ページ遷移・ブラウザ終了する場合は確認する（Draft 自体は同一タブの sessionStorage に残る）。
+- **Editor 未保存内容**はデバイスへ書き戻せず失われるため、`EditorDraftService` が同じタブの `sessionStorage` に **ファイルパス単位**でドラフトを保持する。Editor 再表示時は自動復元せず、Restore / Discard / Reload from device を選択できる。保存状態は `Saved to device` / `Unsaved changes` / `Draft saved locally` / `Saving` / `Save failed` を区別し、Draft 保存だけではデバイス保存済みとはみなさない。未保存のまま別ファイル選択・別ページ遷移・ブラウザ終了する場合は確認する（Draft 自体は同一タブの sessionStorage に残る）。利用者向けの操作手順・制約は [libs/editor/README.md](../libs/editor/README.md)（[#816](https://github.com/gurezo/chirimen-lite-console/issues/816)）を参照する。
 - **Editor 実ファイル保存**（[#807](https://github.com/gurezo/chirimen-lite-console/issues/807)）は `FileContentService.writeTextFile` が **一時ファイルへ書込 → サイズ検証 → `mv` で対象へ置換 → 保存後検証** する。置換成功まで元ファイルは触れない。長い内容は heredoc ではなく base64 チャンク転送を使う。失敗時は一時ファイルをベストエフォートで削除し、Editor 側は内容と Draft を維持したまま `Save failed` にする。未接続・権限・容量・タイムアウト・検証不一致は判別しやすいメッセージへ正規化する。
 - **ユーザー通知**: ログアウト検出時に `SerialNotificationService.notifyLogoutDetected()` でトーストを表示する（接続成功／失敗トーストと同系統）。
 - **入力ブロック（ログアウト）**: Terminal で `logout` / `exit` を送ると `logoutPending` が立ち、Console 全体にローダーオーバーレイを表示して操作をブロックする。失敗してシェルへ戻った場合、または 30 秒タイムアウト時はローダーを解除する。

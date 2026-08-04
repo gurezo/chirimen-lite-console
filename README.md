@@ -7,6 +7,10 @@ This project was generated with [Angular CLI](https://github.com/angular/angular
 - **apps/console** — メインの Web アプリ（CHIRIMEN Lite 接続・ターミナル・エディタ・Wi‑Fi 設定など）
 - **libs/** — 機能別ライブラリ（connect, console-shell, dialogs, editor, example, file-manager, i2cdetect, pin-assign-panel, remote, setup, shared, terminal, web-serial, wifi など）。`tsconfig.base.json` の `paths` と [CONTRIBUTING.md](CONTRIBUTING.md) のスコープ一覧を参照してください。
 
+## Editor の利用方法
+
+CHIRIMEN Lite 上のファイルを開いて編集・保存する手順、Save と Draft の違い、対応形式・サイズ上限・トラブルシュートは [libs/editor/README.md](libs/editor/README.md) を参照してください。
+
 ## 📚 リファクタリング履歴
 
 このプロジェクトは段階的なリファクタリングを経て、保守性と拡張性の高いアーキテクチャに進化しています。
