@@ -722,4 +722,86 @@ describe('EditorPageComponent', () => {
     );
     expect(component.loadError()?.message).toContain('UTF-8');
   });
+
+  it('should save on Ctrl/Cmd+S shortcut', async () => {
+    await loadPath('/home/pi/main.js', 'loaded content');
+    component.onCodeChange('edited');
+    component.onContentEdited();
+    const saveSpy = vi.spyOn(component, 'saveCurrentFile').mockResolvedValue();
+
+    await component.onKeydown(
+      new KeyboardEvent('keydown', { key: 's', ctrlKey: true }),
+    );
+    expect(saveSpy).toHaveBeenCalledTimes(1);
+
+    saveSpy.mockClear();
+    await component.onKeydown(
+      new KeyboardEvent('keydown', { key: 's', metaKey: true }),
+    );
+    expect(saveSpy).toHaveBeenCalledTimes(1);
+  });
+
+  it('should format on Shift+Alt+F shortcut', async () => {
+    await loadPath('/home/pi/main.js', 'const x=1');
+    const formatSpy = vi
+      .spyOn(component, 'formatCurrentFile')
+      .mockResolvedValue();
+
+    const event = new KeyboardEvent('keydown', {
+      key: 'f',
+      shiftKey: true,
+      altKey: true,
+    });
+    const preventSpy = vi.spyOn(event, 'preventDefault');
+
+    await component.onKeydown(event);
+
+    expect(preventSpy).toHaveBeenCalled();
+    expect(formatSpy).toHaveBeenCalledTimes(1);
+  });
+
+  it('should open draft resolve dialog with autoFocus and Escape enabled', async () => {
+    const closed = mockDialogResult(undefined);
+    draftServiceMock.list.mockReturnValueOnce([
+      {
+        path: '/home/pi/draft.js',
+        content: 'restored draft',
+        updatedAt: Date.now(),
+      },
+    ]);
+
+    const initPromise = component.ngOnInit();
+    closed.next(undefined);
+    closed.complete();
+    await initPromise;
+
+    expect(dialogServiceMock.open).toHaveBeenCalledWith(
+      expect.any(Function),
+      expect.objectContaining({
+        autoFocus: true,
+        data: { path: '/home/pi/draft.js' },
+      }),
+    );
+    const config = dialogServiceMock.open.mock.calls[0]?.[1] as {
+      disableClose?: boolean;
+    };
+    expect(config.disableClose).toBeUndefined();
+  });
+
+  it('should open confirm dialogs with autoFocus', async () => {
+    await loadPath('/home/pi/main.js', 'loaded content');
+    component.onCodeChange('dirty');
+    component.onContentEdited();
+
+    const closed = mockDialogResult(false);
+    const deactivatePromise = component.canDeactivate();
+    closed.next(false);
+    closed.complete();
+    await deactivatePromise;
+
+    expect(dialogServiceMock.open).toHaveBeenCalledWith(
+      expect.any(Function),
+      expect.objectContaining({ autoFocus: true }),
+    );
+  });
 });
