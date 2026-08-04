@@ -544,4 +544,84 @@ describe('FileTreeFeatureComponent', () => {
     expect(touchMock).not.toHaveBeenCalled();
     expect(listTreeMock).not.toHaveBeenCalled();
   });
+
+  it('shows never-connected empty state before serial connects', async () => {
+    const fixture = await compileAndCreate();
+    fixture.detectChanges();
+
+    expect(fixture.componentInstance.viewState).toBe('neverConnected');
+    expect(fixture.nativeElement.textContent).toContain(
+      'CHIRIMEN Lite に接続されていません',
+    );
+  });
+
+  it('shows connecting state while bootstrap is not ready', async () => {
+    const fixture = await compileAndCreate();
+    fixture.detectChanges();
+    vmSignal.set({
+      ...baseVm,
+      isConnected: true,
+      isLoggedIn: false,
+      setupStatus: 'idle',
+    });
+    fixture.detectChanges();
+
+    expect(fixture.componentInstance.viewState).toBe('connecting');
+    expect(fixture.nativeElement.textContent).toContain(
+      'CHIRIMEN Lite に接続しています',
+    );
+  });
+
+  it('shows empty directory state when listTree returns no nodes', async () => {
+    listTreeMock.mockResolvedValue([]);
+    const fixture = await compileAndCreate();
+    await connectReady(fixture);
+    fixture.detectChanges();
+
+    expect(fixture.componentInstance.viewState).toBe('empty');
+    expect(fixture.nativeElement.textContent).toContain(
+      'このフォルダーにはファイルがありません',
+    );
+  });
+
+  it('shows fetch failure with retry and reloads on click', async () => {
+    listTreeMock.mockRejectedValueOnce(new Error('disk full'));
+    const fixture = await compileAndCreate();
+    fixture.detectChanges();
+    vmSignal.set({
+      ...baseVm,
+      isConnected: true,
+      isLoggedIn: true,
+      setupStatus: 'ready',
+    });
+    await vi.waitFor(() => {
+      expect(fixture.componentInstance.viewState).toBe('fetchFailed');
+    });
+    fixture.detectChanges();
+
+    expect(fixture.nativeElement.textContent).toContain(
+      'ファイル一覧を取得できませんでした',
+    );
+    expect(fixture.nativeElement.textContent).toContain('再試行');
+
+    listTreeMock.mockResolvedValueOnce(treeNodes);
+    await fixture.componentInstance.reload();
+    fixture.detectChanges();
+
+    expect(fixture.componentInstance.viewState).toBe('ready');
+    expect(fixture.componentInstance.nodes).toEqual(treeNodes);
+  });
+
+  it('shows disconnected state after a prior connected session ends', async () => {
+    const fixture = await compileAndCreate();
+    await connectReady(fixture);
+    vmSignal.set({ ...baseVm, isConnected: false });
+    fixture.detectChanges();
+
+    expect(fixture.componentInstance.viewState).toBe('disconnected');
+    expect(fixture.nativeElement.textContent).toContain(
+      'CHIRIMEN Lite との接続が切断されました',
+    );
+    expect(fixture.componentInstance.contextMenuDisabled).toBe(true);
+  });
 });

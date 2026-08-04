@@ -558,4 +558,34 @@ describe('EditorPageComponent', () => {
     expect(fileServiceMock.touch).not.toHaveBeenCalled();
     expect(notifyMock.error).toHaveBeenCalled();
   });
+
+  it('should retry loading the path from loadError', async () => {
+    await loadPath('/home/pi/ok.js', 'ok');
+    component.loadError.set({
+      path: '/home/pi/binary.bin',
+      message: 'ファイルの読み込みに失敗しました: /home/pi/binary.bin',
+      detail: 'Target file is not a text file',
+    });
+
+    editorServiceMock.loadTextFile.mockClear();
+    editorServiceMock.loadTextFile.mockResolvedValue('recovered');
+
+    await component.retryLoadCurrentFile();
+
+    expect(editorServiceMock.loadTextFile).toHaveBeenCalledWith(
+      '/home/pi/binary.bin',
+    );
+    expect(component.loadError()).toBeNull();
+    expect(component.code()).toBe('recovered');
+  });
+
+  it('should skip format when serial is disconnected', async () => {
+    await loadPath('/home/pi/main.js', 'loaded content');
+    connectionVmSignal.update((vm) => ({ ...vm, isConnected: false }));
+    editorServiceMock.formatDocument.mockClear();
+
+    await component.formatCurrentFile();
+
+    expect(editorServiceMock.formatDocument).not.toHaveBeenCalled();
+  });
 });
