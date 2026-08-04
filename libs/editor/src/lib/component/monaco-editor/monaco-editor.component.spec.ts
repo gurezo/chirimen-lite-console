@@ -42,6 +42,29 @@ describe('MonacoEditorComponent', () => {
     vi.unstubAllGlobals();
   });
 
+  function createEditorMock(
+    overrides: Partial<{
+      getValue: ReturnType<typeof vi.fn>;
+      setValue: ReturnType<typeof vi.fn>;
+      layout: ReturnType<typeof vi.fn>;
+      updateOptions: ReturnType<typeof vi.fn>;
+      getModel: ReturnType<typeof vi.fn>;
+      onDidChangeModelContent: ReturnType<typeof vi.fn>;
+      addCommand: ReturnType<typeof vi.fn>;
+    }> = {},
+  ): editor.IStandaloneCodeEditor {
+    return {
+      getValue: overrides.getValue ?? vi.fn().mockReturnValue(''),
+      setValue: overrides.setValue ?? vi.fn(),
+      layout: overrides.layout ?? vi.fn(),
+      updateOptions: overrides.updateOptions ?? vi.fn(),
+      getModel: overrides.getModel ?? vi.fn().mockReturnValue(null),
+      onDidChangeModelContent:
+        overrides.onDidChangeModelContent ?? vi.fn(),
+      addCommand: overrides.addCommand ?? vi.fn(),
+    } as unknown as editor.IStandaloneCodeEditor;
+  }
+
   it('should create', () => {
     expect(component).toBeTruthy();
   });
@@ -75,13 +98,10 @@ describe('MonacoEditorComponent', () => {
 
     const updateOptions = vi.fn();
     const model = {} as editor.ITextModel;
-    const editorInstance = {
-      layout: vi.fn(),
+    const editorInstance = createEditorMock({
       updateOptions,
-      getModel: () => model,
-      onDidChangeModelContent: vi.fn(),
-      addCommand: vi.fn(),
-    } as unknown as editor.IStandaloneCodeEditor;
+      getModel: vi.fn().mockReturnValue(model),
+    });
 
     component.onEditorInit(editorInstance);
     updateOptions.mockClear();
@@ -99,6 +119,48 @@ describe('MonacoEditorComponent', () => {
     expect(setModelLanguage).toHaveBeenCalledWith(model, 'javascript');
   });
 
+  it('should push code into monaco via setValue when code model changes', () => {
+    vi.stubGlobal('monaco', {
+      KeyMod: { CtrlCmd: 2048, Shift: 1024, Alt: 512 },
+      KeyCode: { KeyS: 49, KeyF: 36 },
+      editor: { setModelLanguage: vi.fn() },
+    });
+
+    const getValue = vi.fn().mockReturnValue('');
+    const setValue = vi.fn();
+    const editorInstance = createEditorMock({ getValue, setValue });
+
+    component.onEditorInit(editorInstance);
+    setValue.mockClear();
+    getValue.mockReturnValue('');
+
+    fixture.componentRef.setInput('code', "console.log('hello');\n");
+    fixture.detectChanges();
+
+    expect(setValue).toHaveBeenCalledWith("console.log('hello');\n");
+  });
+
+  it('should sync current code on editor init', () => {
+    vi.stubGlobal('monaco', {
+      KeyMod: { CtrlCmd: 2048, Shift: 1024, Alt: 512 },
+      KeyCode: { KeyS: 49, KeyF: 36 },
+      editor: { setModelLanguage: vi.fn() },
+    });
+
+    fixture.componentRef.setInput('code', 'preloaded');
+    fixture.detectChanges();
+
+    const setValue = vi.fn();
+    const editorInstance = createEditorMock({
+      getValue: vi.fn().mockReturnValue(''),
+      setValue,
+    });
+
+    component.onEditorInit(editorInstance);
+
+    expect(setValue).toHaveBeenCalledWith('preloaded');
+  });
+
   it('should call layout when the container resizes', () => {
     vi.stubGlobal('monaco', {
       KeyMod: { CtrlCmd: 2048, Shift: 1024, Alt: 512 },
@@ -108,13 +170,7 @@ describe('MonacoEditorComponent', () => {
 
     const layout = vi.fn();
     const addCommand = vi.fn();
-    const editorInstance = {
-      layout,
-      updateOptions: vi.fn(),
-      getModel: () => null,
-      onDidChangeModelContent: vi.fn(),
-      addCommand,
-    } as unknown as editor.IStandaloneCodeEditor;
+    const editorInstance = createEditorMock({ layout, addCommand });
 
     component.onEditorInit(editorInstance);
 
@@ -131,14 +187,7 @@ describe('MonacoEditorComponent', () => {
   });
 
   it('should disconnect ResizeObserver on destroy', () => {
-    const layout = vi.fn();
-    const editorInstance = {
-      layout,
-      updateOptions: vi.fn(),
-      getModel: () => null,
-      onDidChangeModelContent: vi.fn(),
-      addCommand: vi.fn(),
-    } as unknown as editor.IStandaloneCodeEditor;
+    const editorInstance = createEditorMock();
 
     component.onEditorInit(editorInstance);
     fixture.destroy();
