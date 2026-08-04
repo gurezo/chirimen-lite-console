@@ -6,7 +6,15 @@ import { createPiZeroShellExecOptions } from '../functions/pi-zero-shell-exec-op
 import { FileUtils } from '../functions/file.utils';
 import { SERIAL_TIMEOUT } from '../functions/serial-timeout';
 import { wrapSerialError } from '../functions/serial-error-wrap';
-import type { FileContentInfo } from '../models/file-content.types';
+import {
+  isNonUtf8TextError,
+  parseTextFileBytes,
+  serializeTextFileForSave,
+} from '../functions/text-file-codec';
+import type {
+  FileContentInfo,
+  FileTransferOptions,
+} from '../models/file-content.types';
 import { PiZeroPromptDetectorService } from './pi-zero-prompt-detector.service';
 import { SerialFacadeService } from './serial-facade.service';
 
@@ -24,6 +32,30 @@ export class FileContentService {
 
   private shellExecOptions(timeout: number = SERIAL_TIMEOUT.DEFAULT) {
     return createPiZeroShellExecOptions(this.promptDetector, { timeout });
+  }
+
+  /**
+   * Remote file size in bytes via `wc -c` (preflight for large-file gates).
+   */
+  async getByteSize(path: string): Promise<number> {
+    try {
+      const stdout = (
+        await firstValueFrom(
+          this.serial.exec$(
+            FileUtils.generateByteSizeCommand(path),
+            this.shellExecOptions(SERIAL_TIMEOUT.DEFAULT),
+          ),
+        )
+      ).stdout;
+
+      const size = FileUtils.parseByteSizeOutput(stdout);
+      if (size === null) {
+        throw new Error(`could not parse byte size for ${path}`);
+      }
+      return size;
+    } catch (error: unknown) {
+      throw wrapSerialError('Failed to get file size', error);
+    }
   }
 
   async readFile(path: string): Promise<FileContentInfo> {
@@ -45,24 +77,36 @@ export class FileContentService {
       }
 
       const buffer = FileUtils.base64ToArrayBuffer(content);
+      const bytes = new Uint8Array(buffer);
       const isText = FileUtils.isTextFile(path);
 
       if (isText) {
-        const textContent = new TextDecoder().decode(new Uint8Array(buffer));
-        return {
-          content: textContent,
-          isText: true,
-          size: textContent.length,
-          encoding: 'utf-8',
-        };
-      } else {
-        return {
-          content: buffer,
-          isText: false,
-          size: buffer.byteLength,
-        };
+        try {
+          const parsed = parseTextFileBytes(bytes);
+          return {
+            content: parsed.editorText,
+            isText: true,
+            size: parsed.utf8ByteLength,
+            encoding: 'utf-8',
+            meta: parsed.meta,
+          };
+        } catch (error: unknown) {
+          if (isNonUtf8TextError(error)) {
+            throw error;
+          }
+          throw error;
+        }
       }
+
+      return {
+        content: buffer,
+        isText: false,
+        size: buffer.byteLength,
+      };
     } catch (error: unknown) {
+      if (isNonUtf8TextError(error)) {
+        throw error;
+      }
       throw wrapSerialError('Failed to read file', error);
     }
   }
@@ -75,8 +119,14 @@ export class FileContentService {
    * 3. `mv` で対象へ置換（置換成功まで元ファイルは非接触）
    * 4. 保存後検証
    * 失敗時は一時ファイルをベストエフォートで削除する。
+   *
+   * `content` はデバイス上のバイト列に対応する文字列（BOM / CRLF 適用済み）を渡す。
    */
-  async writeTextFile(path: string, content: string): Promise<void> {
+  async writeTextFile(
+    path: string,
+    content: string,
+    options?: FileTransferOptions,
+  ): Promise<void> {
     if (!this.serial.isConnected()) {
       throw classifyFileWriteError(new Error('not connected'));
     }
@@ -86,7 +136,7 @@ export class FileContentService {
     let replaced = false;
 
     try {
-      await this.writeTextPayload(tempPath, content, expectedBytes);
+      await this.writeTextPayload(tempPath, content, expectedBytes, options);
       await this.assertRemoteByteSize(tempPath, expectedBytes);
 
       await firstValueFrom(
@@ -98,6 +148,7 @@ export class FileContentService {
       replaced = true;
 
       await this.verifySavedTextFile(path, content, expectedBytes);
+      options?.onProgress?.(100);
     } catch (error: unknown) {
       if (!replaced) {
         await this.cleanupTempFile(tempPath);
@@ -106,7 +157,11 @@ export class FileContentService {
     }
   }
 
-  async writeBinaryFile(path: string, buffer: ArrayBuffer): Promise<void> {
+  async writeBinaryFile(
+    path: string,
+    buffer: ArrayBuffer,
+    options?: FileTransferOptions,
+  ): Promise<void> {
     try {
       const base64 = FileUtils.arrayBufferToBase64(buffer);
 
@@ -121,7 +176,8 @@ export class FileContentService {
       );
 
       const lineLength = 512;
-      for (let i = 0; i <= Math.floor(base64.length / lineLength); i++) {
+      const totalChunks = Math.floor(base64.length / lineLength) + 1;
+      for (let i = 0; i < totalChunks; i++) {
         const line = base64.substring(i * lineLength, (i + 1) * lineLength);
         await firstValueFrom(
           this.serial.exec$(line, {
@@ -130,6 +186,11 @@ export class FileContentService {
           }),
         );
         await this.sleep(1);
+        if (options?.onProgress && totalChunks > 0) {
+          // Leave headroom for mv/verify; editor may set 100 on completion.
+          const percent = Math.min(99, Math.round(((i + 1) / totalChunks) * 99));
+          options.onProgress(percent);
+        }
       }
 
       await firstValueFrom(this.serial.send$('\x04'));
@@ -163,10 +224,15 @@ export class FileContentService {
     path: string,
     content: string,
     expectedBytes: number,
+    options?: FileTransferOptions,
   ): Promise<void> {
-    if (expectedBytes > FileUtils.TEXT_CHUNK_THRESHOLD_BYTES) {
+    const useBinary =
+      expectedBytes > FileUtils.TEXT_CHUNK_THRESHOLD_BYTES ||
+      FileUtils.requiresExactByteWrite(content);
+
+    if (useBinary) {
       const buffer = new TextEncoder().encode(content).buffer;
-      await this.writeBinaryFile(path, buffer);
+      await this.writeBinaryFile(path, buffer, options);
       return;
     }
 
@@ -177,6 +243,7 @@ export class FileContentService {
         this.shellExecOptions(SERIAL_TIMEOUT.FILE_TRANSFER),
       ),
     );
+    options?.onProgress?.(90);
   }
 
   private async assertRemoteByteSize(
@@ -216,10 +283,11 @@ export class FileContentService {
     }
 
     const info = await this.readFile(path);
-    if (!info.isText || typeof info.content !== 'string') {
+    if (!info.isText || typeof info.content !== 'string' || !info.meta) {
       throw new Error('content mismatch: saved file is not text');
     }
-    if (info.content !== content) {
+    const restored = serializeTextFileForSave(info.content, info.meta);
+    if (restored !== content) {
       throw new Error('content mismatch: saved file differs from editor content');
     }
   }
