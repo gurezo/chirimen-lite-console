@@ -53,4 +53,47 @@ describe('FileTreeComponent', () => {
     expect(fileButton?.classList.contains('bg-blue-50')).toBe(true);
     expect(buttons[0]?.getAttribute('aria-current')).toBeNull();
   });
+
+  it('moves focus with ArrowDown and ArrowUp', () => {
+    const buttons: NodeListOf<HTMLButtonElement> =
+      fixture.nativeElement.querySelectorAll('button');
+    buttons[0]?.focus();
+    expect(document.activeElement).toBe(buttons[0]);
+
+    buttons[0]?.dispatchEvent(
+      new KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true }),
+    );
+    expect(document.activeElement).toBe(buttons[1]);
+
+    buttons[1]?.dispatchEvent(
+      new KeyboardEvent('keydown', { key: 'ArrowUp', bubbles: true }),
+    );
+    expect(document.activeElement).toBe(buttons[0]);
+  });
+
+  it('moves focus to first and last with Home and End', () => {
+    const buttons: NodeListOf<HTMLButtonElement> =
+      fixture.nativeElement.querySelectorAll('button');
+    buttons[0]?.focus();
+
+    buttons[0]?.dispatchEvent(
+      new KeyboardEvent('keydown', { key: 'End', bubbles: true }),
+    );
+    expect(document.activeElement).toBe(buttons[1]);
+
+    buttons[1]?.dispatchEvent(
+      new KeyboardEvent('keydown', { key: 'Home', bubbles: true }),
+    );
+    expect(document.activeElement).toBe(buttons[0]);
+  });
+
+  it('emits fileSelected when Enter activates a file button', () => {
+    const spy = vi.spyOn(fixture.componentInstance.fileSelected, 'emit');
+    const buttons: NodeListOf<HTMLButtonElement> =
+      fixture.nativeElement.querySelectorAll('button');
+
+    buttons[1]?.click();
+
+    expect(spy).toHaveBeenCalledWith(nodes[1]);
+  });
 });
