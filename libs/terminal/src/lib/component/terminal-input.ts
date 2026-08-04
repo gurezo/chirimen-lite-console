@@ -7,11 +7,14 @@ type SendHandler = (data: string) => void;
 const CSI_ARROW_UP = '\x1b[A';
 const CSI_ARROW_DOWN = '\x1b[B';
 const DEL_BACKSPACE = '\x7f';
+/** ETX — remote shell SIGINT (Ctrl+C). */
+const ETX_INTERRUPT = '\x03';
 
 /**
  * Attaches key input handling to an xterm Terminal instance.
  * Sends keystrokes via {@link onSend} for remote shell interaction (no local echo).
  * Left/Right arrows are ignored per interactive console UX.
+ * Ctrl+C sends ETX so foreground processes (e.g. node) can be interrupted.
  */
 export function attachTerminalInput(
   terminal: Terminal,
@@ -78,6 +81,19 @@ export function attachTerminalInput(
         inputBuffer = inputBuffer.slice(0, -1);
       }
       send(DEL_BACKSPACE);
+      return;
+    }
+
+    const isCtrlC =
+      ev.ctrlKey &&
+      !ev.altKey &&
+      !ev.metaKey &&
+      (ev.key === 'c' || ev.key === 'C' || ev.code === 'KeyC');
+
+    if (isCtrlC) {
+      ev.preventDefault?.();
+      inputBuffer = '';
+      send(ETX_INTERRUPT);
       return;
     }
 
