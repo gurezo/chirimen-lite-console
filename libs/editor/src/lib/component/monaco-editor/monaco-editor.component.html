@@ -4,7 +4,7 @@
 >
   <ngx-monaco-editor
     class="block min-h-0 min-w-0 flex-1"
-    [options]="editorOptions()"
+    [options]="baseEditorOptions"
     [ngModel]="code()"
     (ngModelChange)="code.set($event)"
     (onInit)="onEditorInit($event)"
