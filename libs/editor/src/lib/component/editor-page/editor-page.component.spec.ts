@@ -5,7 +5,12 @@ import { DialogService } from '@libs-dialogs';
 import { FileService } from '@libs-file-manager';
 import { ConsoleShellStore, NotificationService } from '@libs-shared';
 import type { SerialConnectionViewModel } from '@libs-web-serial';
-import { SerialConnectionViewModelFacade } from '@libs-web-serial';
+import {
+  EDITOR_FILE_MAX_BYTES,
+  EDITOR_FILE_WARN_BYTES,
+  NonUtf8TextError,
+  SerialConnectionViewModelFacade,
+} from '@libs-web-serial';
 import { provideMonacoEditor } from 'ngx-monaco-editor-v2';
 import { Subject } from 'rxjs';
 import { EditorDraftService, EditorService } from '../../service';
@@ -100,7 +105,8 @@ describe('EditorPageComponent', () => {
     await fixture.whenStable();
   }
 
-  function mockDialogResult(_result: unknown): Subject<unknown> {
+  function mockDialogResult(..._unused: unknown[]): Subject<unknown> {
+    void _unused;
     const closed = new Subject<unknown>();
     dialogServiceMock.open.mockReturnValueOnce({
       closed: closed.asObservable(),
@@ -638,7 +644,6 @@ describe('EditorPageComponent', () => {
   });
 
   it('should refuse files larger than the max size', async () => {
-    const { EDITOR_FILE_MAX_BYTES } = await import('@libs-web-serial');
     editorServiceMock.getByteSize.mockResolvedValue(EDITOR_FILE_MAX_BYTES + 1);
     editorServiceMock.loadTextFile.mockClear();
 
@@ -652,7 +657,6 @@ describe('EditorPageComponent', () => {
   });
 
   it('should confirm before opening warn-sized files', async () => {
-    const { EDITOR_FILE_WARN_BYTES } = await import('@libs-web-serial');
     const confirmClosed = new Subject<unknown>();
     dialogServiceMock.open
       .mockReturnValueOnce({ closed: confirmClosed.asObservable() })
@@ -683,7 +687,6 @@ describe('EditorPageComponent', () => {
   });
 
   it('should abort warn-sized open when the user cancels', async () => {
-    const { EDITOR_FILE_WARN_BYTES } = await import('@libs-web-serial');
     const confirmClosed = new Subject<unknown>();
     dialogServiceMock.open.mockReturnValueOnce({
       closed: confirmClosed.asObservable(),
@@ -705,7 +708,6 @@ describe('EditorPageComponent', () => {
   });
 
   it('should refuse non UTF-8 files', async () => {
-    const { NonUtf8TextError } = await import('@libs-web-serial');
     editorServiceMock.getByteSize.mockResolvedValue(3);
     editorServiceMock.loadTextFile.mockRejectedValue(new NonUtf8TextError());
 
