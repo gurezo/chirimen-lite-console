@@ -161,6 +161,9 @@ export class ConsoleShellComponent implements OnInit, OnDestroy {
           this.shellStore.applyConnectedLayout();
           void this.router.navigate(['terminal'], { relativeTo: this.route });
         } else if (prev && !next) {
+          if (!this.logoutDisconnectInFlight) {
+            this.notifications.notifyUnexpectedDisconnect();
+          }
           this.logoutDisconnectInFlight = false;
           this.clearLogoutPendingTimeout();
           this.shellStore.resetLayoutAfterDisconnect();

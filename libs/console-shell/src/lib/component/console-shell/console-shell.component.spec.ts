@@ -157,6 +157,7 @@ describe('ConsoleShellComponent', () => {
   let notifyLogoutDetected: ReturnType<typeof vi.fn>;
   let notifyLogoutCancelled: ReturnType<typeof vi.fn>;
   let notifyManualDisconnect: ReturnType<typeof vi.fn>;
+  let notifyUnexpectedDisconnect: ReturnType<typeof vi.fn>;
   let navigateSpy: ReturnType<typeof vi.fn>;
   let activatedRouteMock: ActivatedRoute;
 
@@ -181,6 +182,7 @@ describe('ConsoleShellComponent', () => {
     notifyLogoutDetected = vi.fn();
     notifyLogoutCancelled = vi.fn();
     notifyManualDisconnect = vi.fn();
+    notifyUnexpectedDisconnect = vi.fn();
 
     openDialog = vi.fn().mockReturnValue({ closed: of(undefined) });
     closeAllDialog = vi.fn();
@@ -216,6 +218,7 @@ describe('ConsoleShellComponent', () => {
             notifyLogoutDetected,
             notifyLogoutCancelled,
             notifyManualDisconnect,
+            notifyUnexpectedDisconnect,
           },
         },
         {
@@ -611,6 +614,7 @@ describe('ConsoleShellComponent gridTemplateColumns when right nav closed', () =
             notifyLogoutDetected: vi.fn(),
             notifyLogoutCancelled: vi.fn(),
             notifyManualDisconnect: vi.fn(),
+            notifyUnexpectedDisconnect: vi.fn(),
           },
         },
         {
@@ -707,6 +711,7 @@ describe('ConsoleShellComponent responsive layout', () => {
             notifyLogoutDetected: vi.fn(),
             notifyLogoutCancelled: vi.fn(),
             notifyManualDisconnect: vi.fn(),
+            notifyUnexpectedDisconnect: vi.fn(),
           },
         },
         {
@@ -883,6 +888,7 @@ describe('ConsoleShellComponent layout DOM (connected vs disconnected)', () => {
             notifyLogoutDetected: vi.fn(),
             notifyLogoutCancelled: vi.fn(),
             notifyManualDisconnect: vi.fn(),
+            notifyUnexpectedDisconnect: vi.fn(),
           },
         },
         ConsoleShellStore,
