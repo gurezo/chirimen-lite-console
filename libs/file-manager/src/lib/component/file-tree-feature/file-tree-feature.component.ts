@@ -248,6 +248,22 @@ export class FileTreeFeatureComponent {
     );
   }
 
+  /**
+   * Moves a node identified by path into a directory (e.g. breadcrumb drop).
+   * Uses the same busy/error handling as in-tree drops.
+   */
+  moveDroppedPath(sourcePath: string, targetDirectoryPath: string): void {
+    if (this.remoteOpsDisabled) {
+      return;
+    }
+    const source =
+      this.nodes.find((node) => node.path === sourcePath) ??
+      fileTreeNodeFromPath(sourcePath);
+    void this.withBusy(() =>
+      this.moveNodeToDirectory(source, targetDirectoryPath),
+    );
+  }
+
   onParentDragOver(event: DragEvent): void {
     if (this.remoteOpsDisabled || this.currentPath() === '.') {
       return;
