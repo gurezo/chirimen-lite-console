@@ -8,10 +8,17 @@
           class="file-tree__node inline-flex w-full items-center gap-1 text-left px-2 py-1 rounded hover:bg-gray-100"
           [class.bg-blue-50]="isSelected(node)"
           [class.font-medium]="isSelected(node)"
+          [class.file-tree__node--drop-target]="isDropTarget(node)"
           [attr.aria-current]="isSelected(node) ? 'true' : null"
+          [attr.draggable]="true"
           (click)="onSelect(node)"
           (keydown)="onNodeKeydown($event, i)"
           (contextmenu)="onContextMenu($event, node)"
+          (dragstart)="onDragStart($event, node)"
+          (dragend)="onDragEnd()"
+          (dragover)="onDragOver($event, node)"
+          (dragleave)="onDragLeave(node)"
+          (drop)="onDrop($event, node)"
         >
           @if (node.isDirectory) {
             <mat-icon aria-hidden="true" class="shrink-0 text-amber-500">folder</mat-icon>
