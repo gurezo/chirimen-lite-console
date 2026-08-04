@@ -464,6 +464,85 @@ describe('FileTreeFeatureComponent', () => {
     });
   });
 
+  it('moves a node when dropped onto a directory', async () => {
+    const fixture = await compileAndCreate();
+    await connectReady(fixture);
+    const renamedSpy = vi.spyOn(fixture.componentInstance.fileRenamed, 'emit');
+
+    fixture.componentInstance.onNodeDropped({
+      source: treeNodes[1],
+      targetDirectory: treeNodes[0],
+    });
+
+    await vi.waitFor(() => {
+      expect(moveMock).toHaveBeenCalledWith('./main.ts', './docs/main.ts');
+    });
+    expect(renamedSpy).toHaveBeenCalledWith({
+      from: './main.ts',
+      to: './docs/main.ts',
+    });
+  });
+
+  it('does not move when the drop destination already exists', async () => {
+    existsMock.mockResolvedValue(true);
+    const fixture = await compileAndCreate();
+    await connectReady(fixture);
+
+    fixture.componentInstance.onNodeDropped({
+      source: treeNodes[1],
+      targetDirectory: treeNodes[0],
+    });
+
+    await vi.waitFor(() => {
+      expect(fixture.componentInstance.errorMessage).toBe(
+        '「main.ts」は既に存在します',
+      );
+    });
+    expect(moveMock).not.toHaveBeenCalled();
+  });
+
+  it('moves a node to the parent directory on parent drop', async () => {
+    const nestedNodes: FileTreeNode[] = [
+      { name: 'readme.md', path: './docs/readme.md', isDirectory: false },
+    ];
+    const fixture = await compileAndCreate();
+    await connectReady(fixture);
+
+    listTreeMock.mockResolvedValue(nestedNodes);
+    fixture.componentRef.setInput('currentPath', './docs');
+    await vi.waitFor(() => {
+      expect(listTreeMock).toHaveBeenCalledWith('./docs');
+    });
+    fixture.detectChanges();
+
+    const dataTransfer = {
+      getData: (type: string) =>
+        type === 'text/plain' ||
+        type === 'application/x-chirimen-file-tree-path'
+          ? './docs/readme.md'
+          : '',
+      dropEffect: 'none',
+    } as DataTransfer;
+    const dropEvent = new Event('drop', {
+      bubbles: true,
+      cancelable: true,
+    }) as DragEvent;
+    Object.defineProperty(dropEvent, 'dataTransfer', {
+      value: dataTransfer,
+    });
+
+    const renamedSpy = vi.spyOn(fixture.componentInstance.fileRenamed, 'emit');
+    fixture.componentInstance.onParentDrop(dropEvent);
+
+    await vi.waitFor(() => {
+      expect(moveMock).toHaveBeenCalledWith('./docs/readme.md', './readme.md');
+    });
+    expect(renamedSpy).toHaveBeenCalledWith({
+      from: './docs/readme.md',
+      to: './readme.md',
+    });
+  });
+
   it('emits fileDeleted after deleting a node', async () => {
     dialogOpen.mockReturnValue({ closed: of(true) });
     const fixture = await compileAndCreate();
