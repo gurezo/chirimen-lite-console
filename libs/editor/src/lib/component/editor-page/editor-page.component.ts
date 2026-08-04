@@ -19,7 +19,12 @@ import {
   FileService,
   joinPath,
 } from '@libs-file-manager';
-import { ConsoleShellStore, NotificationService } from '@libs-shared';
+import {
+  ConsoleShellStore,
+  EditorDraft,
+  EditorDraftService,
+  NotificationService,
+} from '@libs-shared';
 import {
   DEFAULT_NEW_TEXT_FILE_META,
   EDITOR_FILE_MAX_BYTES,
@@ -32,7 +37,7 @@ import {
 import type { editor } from 'monaco-editor';
 import { firstValueFrom } from 'rxjs';
 import { resolveEditorLanguage } from '../../functions';
-import { EditorDraft, EditorDraftService, EditorService } from '../../service';
+import { EditorService } from '../../service';
 import {
   EditorDraftResolveChoice,
   EditorDraftResolveDialogComponent,

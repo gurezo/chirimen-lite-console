@@ -3,7 +3,7 @@ import { computed, signal } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { DialogService } from '@libs-dialogs';
 import { FileService } from '@libs-file-manager';
-import { ConsoleShellStore, NotificationService } from '@libs-shared';
+import { ConsoleShellStore, EditorDraftService, NotificationService } from '@libs-shared';
 import type { SerialConnectionViewModel } from '@libs-web-serial';
 import {
   EDITOR_FILE_MAX_BYTES,
@@ -13,7 +13,7 @@ import {
 } from '@libs-web-serial';
 import { provideMonacoEditor } from 'ngx-monaco-editor-v2';
 import { Subject } from 'rxjs';
-import { EditorDraftService, EditorService } from '../../service';
+import { EditorService } from '../../service';
 import { EditorPageComponent } from './editor-page.component';
 
 describe('EditorPageComponent', () => {
