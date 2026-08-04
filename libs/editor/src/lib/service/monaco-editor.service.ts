@@ -1,5 +1,11 @@
-import { Injectable } from '@angular/core';
-
+/**
+ * Legacy Monaco helper — not used by the active ngx-monaco-editor path
+ * (`MonacoEditorComponent` + `EditorPageComponent`).
+ *
+ * Save / Format shortcuts are owned by `EditorPageComponent` (`window:keydown`)
+ * and blocked inside Monaco via `addCommand` no-ops so they do not double-fire.
+ * Do not reintroduce CtrlCmd+S here without removing the page-level handler.
+ */
 @Injectable({
   providedIn: 'root',
 })
@@ -26,7 +32,7 @@ export class MonacoEditorService {
     monaco: any,
     container: HTMLElement,
     jsSrc: string,
-    onSave: (value: string) => void,
+    _onSave: (value: string) => void,
   ) {
     this.editor = monaco.editor.create(container, {
       value: jsSrc,
@@ -38,9 +44,7 @@ export class MonacoEditorService {
       readOnly: false,
       theme: 'vs-dark',
     });
-    this.editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KEY_S, () => {
-      this.saveSource(onSave);
-    });
+    // Intentionally no CtrlCmd+S binding — see class JSDoc.
     this.editor.onDidChangeModelContent(() => {
       this.editedFlag = true;
       // UI上のファイル名色変更などは呼び出し元で対応

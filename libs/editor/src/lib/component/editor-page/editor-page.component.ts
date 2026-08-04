@@ -359,6 +359,7 @@ export class EditorPageComponent implements OnInit {
     const sizeLabel = FileUtils.formatFileSize(byteSize);
     const ref = this.dialog.open(ConfirmDialogComponent, {
       width: '420px',
+      autoFocus: true,
       data: {
         title: '大きなファイル',
         message: `このファイルは ${sizeLabel} あります。読み込みに時間がかかる可能性があります。開きますか？`,
@@ -383,6 +384,7 @@ export class EditorPageComponent implements OnInit {
       width: '400px',
       data,
       disableClose: true,
+      autoFocus: true,
     });
 
     const abortGeneration = ++this.transferAbortGeneration;
@@ -433,6 +435,7 @@ export class EditorPageComponent implements OnInit {
       width: '400px',
       data,
       disableClose: true,
+      autoFocus: true,
     });
 
     const abortGeneration = ++this.transferAbortGeneration;
@@ -530,7 +533,7 @@ export class EditorPageComponent implements OnInit {
     const ref = this.dialog.open(EditorDraftResolveDialogComponent, {
       width: '420px',
       data: { path },
-      disableClose: true,
+      autoFocus: true,
     });
     const result = await firstValueFrom(ref.closed);
     return result === 'restore' || result === 'discard' || result === 'reload'
@@ -548,6 +551,7 @@ export class EditorPageComponent implements OnInit {
     this.promptInFlight = (async () => {
       const ref = this.dialog.open(ConfirmDialogComponent, {
         width: '400px',
+        autoFocus: true,
         data: {
           title: 'Unsaved changes',
           message,
@@ -577,6 +581,7 @@ export class EditorPageComponent implements OnInit {
     const parent = this.shellStore.fileManagerCurrentPath();
     const ref = this.dialog.open(FileNameDialogComponent, {
       width: '360px',
+      autoFocus: true,
       data: {
         title: '新規ファイル',
         confirmLabel: '作成',
