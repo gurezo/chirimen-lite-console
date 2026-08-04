@@ -25,10 +25,14 @@ const DIALOG_LABELS: Record<
 /**
  * Splits a File Manager path into breadcrumb segments with cumulative paths.
  * Intermediate directories are clickable; the last segment is not.
+ * When `includeLastPath` is true (directory browsing), the last segment also
+ * receives a `path` so it can act as a drop target without being clickable.
  */
 export function buildFilePathBreadcrumbSegments(
   rawPath: string,
+  options?: { includeLastPath?: boolean },
 ): BreadcrumbSegment[] {
+  const includeLastPath = options?.includeLastPath ?? false;
   const isAbsolute = rawPath.startsWith('/');
   let rest = rawPath;
   if (rest.startsWith('./')) {
@@ -51,7 +55,11 @@ export function buildFilePathBreadcrumbSegments(
     const path = isAbsolute ? `/${joined}` : `./${joined}`;
 
     if (isLast) {
-      segments.push({ label: part, clickable: false });
+      segments.push(
+        includeLastPath
+          ? { label: part, path, clickable: false }
+          : { label: part, clickable: false },
+      );
     } else {
       segments.push({ label: part, path, clickable: true });
     }
@@ -106,7 +114,13 @@ export function buildConsoleShellBreadcrumbSegments(
   }
 
   if (pathSource) {
-    segments.push(...buildFilePathBreadcrumbSegments(pathSource));
+    segments.push(
+      ...buildFilePathBreadcrumbSegments(pathSource, {
+        // Directory browsing: last segment is a drop target (issue #777).
+        // Selected file: last segment is a file name without path.
+        includeLastPath: !state.selectedFilePath,
+      }),
+    );
   }
 
   return segments;

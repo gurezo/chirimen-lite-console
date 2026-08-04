@@ -12,19 +12,50 @@
             <span aria-hidden="true" class="select-none text-gray-400">/</span>
           }
           @if ($last) {
-            <span aria-current="page" class="font-medium text-gray-800">
+            <span
+              aria-current="page"
+              class="rounded px-0.5 font-medium text-gray-800"
+              [class.bg-blue-100]="isDropTarget(segment)"
+              [class.outline]="isDropTarget(segment)"
+              [class.outline-2]="isDropTarget(segment)"
+              [class.outline-dashed]="isDropTarget(segment)"
+              [class.outline-blue-600]="isDropTarget(segment)"
+              (dragover)="onSegmentDragOver($event, segment)"
+              (dragleave)="onSegmentDragLeave(segment)"
+              (drop)="onSegmentDrop($event, segment)"
+            >
               {{ segment.label }}
             </span>
           } @else if (segment.clickable && segment.path) {
             <button
               type="button"
-              class="cursor-pointer border-0 bg-transparent p-0 text-inherit underline-offset-2 hover:underline"
+              class="cursor-pointer rounded border-0 bg-transparent px-0.5 py-0 text-inherit underline-offset-2 hover:underline"
+              [class.bg-blue-100]="isDropTarget(segment)"
+              [class.outline]="isDropTarget(segment)"
+              [class.outline-2]="isDropTarget(segment)"
+              [class.outline-dashed]="isDropTarget(segment)"
+              [class.outline-blue-600]="isDropTarget(segment)"
               (click)="onSegmentActivate(segment)"
+              (dragover)="onSegmentDragOver($event, segment)"
+              (dragleave)="onSegmentDragLeave(segment)"
+              (drop)="onSegmentDrop($event, segment)"
             >
               {{ segment.label }}
             </button>
           } @else {
-            <span>{{ segment.label }}</span>
+            <span
+              class="rounded px-0.5"
+              [class.bg-blue-100]="isDropTarget(segment)"
+              [class.outline]="isDropTarget(segment)"
+              [class.outline-2]="isDropTarget(segment)"
+              [class.outline-dashed]="isDropTarget(segment)"
+              [class.outline-blue-600]="isDropTarget(segment)"
+              (dragover)="onSegmentDragOver($event, segment)"
+              (dragleave)="onSegmentDragLeave(segment)"
+              (drop)="onSegmentDrop($event, segment)"
+            >
+              {{ segment.label }}
+            </span>
           }
         </li>
       }

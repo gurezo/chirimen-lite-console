@@ -1,5 +1,6 @@
 /// <reference types="vitest/globals" />
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { FILE_TREE_DRAG_MIME } from '@libs-file-manager';
 import { BreadcrumbComponent } from './breadcrumb.component';
 
 describe('BreadcrumbComponent', () => {
@@ -74,5 +75,59 @@ describe('BreadcrumbComponent', () => {
     fixture.detectChanges();
 
     expect(fixture.nativeElement.querySelector('button')).toBeNull();
+  });
+
+  it('emits segmentDrop when a path segment receives a file-tree drop', () => {
+    const emitSpy = vi.spyOn(component.segmentDrop, 'emit');
+    fixture.componentRef.setInput('segments', [
+      { label: 'Console' },
+      { label: 'home', path: './home', clickable: true },
+      { label: 'pi', path: './home/pi', clickable: false },
+    ]);
+    fixture.detectChanges();
+
+    const dataTransfer = {
+      getData: (type: string) =>
+        type === FILE_TREE_DRAG_MIME || type === 'text/plain'
+          ? './home/pi/main.ts'
+          : '',
+      dropEffect: 'none',
+    } as DataTransfer;
+    const dropEvent = new Event('drop', {
+      bubbles: true,
+      cancelable: true,
+    }) as DragEvent;
+    Object.defineProperty(dropEvent, 'dataTransfer', {
+      value: dataTransfer,
+    });
+
+    component.onSegmentDrop(dropEvent, {
+      label: 'home',
+      path: './home',
+      clickable: true,
+    });
+
+    expect(emitSpy).toHaveBeenCalledWith({
+      sourcePath: './home/pi/main.ts',
+      targetDirectoryPath: './home',
+    });
+  });
+
+  it('does not emit segmentDrop when the segment has no path', () => {
+    const emitSpy = vi.spyOn(component.segmentDrop, 'emit');
+    const dropEvent = new Event('drop', {
+      bubbles: true,
+      cancelable: true,
+    }) as DragEvent;
+    Object.defineProperty(dropEvent, 'dataTransfer', {
+      value: {
+        getData: () => './main.ts',
+        dropEffect: 'none',
+      } as DataTransfer,
+    });
+
+    component.onSegmentDrop(dropEvent, { label: 'Console' });
+
+    expect(emitSpy).not.toHaveBeenCalled();
   });
 });

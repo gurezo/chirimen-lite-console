@@ -8,6 +8,7 @@ import {
   signal,
   Type,
   untracked,
+  viewChild,
 } from '@angular/core';
 import { BreakpointObserver } from '@angular/cdk/layout';
 import {
@@ -22,7 +23,10 @@ import {
   ActionToolBarComponent,
   ToolbarAction,
 } from '../action-tool-bar/action-tool-bar.component';
-import { BreadcrumbComponent } from '../breadcrumb/breadcrumb.component';
+import {
+  BreadcrumbComponent,
+  type BreadcrumbSegmentDropEvent,
+} from '../breadcrumb/breadcrumb.component';
 import { HeaderToolbarComponent } from '../header-toolbar/header-toolbar.component';
 import { LeftSidebarComponent } from '../left-sidebar/left-sidebar.component';
 import { RightSidebarComponent } from '../right-sidebar/right-sidebar.component';
@@ -69,6 +73,7 @@ export class ConsoleShellComponent implements OnInit, OnDestroy {
   private breakpointObserver = inject(BreakpointObserver);
   private router = inject(Router);
   private route = inject(ActivatedRoute);
+  private readonly leftSidebar = viewChild(LeftSidebarComponent);
 
   /** Web Serial の接続可否（単一ビューモデル {@link SerialConnectionViewModelFacade#vm} を参照）。 */
   readonly connected = computed(() => this.connectionVm.vm().isConnected);
@@ -380,6 +385,14 @@ export class ConsoleShellComponent implements OnInit, OnDestroy {
   onBreadcrumbNavigate(path: string): void {
     this.shellStore.setFileManagerCurrentPath(path);
     this.shellStore.setSelectedFilePath(null);
+  }
+
+  /** Move a file-tree node dropped onto a breadcrumb directory (issue #777). */
+  onBreadcrumbSegmentDrop(event: BreadcrumbSegmentDropEvent): void {
+    void this.leftSidebar()?.movePathToDirectory(
+      event.sourcePath,
+      event.targetDirectoryPath,
+    );
   }
 
   onToolbarAction(action: ToolbarAction): void {

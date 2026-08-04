@@ -64,7 +64,10 @@ describe('LeftSidebarComponent', () => {
         },
         {
           provide: FileService,
-          useValue: { listTree: vi.fn().mockResolvedValue([]) },
+          useValue: {
+            listTree: vi.fn().mockResolvedValue([]),
+            moveIntoDirectory: vi.fn().mockResolvedValue(null),
+          },
         },
         {
           provide: EDITOR_DRAFT_LIFECYCLE,
@@ -193,6 +196,29 @@ describe('LeftSidebarComponent', () => {
       'ファイルツリーを開く',
     );
     expect(closedButton.attributes['aria-expanded']).toBe('false');
+  });
+
+  it('moves via FileService when the file tree is closed', async () => {
+    const moveIntoDirectory = TestBed.inject(FileService)
+      .moveIntoDirectory as ReturnType<typeof vi.fn>;
+    moveIntoDirectory.mockResolvedValue({
+      from: './main.ts',
+      to: './docs/main.ts',
+    });
+    const store = TestBed.inject(ConsoleShellStore);
+    store.setSelectedFilePath('./main.ts');
+
+    fixture.componentRef.setInput('leftNavOpen', false);
+    fixture.detectChanges();
+
+    await component.movePathToDirectory('./main.ts', './docs');
+
+    expect(moveIntoDirectory).toHaveBeenCalledWith('./main.ts', './docs');
+    expect(draftLifecycle.rename).toHaveBeenCalledWith(
+      './main.ts',
+      './docs/main.ts',
+    );
+    expect(store.selectedFilePath()).toBe('./docs/main.ts');
   });
 
   it('emits paneResizeBy on separator arrow keys', () => {

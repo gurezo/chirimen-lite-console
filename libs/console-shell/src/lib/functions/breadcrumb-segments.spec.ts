@@ -46,6 +46,17 @@ describe('buildFilePathBreadcrumbSegments', () => {
       ],
     );
   });
+
+  it('attaches path to the last segment when includeLastPath is true', () => {
+    const segments = buildFilePathBreadcrumbSegments('./home/pi/docs', {
+      includeLastPath: true,
+    });
+    expect(segments).toEqual([
+      { label: 'home', path: './home', clickable: true },
+      { label: 'pi', path: './home/pi', clickable: true },
+      { label: 'docs', path: './home/pi/docs', clickable: false },
+    ]);
+  });
 });
 
 describe('buildConsoleShellBreadcrumbSegments', () => {
@@ -137,6 +148,7 @@ describe('buildConsoleShellBreadcrumbSegments', () => {
       'docs',
       'readme.md',
     ]);
+    expect(segments[3]).toEqual({ label: 'readme.md', clickable: false });
   });
 
   it('appends directory path when browsing without a selected file', () => {
@@ -152,6 +164,11 @@ describe('buildConsoleShellBreadcrumbSegments', () => {
       'home',
       'pi',
     ]);
+    expect(segments[3]).toEqual({
+      label: 'pi',
+      path: './home/pi',
+      clickable: false,
+    });
   });
 
   it('does not append path segments at file manager root', () => {

@@ -1,10 +1,17 @@
-import { Component, computed, inject, input, output } from '@angular/core';
+import {
+  Component,
+  computed,
+  inject,
+  input,
+  output,
+  viewChild,
+} from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
 import { MatIconButton } from '@angular/material/button';
 import { MatIcon } from '@angular/material/icon';
 import { MatTooltip } from '@angular/material/tooltip';
 import type { FileRenamedEvent } from '@libs-file-manager';
-import { FileTreeFeatureComponent } from '@libs-file-manager';
+import { FileService, FileTreeFeatureComponent } from '@libs-file-manager';
 import {
   ConsoleShellLayoutMode,
   ConsoleShellStore,
@@ -32,6 +39,9 @@ export class LeftSidebarComponent {
   toggleLeftSidebar = output<void>();
   paneResizeStart = output<PointerEvent>();
   paneResizeBy = output<number>();
+
+  private readonly fileTree = viewChild(FileTreeFeatureComponent);
+  private readonly fileService = inject(FileService);
 
   readonly isOverlay = computed(() => this.layoutMode() === 'overlay');
   readonly isDockedOpen = computed(
@@ -87,6 +97,36 @@ export class LeftSidebarComponent {
     this.draftLifecycle?.clear(path);
     if (this.shellStore.selectedFilePath() === path) {
       this.shellStore.setSelectedFilePath(null);
+    }
+  }
+
+  /**
+   * Moves a dragged file-tree node into a breadcrumb directory (issue #777).
+   * Prefers FileTreeFeature so busy/error UI stays consistent; falls back to
+   * FileService when the tree is not mounted (sidebar closed).
+   */
+  async movePathToDirectory(
+    sourcePath: string,
+    targetDirectoryPath: string,
+  ): Promise<void> {
+    const tree = this.fileTree();
+    if (tree) {
+      tree.moveDroppedPath(sourcePath, targetDirectoryPath);
+      return;
+    }
+    try {
+      const result = await this.fileService.moveIntoDirectory(
+        sourcePath,
+        targetDirectoryPath,
+      );
+      if (!result) {
+        return;
+      }
+      this.onFileRenamed(result);
+    } catch (error: unknown) {
+      console.error(
+        error instanceof Error ? error.message : String(error),
+      );
     }
   }
 
