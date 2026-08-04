@@ -50,6 +50,19 @@ pnpm nx run-many -t build
 
 ビルド成果物は `dist/` に出力されます。
 
+## Firebase Hosting
+
+本番向けの console アプリは Firebase Hosting（プロジェクト ID: `chirimen-lite-console`）へデプロイします。
+
+```bash
+pnpm nx run apps-console:build
+```
+
+ビルド成果物は `dist/console/browser` に出力され、`firebase.json` の `public` として参照されます。
+
+- `main` への push で [Deploy console to Firebase Hosting](.github/workflows/firebase-hosting-merge.yml) が自動実行されます
+- 手動実行は GitHub Actions の `workflow_dispatch` から行えます
+
 ## ユニットテスト
 
 ```bash
