@@ -117,16 +117,31 @@ export class FileUtils {
     return content.split(/\r?\n/).some((line) => line === delimiter);
   }
 
+  /**
+   * Heredoc write. `content` must already end with `\n` so the delimiter line
+   * does not inject an extra blank line (preserves a single trailing newline).
+   */
   static generateHeredocCommand(fileName: string, content: string): string {
     const delimiter = FileUtils.chooseHeredocDelimiter(content);
     const path = FileUtils.escapePath(fileName);
-    return `cat > ${path} << '${delimiter}'\n${content}\n${delimiter}`;
+    const body = content.endsWith('\n') ? content : `${content}\n`;
+    return `cat > ${path} << '${delimiter}'\n${body}${delimiter}`;
   }
 
   static generateAppendCommand(fileName: string, content: string): string {
     const delimiter = FileUtils.chooseHeredocDelimiter(content);
     const path = FileUtils.escapePath(fileName);
-    return `cat >> ${path} << '${delimiter}'\n${content}\n${delimiter}`;
+    const body = content.endsWith('\n') ? content : `${content}\n`;
+    return `cat >> ${path} << '${delimiter}'\n${body}${delimiter}`;
+  }
+
+  /** True when heredoc cannot preserve exact bytes (CRLF, BOM, or no trailing NL). */
+  static requiresExactByteWrite(content: string): boolean {
+    return (
+      content.includes('\r') ||
+      content.startsWith('\uFEFF') ||
+      !content.endsWith('\n')
+    );
   }
 
   static generateBase64SaveCommand(fileName: string): string {
