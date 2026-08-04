@@ -30,6 +30,8 @@ export default defineConfig({
       '@libs-editor': resolve(__dirname, './src/index.ts'),
       '@libs-dialogs': resolve(__dirname, '../dialogs/src/index.ts'),
       '@libs-shared': resolve(__dirname, '../shared/src/index.ts'),
+      '@libs-web-serial': resolve(__dirname, '../web-serial/src/index.ts'),
+      '@libs-file-manager': resolve(__dirname, '../file-manager/src/index.ts'),
     },
   },
 });

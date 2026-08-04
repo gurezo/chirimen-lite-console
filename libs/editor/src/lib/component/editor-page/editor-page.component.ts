@@ -8,14 +8,30 @@ import {
   signal,
 } from '@angular/core';
 import { MatProgressSpinner } from '@angular/material/progress-spinner';
-import { ConfirmDialogComponent, DialogService } from '@libs-dialogs';
+import {
+  ConfirmDialogComponent,
+  DialogService,
+  ProgressDialogComponent,
+  type ProgressDialogData,
+} from '@libs-dialogs';
 import {
   FileNameDialogComponent,
   FileService,
   joinPath,
 } from '@libs-file-manager';
-import { ConsoleShellStore, NotificationService } from '@libs-shared';
-import { SerialConnectionViewModelFacade } from '@libs-web-serial';
+import {
+  ConsoleShellStore,
+  DEFAULT_NEW_TEXT_FILE_META,
+  EDITOR_FILE_MAX_BYTES,
+  EDITOR_FILE_WARN_BYTES,
+  NotificationService,
+  type TextFileMeta,
+} from '@libs-shared';
+import {
+  FileUtils,
+  isNonUtf8TextError,
+  SerialConnectionViewModelFacade,
+} from '@libs-web-serial';
 import type { editor } from 'monaco-editor';
 import { firstValueFrom } from 'rxjs';
 import { resolveEditorLanguage } from '../../functions';
@@ -102,10 +118,12 @@ export class EditorPageComponent implements OnInit {
   private readonly activeFilePath = signal<string | null>(null);
   private baselineContent = '';
   private baselineReady = false;
+  private textFileMeta: TextFileMeta = { ...DEFAULT_NEW_TEXT_FILE_META };
   private initialized = false;
   private loadGeneration = 0;
   private ignoreNextSelection = false;
   private promptInFlight: Promise<boolean> | null = null;
+  private transferAbortGeneration = 0;
 
   constructor() {
     effect(() => {
@@ -199,6 +217,7 @@ export class EditorPageComponent implements OnInit {
     this.code.set('');
     this.baselineContent = '';
     this.baselineReady = false;
+    this.textFileMeta = { ...DEFAULT_NEW_TEXT_FILE_META };
     this.saveStatus.set(null);
     this.loadError.set(null);
     this.saveError.set(null);
@@ -258,13 +277,63 @@ export class EditorPageComponent implements OnInit {
     this.isReadOnly.set(false);
 
     try {
-      const loaded = await this.editorService.loadTextFile(path);
+      const byteSize = await this.editorService.getByteSize(path);
       if (generation !== this.loadGeneration) {
         return;
       }
-      this.applyDeviceContent(path, loaded);
+
+      if (byteSize > EDITOR_FILE_MAX_BYTES) {
+        this.notify.error(
+          '読込失敗',
+          `ファイルが大きすぎます（上限 ${FileUtils.formatFileSize(EDITOR_FILE_MAX_BYTES)}）。`,
+        );
+        this.loadError.set({
+          path,
+          message: `ファイルが大きすぎるため開けません: ${path}`,
+          detail: `size=${byteSize} max=${EDITOR_FILE_MAX_BYTES}`,
+        });
+        this.restoreStatusAfterFailedLoad(previousStatus);
+        return;
+      }
+
+      if (byteSize >= EDITOR_FILE_WARN_BYTES) {
+        const proceed = await this.confirmLargeFileOpen(byteSize);
+        if (generation !== this.loadGeneration) {
+          return;
+        }
+        if (!proceed) {
+          this.restoreStatusAfterFailedLoad(previousStatus);
+          if (!this.activeFilePath()) {
+            this.revertSelection();
+          }
+          return;
+        }
+      }
+
+      const showProgress = byteSize >= EDITOR_FILE_WARN_BYTES;
+      const loaded = showProgress
+        ? await this.loadTextFileWithProgress(path, generation)
+        : await this.editorService.loadTextFile(path);
+
+      if (generation !== this.loadGeneration || loaded === null) {
+        return;
+      }
+      this.applyDeviceContent(path, loaded.content, loaded.meta);
     } catch (error: unknown) {
       if (generation !== this.loadGeneration) {
+        return;
+      }
+      if (isNonUtf8TextError(error)) {
+        this.notify.error(
+          '読込失敗',
+          'UTF-8 ではないためファイルを開けません。',
+        );
+        this.loadError.set({
+          path,
+          message: `UTF-8 ではないため開けません: ${path}`,
+          detail: error instanceof Error ? error.message : 'NON_UTF8_TEXT',
+        });
+        this.restoreStatusAfterFailedLoad(previousStatus);
         return;
       }
       const detail =
@@ -275,11 +344,121 @@ export class EditorPageComponent implements OnInit {
         detail,
       });
       this.notify.error('読込失敗', `ファイルの読み込みに失敗しました: ${path}`);
-      if (this.activeFilePath()) {
-        this.saveStatus.set(previousStatus ?? 'savedToDevice');
-      } else {
-        this.saveStatus.set(null);
+      this.restoreStatusAfterFailedLoad(previousStatus);
+    }
+  }
+
+  private restoreStatusAfterFailedLoad(
+    previousStatus: EditorSaveStatus | null,
+  ): void {
+    if (this.activeFilePath()) {
+      this.saveStatus.set(previousStatus ?? 'savedToDevice');
+    } else {
+      this.saveStatus.set(null);
+    }
+  }
+
+  private async confirmLargeFileOpen(byteSize: number): Promise<boolean> {
+    const sizeLabel = FileUtils.formatFileSize(byteSize);
+    const ref = this.dialog.open(ConfirmDialogComponent, {
+      width: '420px',
+      data: {
+        title: '大きなファイル',
+        message: `このファイルは ${sizeLabel} あります。読み込みに時間がかかる可能性があります。開きますか？`,
+        confirmLabel: '開く',
+        cancelLabel: 'キャンセル',
+      },
+    });
+    return (await firstValueFrom(ref.closed)) === true;
+  }
+
+  private async loadTextFileWithProgress(
+    path: string,
+    generation: number,
+  ): Promise<{ content: string; meta: TextFileMeta; size: number } | null> {
+    const progress = signal(0);
+    const data: ProgressDialogData = {
+      message: `読み込み中…\n${path}`,
+      progress,
+      cancelLabel: 'キャンセル',
+    };
+    const ref = this.dialog.open(ProgressDialogComponent, {
+      width: '400px',
+      data,
+      disableClose: true,
+    });
+
+    const abortGeneration = ++this.transferAbortGeneration;
+    const cancelSub = ref.closed.subscribe((result) => {
+      if (
+        result === 'cancelled' &&
+        abortGeneration === this.transferAbortGeneration &&
+        generation === this.loadGeneration
+      ) {
+        this.editorService.cancelTransfer();
       }
+    });
+
+    progress.set(10);
+    try {
+      progress.set(40);
+      const loaded = await this.editorService.loadTextFile(path);
+      progress.set(100);
+      ref.close();
+      return loaded;
+    } catch (error: unknown) {
+      ref.close();
+      const cancelled =
+        error instanceof Error && isUserCancelledTransfer(error.message);
+      if (cancelled) {
+        this.notify.warning('読込キャンセル', 'ファイルの読み込みを中止しました');
+        this.restoreStatusAfterFailedLoad(null);
+        return null;
+      }
+      throw error;
+    } finally {
+      cancelSub.unsubscribe();
+    }
+  }
+
+  private async saveTextFileWithProgress(
+    path: string,
+    content: string,
+    meta: TextFileMeta,
+  ): Promise<void> {
+    const progress = signal(0);
+    const data: ProgressDialogData = {
+      message: `保存中…\n${path}`,
+      progress,
+      cancelLabel: 'キャンセル',
+    };
+    const ref = this.dialog.open(ProgressDialogComponent, {
+      width: '400px',
+      data,
+      disableClose: true,
+    });
+
+    const abortGeneration = ++this.transferAbortGeneration;
+    const cancelSub = ref.closed.subscribe((result) => {
+      if (
+        result === 'cancelled' &&
+        abortGeneration === this.transferAbortGeneration
+      ) {
+        this.editorService.cancelTransfer();
+      }
+    });
+
+    try {
+      await this.editorService.saveTextFile(path, content, meta, {
+        onProgress: (percent) => progress.set(percent),
+      });
+      progress.set(100);
+      ref.close();
+    } catch (error: unknown) {
+      ref.close();
+      throw error;
+    } finally {
+      cancelSub.unsubscribe();
     }
   }
 
@@ -291,15 +470,21 @@ export class EditorPageComponent implements OnInit {
     await this.fetchDeviceFile(path);
   }
 
-  private applyDeviceContent(path: string, content: string): void {
+  private applyDeviceContent(
+    path: string,
+    content: string,
+    meta: TextFileMeta,
+  ): void {
     this.activeFilePath.set(path);
     this.code.set(content);
     this.baselineContent = content;
     this.baselineReady = true;
+    this.textFileMeta = { ...meta };
     this.saveStatus.set('savedToDevice');
     this.saveError.set(null);
     this.lastDeviceSavedAt.set(null);
     this.isReadOnly.set(false);
+    this.editorService.applyLineEnding(meta.lineEnding);
   }
 
   private async resolveDraft(draft: EditorDraft): Promise<void> {
@@ -330,11 +515,15 @@ export class EditorPageComponent implements OnInit {
     this.isReadOnly.set(false);
 
     try {
-      this.baselineContent = await this.editorService.loadTextFile(draft.path);
+      const loaded = await this.editorService.loadTextFile(draft.path);
+      this.baselineContent = loaded.content;
       this.baselineReady = true;
+      this.textFileMeta = { ...loaded.meta };
+      this.editorService.applyLineEnding(loaded.meta.lineEnding);
     } catch {
       this.baselineContent = '';
       this.baselineReady = false;
+      this.textFileMeta = { ...DEFAULT_NEW_TEXT_FILE_META };
     }
   }
 
@@ -431,9 +620,24 @@ export class EditorPageComponent implements OnInit {
 
     this.saveStatus.set('saving');
     this.saveError.set(null);
+
+    const meta = this.textFileMeta;
+    const content = this.code();
+    const estimatedBytes = new TextEncoder().encode(
+      // rough size for progress UI decision; exact payload may differ slightly
+      content,
+    ).byteLength;
+    const showProgress =
+      estimatedBytes > FileUtils.TEXT_CHUNK_THRESHOLD_BYTES ||
+      estimatedBytes >= EDITOR_FILE_WARN_BYTES;
+
     try {
-      await this.editorService.saveTextFile(path, this.code());
-      this.baselineContent = this.code();
+      if (showProgress) {
+        await this.saveTextFileWithProgress(path, content, meta);
+      } else {
+        await this.editorService.saveTextFile(path, content, meta);
+      }
+      this.baselineContent = content;
       this.baselineReady = true;
       this.lastDeviceSavedAt.set(Date.now());
       this.isReadOnly.set(false);
@@ -445,6 +649,11 @@ export class EditorPageComponent implements OnInit {
         error instanceof Error
           ? error.message
           : 'Save failed: unexpected error while writing to the device';
+      if (isUserCancelledTransfer(detail)) {
+        this.saveStatus.set('draftSavedLocally');
+        this.notify.warning('保存キャンセル', '保存を中止しました。Draft は保持されています。');
+        return;
+      }
       this.saveError.set({
         message: 'デバイスへの保存に失敗しました。内容は Editor / Draft に保持されています。',
         detail,
@@ -591,5 +800,15 @@ function isWritePermissionDenied(message: string): boolean {
   return (
     lower.includes('write permission was denied') ||
     lower.includes('permission denied')
+  );
+}
+
+/** User clicked Cancel on the progress dialog (not serial disconnect). */
+function isUserCancelledTransfer(message: string): boolean {
+  const lower = message.toLowerCase();
+  return (
+    lower.includes('all commands cancelled') ||
+    lower === 'cancelled' ||
+    lower.includes('transfer cancelled')
   );
 }

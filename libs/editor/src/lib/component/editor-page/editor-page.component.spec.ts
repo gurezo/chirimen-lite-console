@@ -25,8 +25,20 @@ describe('EditorPageComponent', () => {
     errorMessage: null,
   });
   const editorServiceMock = {
-    loadTextFile: vi.fn().mockResolvedValue('loaded content'),
+    loadTextFile: vi.fn().mockResolvedValue({
+      content: 'loaded content',
+      meta: {
+        encoding: 'utf-8',
+        bom: false,
+        lineEnding: 'lf',
+        trailingNewline: true,
+      },
+      size: 14,
+    }),
     saveTextFile: vi.fn().mockResolvedValue(undefined),
+    getByteSize: vi.fn().mockResolvedValue(14),
+    cancelTransfer: vi.fn(),
+    applyLineEnding: vi.fn(),
     initializeEditor: vi.fn(),
     formatDocument: vi.fn().mockResolvedValue(true),
     getValue: vi.fn().mockReturnValue(null),
@@ -64,8 +76,25 @@ describe('EditorPageComponent', () => {
     warning: vi.fn(),
   };
 
+  function loadedFile(
+    content: string,
+    overrides?: Partial<{ size: number; lineEnding: 'lf' | 'crlf' }>,
+  ) {
+    return {
+      content,
+      meta: {
+        encoding: 'utf-8' as const,
+        bom: false,
+        lineEnding: overrides?.lineEnding ?? ('lf' as const),
+        trailingNewline: content.endsWith('\n'),
+      },
+      size: overrides?.size ?? content.length,
+    };
+  }
+
   async function loadPath(path: string, content = 'loaded content'): Promise<void> {
-    editorServiceMock.loadTextFile.mockResolvedValue(content);
+    editorServiceMock.loadTextFile.mockResolvedValue(loadedFile(content));
+    editorServiceMock.getByteSize.mockResolvedValue(content.length);
     selectedFilePathSignal.set(path);
     fixture.detectChanges();
     await fixture.whenStable();
@@ -94,7 +123,17 @@ describe('EditorPageComponent', () => {
     draftServiceMock.read.mockReturnValue(null);
     draftServiceMock.list.mockReturnValue([]);
     draftServiceMock.has.mockReturnValue(false);
-    editorServiceMock.loadTextFile.mockResolvedValue('loaded content');
+    editorServiceMock.loadTextFile.mockResolvedValue({
+      content: 'loaded content',
+      meta: {
+        encoding: 'utf-8',
+        bom: false,
+        lineEnding: 'lf',
+        trailingNewline: true,
+      },
+      size: 14,
+    });
+    editorServiceMock.getByteSize.mockResolvedValue(14);
     fileServiceMock.exists.mockResolvedValue(false);
     fileServiceMock.touch.mockResolvedValue(undefined);
 
@@ -154,12 +193,14 @@ describe('EditorPageComponent', () => {
     await loadPath('/home/pi/ok.js', 'previous');
     const previousCode = component.code();
 
+    editorServiceMock.getByteSize.mockResolvedValue(8);
     editorServiceMock.loadTextFile.mockRejectedValue(
       new Error('Target file is not a text file'),
     );
     selectedFilePathSignal.set('/home/pi/binary.bin');
     fixture.detectChanges();
     await fixture.whenStable();
+    await Promise.resolve();
 
     expect(component.code()).toBe(previousCode);
     expect(component.currentFileName()).toBe('ok.js');
@@ -191,6 +232,12 @@ describe('EditorPageComponent', () => {
     expect(editorServiceMock.saveTextFile).toHaveBeenCalledWith(
       '/home/pi/main.js',
       'updated',
+      {
+        encoding: 'utf-8',
+        bom: false,
+        lineEnding: 'lf',
+        trailingNewline: false,
+      },
     );
     expect(component.isDirty()).toBe(false);
     expect(component.saveStatus()).toBe('savedToDevice');
@@ -303,7 +350,7 @@ describe('EditorPageComponent', () => {
         updatedAt: Date.now(),
       },
     ]);
-    editorServiceMock.loadTextFile.mockResolvedValue('device content');
+    editorServiceMock.loadTextFile.mockResolvedValue(loadedFile('device content'));
 
     const initPromise = component.ngOnInit();
     closed.next('restore');
@@ -326,7 +373,7 @@ describe('EditorPageComponent', () => {
         updatedAt: Date.now(),
       },
     ]);
-    editorServiceMock.loadTextFile.mockResolvedValue('device content');
+    editorServiceMock.loadTextFile.mockResolvedValue(loadedFile('device content'));
 
     const initPromise = component.ngOnInit();
     closed.next('reload');
@@ -568,7 +615,8 @@ describe('EditorPageComponent', () => {
     });
 
     editorServiceMock.loadTextFile.mockClear();
-    editorServiceMock.loadTextFile.mockResolvedValue('recovered');
+    editorServiceMock.loadTextFile.mockResolvedValue(loadedFile('recovered'));
+    editorServiceMock.getByteSize.mockResolvedValue(9);
 
     await component.retryLoadCurrentFile();
 
@@ -587,5 +635,89 @@ describe('EditorPageComponent', () => {
     await component.formatCurrentFile();
 
     expect(editorServiceMock.formatDocument).not.toHaveBeenCalled();
+  });
+
+  it('should refuse files larger than the max size', async () => {
+    const { EDITOR_FILE_MAX_BYTES } = await import('@libs-shared');
+    editorServiceMock.getByteSize.mockResolvedValue(EDITOR_FILE_MAX_BYTES + 1);
+    editorServiceMock.loadTextFile.mockClear();
+
+    selectedFilePathSignal.set('/home/pi/huge.js');
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    expect(editorServiceMock.loadTextFile).not.toHaveBeenCalled();
+    expect(notifyMock.error).toHaveBeenCalled();
+    expect(component.loadError()?.path).toBe('/home/pi/huge.js');
+  });
+
+  it('should confirm before opening warn-sized files', async () => {
+    const { EDITOR_FILE_WARN_BYTES } = await import('@libs-shared');
+    const confirmClosed = new Subject<unknown>();
+    dialogServiceMock.open
+      .mockReturnValueOnce({ closed: confirmClosed.asObservable() })
+      .mockReturnValueOnce({
+        closed: new Subject<unknown>().asObservable(),
+        close: vi.fn(),
+      });
+
+    editorServiceMock.getByteSize.mockResolvedValue(EDITOR_FILE_WARN_BYTES);
+    editorServiceMock.loadTextFile.mockResolvedValue(
+      loadedFile('big', { size: EDITOR_FILE_WARN_BYTES }),
+    );
+
+    const fetchPromise = (
+      component as unknown as {
+        fetchDeviceFile: (path: string) => Promise<void>;
+      }
+    ).fetchDeviceFile('/home/pi/big.js');
+    await Promise.resolve();
+    confirmClosed.next(true);
+    confirmClosed.complete();
+    await fetchPromise;
+
+    expect(dialogServiceMock.open).toHaveBeenCalled();
+    expect(editorServiceMock.loadTextFile).toHaveBeenCalledWith('/home/pi/big.js');
+    expect(component.code()).toBe('big');
+    expect(component.saveStatus()).toBe('savedToDevice');
+  });
+
+  it('should abort warn-sized open when the user cancels', async () => {
+    const { EDITOR_FILE_WARN_BYTES } = await import('@libs-shared');
+    const confirmClosed = new Subject<unknown>();
+    dialogServiceMock.open.mockReturnValueOnce({
+      closed: confirmClosed.asObservable(),
+    });
+    editorServiceMock.getByteSize.mockResolvedValue(EDITOR_FILE_WARN_BYTES);
+    editorServiceMock.loadTextFile.mockClear();
+
+    const fetchPromise = (
+      component as unknown as {
+        fetchDeviceFile: (path: string) => Promise<void>;
+      }
+    ).fetchDeviceFile('/home/pi/big.js');
+    await Promise.resolve();
+    confirmClosed.next(false);
+    confirmClosed.complete();
+    await fetchPromise;
+
+    expect(editorServiceMock.loadTextFile).not.toHaveBeenCalled();
+  });
+
+  it('should refuse non UTF-8 files', async () => {
+    const { NonUtf8TextError } = await import('@libs-web-serial');
+    editorServiceMock.getByteSize.mockResolvedValue(3);
+    editorServiceMock.loadTextFile.mockRejectedValue(new NonUtf8TextError());
+
+    selectedFilePathSignal.set('/home/pi/bad.js');
+    fixture.detectChanges();
+    await fixture.whenStable();
+    await Promise.resolve();
+
+    expect(notifyMock.error).toHaveBeenCalledWith(
+      '読込失敗',
+      'UTF-8 ではないためファイルを開けません。',
+    );
+    expect(component.loadError()?.message).toContain('UTF-8');
   });
 });
