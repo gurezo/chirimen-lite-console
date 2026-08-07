@@ -3,10 +3,7 @@
   "compilerOptions": {
     "outDir": "../../out-tsc/app",
     "rootDir": "../..",
-    "types": [],
-    "moduleResolution": "bundler",
-    "allowSyntheticDefaultImports": true,
-    "module": "preserve"
+    "types": []
   },
   "files": ["src/main.ts"],
   "include": ["src/**/*.ts", "src/**/*.d.ts"],
