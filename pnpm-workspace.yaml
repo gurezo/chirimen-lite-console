@@ -1,37 +1,27 @@
 packages:
   - 'apps/*'
 
-# 明示設定時は strict がデフォルト true のため、lockfile 再生成時に exclude が自動追記される
+# 明示設定時は strict がデフォルト true。false なら未成熟版へフォールバック可
 minimumReleaseAgeStrict: false
 
 minimumReleaseAgeExclude:
-  # 公開から 7 日未満の依存も許可(Angular / Nx 更新・ツールチェーン向け)
+  # Angular / Nx / 主要ツールチェーンは公開直後も許可
   - '@analogjs/*'
   - '@angular/*'
   - '@angular-devkit/*'
   - '@commitlint/*'
   - '@eslint/*'
   - '@gurezo/*'
-  - '@inquirer/*'
-  - '@jsonjoy.com/*'
-  - '@ngtools/*'
   - '@nx/*'
   - '@schematics/*'
   - '@swc/*'
   - '@testing-library/*'
   - '@types/*'
-  - '@typescript/*'
   - '@typescript-eslint/*'
   - '@vitest/*'
   - eslint
-  - eslint-plugin-tailwindcss
-  - memfs
-  - monaco-editor
   - nx
-  - postcss
   - prettier
-  - tinyglobby
-  - tmp
   - typescript
   - typescript-eslint
   - vite
