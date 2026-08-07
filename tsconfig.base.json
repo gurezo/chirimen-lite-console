@@ -29,6 +29,11 @@
       "@libs-web-serial": ["./libs/web-serial/src/index.ts"],
       "@libs-wifi": ["./libs/wifi/src/index.ts"],
       "@libs-chirimen-setup": ["./libs/chirimen-setup/src/index.ts"]
-    }
+    },
+    "strict": false,
+    "noUncheckedSideEffectImports": false,
+    "types": ["*"],
+    "esModuleInterop": false,
+    "ignoreDeprecations": "6.0"
   }
 }
