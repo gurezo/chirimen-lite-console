@@ -1,0 +1,17 @@
+<div class="dialog-content">
+  <h2>{{ title }}</h2>
+  <dl>
+    <dt>{{ hardwareLabel }}</dt>
+    <dd>{{ hardware }}</dd>
+    <dt>{{ softwareLabel }}</dt>
+    <dd>
+      <a [href]="softwareUrl" target="_blank" rel="noopener noreferrer">{{
+        softwareName
+      }}</a>
+    </dd>
+  </dl>
+  <p class="dialog-note">{{ note }}</p>
+  <div class="dialog-actions">
+    <button type="button" (click)="close()">{{ closeLabel }}</button>
+  </div>
+</div>
