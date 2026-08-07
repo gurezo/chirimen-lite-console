@@ -16,6 +16,14 @@
       <mat-menu #menu="matMenu">
         <button
           mat-menu-item
+          matTooltip="推奨環境を表示"
+          (click)="openRecommendedEnvironment()"
+        >
+          <mat-icon>info</mat-icon>
+          <span>推奨環境</span>
+        </button>
+        <button
+          mat-menu-item
           matTooltip="Web Serial の切断"
           (click)="eventDisConnect.emit()"
         >
