@@ -12,7 +12,11 @@ minimumReleaseAgeExclude:
   - '@commitlint/*'
   - '@eslint/*'
   - '@gurezo/*'
+  - '@ngrx/*'
+  - '@ngtools/*'
   - '@nx/*'
+  - '@oxc-project/*'
+  - '@rolldown/*'
   - '@schematics/*'
   - '@swc/*'
   - '@testing-library/*'
@@ -20,19 +24,21 @@ minimumReleaseAgeExclude:
   - '@typescript-eslint/*'
   - '@vitest/*'
   - eslint
+  - eslint-plugin-tailwindcss
+  - globals
+  - jasmine-core
+  - jsonc-eslint-parser
+  - nanoid
+  - ngx-monaco-editor-v2
   - nx
+  - postcss
   - prettier
+  - rolldown
   - typescript
   - typescript-eslint
+  - verkit
   - vite
   - vitest
-  - '@ngtools/webpack@22.1.3'
-  - globals@17.9.0
-  - jsonc-eslint-parser@3.2.0
-  - nanoid@3.3.17
-  - postcss@8.5.26
-  - verkit@0.3.2
-  - '@ngtools/webpack@22.1.5'
 
 onlyBuiltDependencies:
   - '@parcel/watcher'
@@ -43,7 +49,7 @@ onlyBuiltDependencies:
 
 # Malicious releases are often detected and removed within a week.
 # 7 days x 24h x 60 min
-# minimumReleaseAge: 10080
+minimumReleaseAge: 10080
 
 allowBuilds:
   '@parcel/watcher': set this to true or false
