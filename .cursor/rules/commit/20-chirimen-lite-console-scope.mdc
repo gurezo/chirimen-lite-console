@@ -34,7 +34,6 @@ scope の単一の真実は [commitlint.config.js](../../../commitlint.config.js
 | `terminal`            | ターミナル lib                                               |
 | `pin-assign-panel`    | ピン割り当てパネル lib                                       |
 | `shared`              | 共有 lib（guards / types / ui / util 統合）                  |
-| `i2cdetect`           | I2C 検出 lib                                                 |
 | `chirimen-setup`      | chirimen セットアップ lib                                    |
 | `setup`               | `chirimen-setup` の別名（後方互換）                          |
 | `file-manager`        | ファイルマネージャ lib                                       |
@@ -45,13 +44,13 @@ scope の単一の真実は [commitlint.config.js](../../../commitlint.config.js
 
 - `web-serial-util`, `web-serial-data-access` → `web-serial`
 - `shared-ui`, `shared-guards`, `shared-types`, `shared-util` → `shared`
-- `i2cdetect-ui`, `i2cdetect-data-access`, `i2cdetect-util` → `i2cdetect`
+- `i2cdetect-ui`, `i2cdetect-data-access`, `i2cdetect-util` — 統合後の `i2cdetect` lib ごと削除（Issue #845）
 
 ## 採用しない scope
 
 Issue #692 で挙げられていた以下の scope は、現状のワークスペース構成と `commitlint.config.js` に存在しないため採用しない。
 
-- `web-serial-rxjs`, `signal-store`, `ngrx`, `connection`, `connection-guard`, `auth`, `timezone`, `device-detection`, `i2c-detect`（`i2cdetect` を使用）, `menu`, `layout`, `theme`, `shared-store`, `toolbar`, `router`, `settings`, `release`, `ci`, `docs`
+- `web-serial-rxjs`, `signal-store`, `ngrx`, `connection`, `connection-guard`, `auth`, `timezone`, `device-detection`, `i2c-detect` / `i2cdetect`（Issue #845 で lib 削除）, `menu`, `layout`, `theme`, `shared-store`, `toolbar`, `router`, `settings`, `release`, `ci`, `docs`
 
 `ci` / `release` / `docs` 系の変更は `workspace` scope を使用すること。
 

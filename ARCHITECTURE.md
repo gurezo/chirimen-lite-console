@@ -27,7 +27,7 @@
 |----------|-----|------|
 | 接続・シェル | connect, console-shell | デバイス接続 UI・シェルレイアウト |
 | 端末・編集 | terminal, editor | ターミナル表示・コードエディタ |
-| 機能 | example, wifi, chirimen-setup, file-manager, pin-assign-panel, remote, i2cdetect | サンプル一覧・Wi‑Fi・セットアップ・ファイル操作・ピン割り当て・リモート・I2C 検出 |
+| 機能 | example, wifi, chirimen-setup, file-manager, pin-assign-panel, remote | サンプル一覧・Wi‑Fi・セットアップ・ファイル操作・ピン割り当て・リモート |
 | 共通 | dialogs, shared | ダイアログ・共有 UI / ガード / 型 / ユーティリティ |
 | 基盤 | web-serial | Web Serial API のラップ・状態管理 |
 | その他 | page-not-found, unsupported-browser | 404・非対応ブラウザ表示 |

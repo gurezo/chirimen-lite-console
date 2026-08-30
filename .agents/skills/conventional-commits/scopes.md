@@ -19,7 +19,6 @@ scope の単一の真実は [commitlint.config.js](../../../commitlint.config.js
 | `terminal`            | ターミナル lib                                               |
 | `pin-assign-panel`    | ピン割り当てパネル lib                                       |
 | `shared`              | 共有 lib（guards / types / ui / util 統合）                  |
-| `i2cdetect`           | I2C 検出 lib                                                 |
 | `chirimen-setup`      | chirimen セットアップ lib                                    |
 | `setup`               | `chirimen-setup` の別名（後方互換）                          |
 | `file-manager`        | ファイルマネージャ lib                                       |
@@ -39,7 +38,7 @@ scope の単一の真実は [commitlint.config.js](../../../commitlint.config.js
 
 - `web-serial-util`, `web-serial-data-access`
 - `shared-ui`, `shared-guards`, `shared-types`, `shared-util`
-- `i2cdetect-ui`, `i2cdetect-data-access`, `i2cdetect-util`
+- `i2cdetect-ui`, `i2cdetect-data-access`, `i2cdetect-util`, `i2cdetect` — lib 削除（Issue #845）
 
 ## 採用しない scope（Issue #692 由来）
 
@@ -47,7 +46,7 @@ scope の単一の真実は [commitlint.config.js](../../../commitlint.config.js
 - `signal-store`, `ngrx`, `shared-store` — 専用 lib なし
 - `connection`, `connection-guard` — `connect` / `shared` でカバー
 - `auth`, `timezone`, `device-detection` — 該当 lib なし
-- `i2c-detect` — `i2cdetect` を使用
+- `i2c-detect` / `i2cdetect` — lib 削除（Issue #845）
 - `menu`, `layout`, `theme`, `toolbar`, `router`, `settings` — `console` / `console-shell` で吸収
 - `release`, `ci`, `docs` — `workspace` で吸収
 

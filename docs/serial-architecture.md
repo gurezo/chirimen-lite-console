@@ -38,7 +38,7 @@ Issue #590 / [#601](https://github.com/gurezo/chirimen-lite-console/issues/601) 
 ### `exec$` 系 API の責務（[#616](https://github.com/gurezo/chirimen-lite-console/issues/616)）
 
 - **ターミナル（xterm）経路**では `send$()` と `terminalText$` のみを使い、`exec$()` / `execRaw$()` / `readUntilPrompt$()` は **呼ばない**（親 [#609](https://github.com/gurezo/chirimen-lite-console/issues/609)）。
-- **`exec$` 系**は、プロンプトまで待って **キャプチャした stdout 等をアプリが解釈する**内部処理向け。i2cdetect・setup・ログイン後初期化はその代表例であり、Wi-Fi・ファイル・リモートなど同種の同期コマンドも同じ原則に含める。
+- **`exec$` 系**は、プロンプトまで待って **キャプチャした stdout 等をアプリが解釈する**内部処理向け。setup・ログイン後初期化はその代表例であり、Wi-Fi・ファイル・リモートなど同種の同期コマンドも同じ原則に含める。
 - 詳細は [`SerialFacadeService` の JSDoc](../libs/web-serial/data-access/src/lib/serial-facade.service.ts) および [libs/web-serial/README.md](../libs/web-serial/README.md) の「`exec$` の利用方針」を参照。
 
 ### `terminalText$` / `send$` / `exec$` の使い分け（[#625](https://github.com/gurezo/chirimen-lite-console/issues/625)）
@@ -115,7 +115,7 @@ Issue #590 / [#601](https://github.com/gurezo/chirimen-lite-console/issues/601) 
 
 | import しているシンボル | ファイル |
 |-------------------------|----------|
-| `SerialFacadeService` のみ | `libs/chirimen-setup/data-access`（`setup-command.service`, `extra-setup.service`, `node-install.service`）、`libs/chirimen-setup/feature/setup-page`（本体・spec）、`libs/file-manager/data-access/file.service`（本体・spec）、`libs/i2cdetect/data-access/i2cdetect.service`、`libs/remote/data-access`（`remote-run`, `remote-stop`, `remote-status` および `remote-stop.service.spec`）、`libs/remote/feature/remote-page`（本体・spec）、`libs/shared/guards/connection.guard`、`libs/terminal/ui/terminal-view/terminal-view.component.ts`、`libs/wifi/data-access`（`wifi-scan`, `wifi-config`, `file-content`, `wifi-reboot-flow`）、`libs/wifi/feature/wifi-page`（本体・spec） |
+| `SerialFacadeService` のみ | `libs/chirimen-setup/data-access`（`setup-command.service`, `extra-setup.service`, `node-install.service`）、`libs/chirimen-setup/feature/setup-page`（本体・spec）、`libs/file-manager/data-access/file.service`（本体・spec）、`libs/remote/data-access`（`remote-run`, `remote-stop`, `remote-status` および `remote-stop.service.spec`）、`libs/remote/feature/remote-page`（本体・spec）、`libs/shared/guards/connection.guard`、`libs/terminal/ui/terminal-view/terminal-view.component.ts`、`libs/wifi/data-access`（`wifi-scan`, `wifi-config`, `file-content`, `wifi-reboot-flow`）、`libs/wifi/feature/wifi-page`（本体・spec） |
 | `SerialConnectionViewModelFacade`, `SerialConnectionViewModel`（型） | `libs/connect/feature/connect-page`（本体・spec）、`libs/console-shell/feature/console-shell`（本体・spec） |
 | `SerialFacadeService` と `PiZeroSessionService` の併用 | `libs/terminal/ui/terminal-view/terminal-console-orchestration.service`（本体）、`terminal-console-orchestration.service.spec`、`terminal-view.component.spec` |
 | `PiZeroShellReadinessService` | `libs/file-manager/feature/file-tree-feature`（本体・spec） |

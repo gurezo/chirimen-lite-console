@@ -108,7 +108,7 @@ PiZeroSerialBootstrapService
   - コマンド完了待ちや結果解析は行わない。
   - Terminal UI は「送信=`send$` / 表示=`terminalText$`」を基本導線にする。
 - **`exec$()`**
-  - アプリ制御用（ログイン後初期化、i2cdetect、setup、結果解析）。
+  - アプリ制御用（ログイン後初期化、setup、結果解析）。
   - プロンプト同期で完了を待ち、stdout 等のキャプチャ結果を返す。
   - Terminal UI で使わない理由は、UI 側の責務を「入力送信とライブ表示」に限定し、結果キャプチャ経路との二重更新・責務混在を防ぐため。
 
@@ -154,7 +154,7 @@ PiZeroSerialBootstrapService
 
 - **役割**: プロンプト同期でコマンドを送り、**stdout 等のキャプチャ結果**が欲しい **アプリ内部**フロー向け。キュー・リトライ・プロンプト検出は `SerialCommandPipelineService` 側。
 - **ターミナル UI（xterm の対話・ツールバー）では使わない。** 送信は `send$()`、ライブ表示は `terminalText$` のみ（親 [#609](https://github.com/gurezo/chirimen-lite-console/issues/609)）。
-- **代表例**（Issue 本文の列挙に沿った説明）: ログイン後の bootstrap / タイムゾーン初期化、i2cdetect、Chirimen setup。これに限らず、**同様にプロンプト待ちと stdout が必要な機能**（Wi-Fi、ファイルマネージャ、リモート等）も `exec$` を用いる。
+- **代表例**（Issue 本文の列挙に沿った説明）: ログイン後の bootstrap / タイムゾーン初期化、Chirimen setup。これに限らず、**同様にプロンプト待ちと stdout が必要な機能**（Wi-Fi、ファイルマネージャ、リモート等）も `exec$` を用いる。
 - 契約の一次情報は `SerialFacadeService`（`serial-facade.service.ts`）の各メソッド JSDoc を参照する。
 
 ## Pi Zero 接続直後の期待フロー（Issue [#606](https://github.com/gurezo/chirimen-lite-console/issues/606)）
@@ -174,7 +174,7 @@ PiZeroSerialBootstrapService
   - 環境初期化ステップ（TERM / 色付き PS1 / timezone / language / locale / env）／期待プロンプトの定数は [`pi-zero-bootstrap.config.ts`](src/lib/constants/pi-zero-bootstrap.config.ts) に集約。
 - Pi Zero 固有のプロンプト判定（`pi@…` シェル / `login:` / `Password:` 等）は **`PiZeroPromptDetectorService`** に分離（[`pi-zero-prompt-detector.service.ts`](src/lib/pi-zero-prompt-detector.service.ts)）。
 - 汎用の `prompt` / `RegExp` 照合は **`matchesSerialPrompt`**（[`serial-prompt-match.ts`](src/lib/serial-command/serial-prompt-match.ts)）に集約し、**`SerialCommandPipelineService` が直接利用**する（Issue [#675](https://github.com/gurezo/chirimen-lite-console/issues/675) で `SerialPromptDetectorService` を廃止。単一コンシューマ・外部依存なしのため Injectable 境界を外した）。
-- 他サービス（`wifi`, `file-manager`, `remote`, `chirimen-setup`, `i2cdetect` など）は Pi Zero 固有ロジックを保持しない。期待プロンプト文字列としての `PI_ZERO_PROMPT` 利用は許容する。
+- 他サービス（`wifi`, `file-manager`, `remote`, `chirimen-setup` など）は Pi Zero 固有ロジックを保持しない。期待プロンプト文字列としての `PI_ZERO_PROMPT` 利用は許容する。
 
 ## 回帰テスト（自動 / 手動）（[#651](https://github.com/gurezo/chirimen-lite-console/issues/651) / 親 [#643](https://github.com/gurezo/chirimen-lite-console/issues/643)）
 
