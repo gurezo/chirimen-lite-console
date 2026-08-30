@@ -19,7 +19,6 @@ module.exports = {
         'terminal',
         'pin-assign-panel',
         'shared',
-        'i2cdetect',
         'workspace',
         'setup',
         'chirimen-setup',
