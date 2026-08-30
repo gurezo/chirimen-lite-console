@@ -20,7 +20,6 @@
       "@libs-editor": ["./libs/editor/src/index.ts"],
       "@libs-example": ["./libs/example/src/index.ts"],
       "@libs-file-manager": ["./libs/file-manager/src/index.ts"],
-      "@libs-i2cdetect": ["./libs/i2cdetect/src/index.ts"],
       "@libs-page-not-found": ["./libs/page-not-found/src/index.ts"],
       "@libs-pin-assign-panel": ["./libs/pin-assign-panel/src/index.ts"],
       "@libs-remote": ["./libs/remote/src/index.ts"],
