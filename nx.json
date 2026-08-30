@@ -127,7 +127,6 @@
         "libs/editor/**/*",
         "libs/example/**/*",
         "libs/file-manager/**/*",
-        "libs/i2cdetect/**/*",
         "libs/page-not-found/**/*",
         "libs/pin-assign-panel/**/*",
         "libs/remote/**/*",
