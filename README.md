@@ -5,7 +5,7 @@ This project was generated with [Angular CLI](https://github.com/angular/angular
 ## プロジェクト構成
 
 - **apps/console** — メインの Web アプリ（CHIRIMEN Lite 接続・ターミナル・エディタ・Wi‑Fi 設定など）
-- **libs/** — 機能別ライブラリ（connect, console-shell, dialogs, editor, example, file-manager, i2cdetect, pin-assign-panel, remote, setup, shared, terminal, web-serial, wifi など）。`tsconfig.base.json` の `paths` と [CONTRIBUTING.md](CONTRIBUTING.md) のスコープ一覧を参照してください。
+- **libs/** — 機能別ライブラリ（connect, console-shell, dialogs, editor, example, file-manager, pin-assign-panel, remote, setup, shared, terminal, web-serial, wifi など）。`tsconfig.base.json` の `paths` と [CONTRIBUTING.md](CONTRIBUTING.md) のスコープ一覧を参照してください。
 
 ## Editor の利用方法
 

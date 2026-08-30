@@ -56,7 +56,6 @@ Angular のコミットガイドラインに合わせ、コミットメッセー
 | `editor`              | エディタ lib（`libs/editor`）                                  |
 | `terminal`            | ターミナル lib（`libs/terminal`）                              |
 | `file-manager`        | ファイルマネージャ lib（`libs/file-manager`）                  |
-| `i2cdetect`           | I2C 検出 lib（`libs/i2cdetect`）                               |
 | `pin-assign-panel`    | ピン割り当てパネル lib（`libs/pin-assign-panel`）              |
 | `remote`              | リモート lib（`libs/remote`）                                  |
 | `shared`              | 共有 lib（guards / types / ui / util を統合）                  |

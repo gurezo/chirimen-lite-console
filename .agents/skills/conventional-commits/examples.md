@@ -22,7 +22,7 @@ fix(terminal): prevent resize on reconnect
 fix(web-serial-data-access): handle unexpected port close
 fix(dialogs): prevent duplicated open events
 fix(shared-guards): redirect when serial is disconnected
-fix(i2cdetect-ui): align device list rows
+fix(wifi): handle scan timeout
 ```
 
 ### refactor
