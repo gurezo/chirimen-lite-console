@@ -34,6 +34,17 @@ describe('ExampleDownloadService', () => {
     expect(service).toBeTruthy();
   });
 
+  it('throws when example id is empty and does not run wget', async () => {
+    await expect(service.downloadToShellCwd('')).rejects.toThrow(
+      'Example id is empty',
+    );
+    await expect(service.downloadToShellCwd('   ')).rejects.toThrow(
+      'Example id is empty',
+    );
+    expect(exec$).not.toHaveBeenCalled();
+    expect(isConnected).not.toHaveBeenCalled();
+  });
+
   it('throws when serial is disconnected', async () => {
     isConnected.mockReturnValue(false);
     await expect(service.downloadToShellCwd('hello-real-world')).rejects.toThrow(

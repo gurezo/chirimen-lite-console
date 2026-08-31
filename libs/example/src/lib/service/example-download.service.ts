@@ -24,6 +24,10 @@ export class ExampleDownloadService {
    * @returns Saved relative file name (e.g. `main-hello-real-world.js`)
    */
   async downloadToShellCwd(exampleId: string): Promise<string> {
+    if (!exampleId.trim()) {
+      throw new Error('Example id is empty');
+    }
+
     if (!this.serial.isConnected()) {
       throw new Error('Serial port is not connected');
     }
