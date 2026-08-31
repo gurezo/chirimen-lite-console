@@ -1,22 +1,25 @@
 <div class="flex min-h-0 w-full flex-1 flex-col">
   <div class="min-h-0 flex-1 overflow-y-auto overflow-x-auto w-full min-w-0">
-    <choh-example-item
-      [label]="'GPIO'"
-      [exampleItem]="gpioExample()"
-      [downloadInProgress]="downloadInProgress()"
-      (saveExample)="saveExample.emit($event)"
-    />
-    <choh-example-item
-      [label]="'I2C'"
-      [exampleItem]="i2cExample()"
-      [downloadInProgress]="downloadInProgress()"
-      (saveExample)="saveExample.emit($event)"
-    />
+    <div
+      class="grid grid-cols-[repeat(auto-fill,minmax(280px,1fr))] auto-rows-[minmax(320px,auto)] gap-6 content-start p-1"
+    >
+      @for (device of devices(); track device.deviceId) {
+        <lib-device-card
+          [device]="device"
+          [downloadInProgress]="downloadInProgress()"
+          (saveExample)="saveExample.emit($event)"
+        />
+      } @empty {
+        <div class="col-span-full p-8 text-center text-black/60">
+          デバイスがありません。
+        </div>
+      }
+    </div>
     <choh-example-item
       [label]="'Remote'"
       [exampleItem]="remoteExample()"
       [downloadInProgress]="downloadInProgress()"
-      (saveExample)="saveExample.emit($event)"
+      (saveExample)="saveExample.emit($event.id)"
     />
   </div>
 </div>
