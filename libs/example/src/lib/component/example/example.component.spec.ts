@@ -1,6 +1,7 @@
 import { HttpClientTestingModule } from '@angular/common/http/testing';
 import { signal } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { provideNoopAnimations } from '@angular/platform-browser/animations';
 import { NotificationService } from '@libs-shared';
 import { SerialNotificationService } from '@libs-web-serial';
 import { of } from 'rxjs';
@@ -38,6 +39,7 @@ describe('ExampleComponent', () => {
     await TestBed.configureTestingModule({
       imports: [ExampleComponent, HttpClientTestingModule],
       providers: [
+        provideNoopAnimations(),
         {
           provide: SerialNotificationService,
           useValue: {
@@ -106,6 +108,30 @@ describe('ExampleComponent', () => {
 
   it('shows the example list after the catalog loads', () => {
     expect(fixture.nativeElement.querySelector('choh-example-list')).toBeTruthy();
+  });
+
+  it('renders device cards from the catalog', () => {
+    catalogState.set({
+      status: 'success',
+      devices: [
+        {
+          deviceId: 'AHT10',
+          model: 'AHT10',
+          description: '温度と湿度を取得する',
+          category: '温湿度センサー',
+          tag: 'I2C',
+          imageUrl: 'https://example.test/aht10.jpg',
+          exampleId: 'aht10',
+          circuitUrl: null,
+        },
+      ],
+    });
+    fixture.detectChanges();
+
+    const host = fixture.nativeElement as HTMLElement;
+    expect(host.querySelector('lib-device-card')).toBeTruthy();
+    expect(host.textContent).toContain('AHT10');
+    expect(host.textContent).toContain('Pi Zero');
   });
 
   it('shows an error message and retries the catalog', () => {
