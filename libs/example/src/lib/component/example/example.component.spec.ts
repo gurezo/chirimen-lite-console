@@ -110,6 +110,16 @@ describe('ExampleComponent', () => {
     expect(fixture.nativeElement.querySelector('choh-example-list')).toBeTruthy();
   });
 
+  it('shows the device search and interface filter after the catalog loads', () => {
+    const host = fixture.nativeElement as HTMLElement;
+    expect(host.querySelector('input[type="search"]')).toBeTruthy();
+    expect(
+      host.querySelector(
+        'mat-button-toggle-group[aria-label="Filter devices by interface"]',
+      ),
+    ).toBeTruthy();
+  });
+
   it('renders device cards from the catalog', () => {
     catalogState.set({
       status: 'success',
