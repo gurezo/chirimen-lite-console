@@ -133,7 +133,8 @@ describe('ExampleListComponent', () => {
       'Filter devices by interface',
     );
     expect(group.getAttribute('tabindex')).not.toBe('-1');
-    expect(group.classList.contains('device-interface-filter')).toBe(true);
+    expect(group.className).toMatch(/\binline-grid\b/);
+    expect(group.className).toMatch(/\bgrid-flow-col\b/);
   });
 
   it('filters cards by model search', () => {
