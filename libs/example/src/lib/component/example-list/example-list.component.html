@@ -1,9 +1,40 @@
 <div class="flex min-h-0 w-full flex-1 flex-col">
+  <div
+    class="flex flex-shrink-0 flex-wrap items-center gap-3 pb-3"
+  >
+    <mat-form-field
+      appearance="outline"
+      subscriptSizing="dynamic"
+      class="w-full min-w-[12rem] flex-1 sm:max-w-sm"
+    >
+      <mat-label>Search devices</mat-label>
+      <input
+        matInput
+        type="search"
+        name="device-search"
+        placeholder="Search devices..."
+        autocomplete="off"
+        [value]="searchQuery()"
+        (input)="onSearchInput($event)"
+      />
+    </mat-form-field>
+    <mat-button-toggle-group
+      name="device-interface-filter"
+      aria-label="Filter devices by interface"
+      [hideSingleSelectionIndicator]="true"
+      [value]="interfaceTag()"
+      (change)="onInterfaceTagChange($event.value)"
+    >
+      <mat-button-toggle value="all">All</mat-button-toggle>
+      <mat-button-toggle value="gpio">GPIO</mat-button-toggle>
+      <mat-button-toggle value="i2c">I2C</mat-button-toggle>
+    </mat-button-toggle-group>
+  </div>
   <div class="min-h-0 flex-1 overflow-y-auto overflow-x-auto w-full min-w-0">
     <div
       class="grid grid-cols-[repeat(auto-fill,minmax(280px,1fr))] auto-rows-[minmax(320px,auto)] gap-6 content-start p-1"
     >
-      @for (device of devices(); track device.deviceId) {
+      @for (device of filteredDevices(); track device.deviceId) {
         <lib-device-card
           [device]="device"
           [downloadInProgress]="downloadInProgress()"
@@ -11,7 +42,11 @@
         />
       } @empty {
         <div class="col-span-full p-8 text-center text-black/60">
-          デバイスがありません。
+          @if (devices().length === 0) {
+            デバイスがありません。
+          } @else {
+            No matching devices found.
+          }
         </div>
       }
     </div>
