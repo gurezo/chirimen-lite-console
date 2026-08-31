@@ -1,5 +1,6 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { provideNoopAnimations } from '@angular/platform-browser/animations';
+import { vi } from 'vitest';
 import { DeviceExampleViewModel, ExampleItem } from '../../models';
 import { ExampleListComponent } from './example-list.component';
 
@@ -76,6 +77,10 @@ function typeSearch(
   input.value = query;
   input.dispatchEvent(new Event('input'));
   fixture.detectChanges();
+}
+
+function downloadButton(host: HTMLElement): HTMLButtonElement {
+  return host.querySelector('lib-device-card button') as HTMLButtonElement;
 }
 
 describe('ExampleListComponent', () => {
@@ -213,5 +218,28 @@ describe('ExampleListComponent', () => {
     expect(host.textContent).not.toContain('デバイスがありません。');
     expect(host.querySelector('choh-example-item')).toBeTruthy();
     expect(host.textContent).toContain('remote_gpio_led');
+  });
+
+  it('forwards device card download as the example id', () => {
+    fixture.componentRef.setInput('devices', [device]);
+    fixture.detectChanges();
+
+    const emitSpy = vi.spyOn(component.saveExample, 'emit');
+    downloadButton(fixture.nativeElement as HTMLElement).click();
+
+    expect(emitSpy).toHaveBeenCalledWith('aht10');
+  });
+
+  it('does not forward download while it is in progress', () => {
+    fixture.componentRef.setInput('devices', [device]);
+    fixture.componentRef.setInput('downloadInProgress', true);
+    fixture.detectChanges();
+
+    const emitSpy = vi.spyOn(component.saveExample, 'emit');
+    const button = downloadButton(fixture.nativeElement as HTMLElement);
+    expect(button.disabled).toBe(true);
+    button.click();
+
+    expect(emitSpy).not.toHaveBeenCalled();
   });
 });
