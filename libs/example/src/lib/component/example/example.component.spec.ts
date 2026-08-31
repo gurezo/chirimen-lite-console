@@ -6,13 +6,24 @@ import { NotificationService } from '@libs-shared';
 import { SerialNotificationService } from '@libs-web-serial';
 import { of } from 'rxjs';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { DeviceCatalogState } from '../../models';
+import { DeviceCatalogState, DeviceExampleViewModel } from '../../models';
 import {
   DeviceCatalogService,
   ExampleDataService,
   ExampleDownloadService,
 } from '../../service';
 import { ExampleComponent } from './example.component';
+
+const catalogDevice: DeviceExampleViewModel = {
+  deviceId: 'AHT10',
+  model: 'AHT10',
+  description: '温度と湿度を取得する',
+  category: '温湿度センサー',
+  tag: 'I2C',
+  imageUrl: 'https://example.test/aht10.jpg',
+  exampleId: 'aht10',
+  circuitUrl: null,
+};
 
 describe('ExampleComponent', () => {
   let component: ExampleComponent;
@@ -123,18 +134,7 @@ describe('ExampleComponent', () => {
   it('renders device cards from the catalog', () => {
     catalogState.set({
       status: 'success',
-      devices: [
-        {
-          deviceId: 'AHT10',
-          model: 'AHT10',
-          description: '温度と湿度を取得する',
-          category: '温湿度センサー',
-          tag: 'I2C',
-          imageUrl: 'https://example.test/aht10.jpg',
-          exampleId: 'aht10',
-          circuitUrl: null,
-        },
-      ],
+      devices: [catalogDevice],
     });
     fixture.detectChanges();
 
@@ -199,5 +199,51 @@ describe('ExampleComponent', () => {
     expect(downloadToShellCwd).toHaveBeenCalledTimes(1);
     resolveDownload('main-hello-real-world.js');
     await first;
+  });
+
+  it('downloads from a device card via the existing download service', async () => {
+    downloadToShellCwd.mockResolvedValue('main-aht10.js');
+    catalogState.set({
+      status: 'success',
+      devices: [catalogDevice],
+    });
+    fixture.detectChanges();
+
+    const button = (
+      fixture.nativeElement as HTMLElement
+    ).querySelector('lib-device-card button') as HTMLButtonElement;
+    button.click();
+    await fixture.whenStable();
+
+    expect(downloadToShellCwd).toHaveBeenCalledWith('aht10');
+    expect(notifySuccess).toHaveBeenCalledWith(
+      'Example',
+      'main-aht10.js をターミナルのカレントディレクトリに保存しました',
+    );
+    expect(component.downloadInProgress()).toBe(false);
+  });
+
+  it('notifies error when device card download fails', async () => {
+    downloadToShellCwd.mockRejectedValue(
+      new Error('Serial port is not connected'),
+    );
+    catalogState.set({
+      status: 'success',
+      devices: [catalogDevice],
+    });
+    fixture.detectChanges();
+
+    const button = (
+      fixture.nativeElement as HTMLElement
+    ).querySelector('lib-device-card button') as HTMLButtonElement;
+    button.click();
+    await fixture.whenStable();
+
+    expect(downloadToShellCwd).toHaveBeenCalledWith('aht10');
+    expect(notifyError).toHaveBeenCalledWith(
+      'Example',
+      'Serial port is not connected',
+    );
+    expect(component.downloadInProgress()).toBe(false);
   });
 });
