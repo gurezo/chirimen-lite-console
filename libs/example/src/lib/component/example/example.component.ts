@@ -1,30 +1,19 @@
-import { AsyncPipe } from '@angular/common';
 import { Component, computed, inject, OnInit, signal } from '@angular/core';
 import { MatProgressSpinner } from '@angular/material/progress-spinner';
 import { ButtonComponent, NotificationService } from '@libs-shared';
 import { DeviceExampleViewModel } from '../../models';
-import {
-  DeviceCatalogService,
-  ExampleDataService,
-  ExampleDownloadService,
-} from '../../service';
+import { DeviceCatalogService, ExampleDownloadService } from '../../service';
 import { ExampleListComponent } from '../example-list/example-list.component';
 
 @Component({
   selector: 'choh-example',
-  imports: [
-    ExampleListComponent,
-    AsyncPipe,
-    MatProgressSpinner,
-    ButtonComponent,
-  ],
+  imports: [ExampleListComponent, MatProgressSpinner, ButtonComponent],
   templateUrl: './example.component.html',
   host: {
     class: 'flex min-h-0 h-full w-full flex-col',
   },
 })
 export class ExampleComponent implements OnInit {
-  private exampleDataService = inject(ExampleDataService);
   private catalog = inject(DeviceCatalogService);
   private exampleDownload = inject(ExampleDownloadService);
   private notify = inject(NotificationService);
@@ -36,8 +25,6 @@ export class ExampleComponent implements OnInit {
     const state = this.catalogState();
     return state.status === 'success' ? state.devices : [];
   });
-
-  remote$ = this.exampleDataService.getRemoteExampleList();
 
   ngOnInit(): void {
     this.catalog.load();

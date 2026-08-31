@@ -31,11 +31,6 @@
             "output": "/assets/monaco/"
           },
           {
-            "glob": "**/*",
-            "input": "apps/console/public/assets/json",
-            "output": "/assets/json/"
-          },
-          {
             "glob": "**/*.{ttf,woff,woff2,eot}",
             "input": "node_modules/monaco-editor",
             "output": "/assets/monaco/"

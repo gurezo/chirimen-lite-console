@@ -1,18 +1,5 @@
-import type { ExampleJson, ExampleItem } from '../models';
-
 const EXAMPLE_MAIN_JS_BASE_URL =
   'https://tutorial.chirimen.org/pizero/esm-examples';
-
-export function convertExampleJsonToList(
-  jsonList: ExampleJson[],
-): ExampleItem[] {
-  return jsonList.map((json: ExampleJson) => ({
-    ...json,
-    js: '',
-    circuit: '',
-    link: '',
-  }));
-}
 
 /** Builds the upstream main.js URL for a CHIRIMEN example id. */
 export function buildExampleMainJsUrl(exampleId: string): string {

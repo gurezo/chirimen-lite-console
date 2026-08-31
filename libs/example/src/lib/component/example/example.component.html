@@ -13,15 +13,12 @@
         <choh-button label="Retry" (clickEvent)="retryCatalog()" />
       </div>
     } @else if (catalogState().status === 'success') {
-      @if (remote$ | async; as remote) {
-        <choh-example-list
-          class="flex min-h-0 flex-1 flex-col"
-          [devices]="catalogDevices()"
-          [remoteExample]="remote"
-          [downloadInProgress]="downloadInProgress()"
-          (saveExample)="onSaveExample($event)"
-        />
-      }
+      <choh-example-list
+        class="flex min-h-0 flex-1 flex-col"
+        [devices]="catalogDevices()"
+        [downloadInProgress]="downloadInProgress()"
+        (saveExample)="onSaveExample($event)"
+      />
     } @else {
       <div
         class="flex min-h-0 flex-1 flex-col items-center justify-center gap-2"
