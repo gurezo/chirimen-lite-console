@@ -1,14 +1,24 @@
 import { AsyncPipe } from '@angular/common';
-import { Component, inject, OnInit, signal } from '@angular/core';
-import { NotificationService } from '@libs-shared';
-import { BehaviorSubject, forkJoin } from 'rxjs';
+import { Component, computed, inject, OnInit, signal } from '@angular/core';
+import { MatProgressSpinner } from '@angular/material/progress-spinner';
+import { ButtonComponent, NotificationService } from '@libs-shared';
+import { splitDeviceExamplesByInterface } from '../../functions';
 import { ExampleItem } from '../../models';
-import { ExampleDataService, ExampleDownloadService } from '../../service';
+import {
+  DeviceCatalogService,
+  ExampleDataService,
+  ExampleDownloadService,
+} from '../../service';
 import { ExampleListComponent } from '../example-list/example-list.component';
 
 @Component({
   selector: 'choh-example',
-  imports: [ExampleListComponent, AsyncPipe],
+  imports: [
+    ExampleListComponent,
+    AsyncPipe,
+    MatProgressSpinner,
+    ButtonComponent,
+  ],
   templateUrl: './example.component.html',
   host: {
     class: 'flex min-h-0 h-full w-full flex-col',
@@ -16,22 +26,35 @@ import { ExampleListComponent } from '../example-list/example-list.component';
 })
 export class ExampleComponent implements OnInit {
   private exampleDataService = inject(ExampleDataService);
+  private catalog = inject(DeviceCatalogService);
   private exampleDownload = inject(ExampleDownloadService);
   private notify = inject(NotificationService);
 
   readonly downloadInProgress = signal(false);
+  readonly catalogState = this.catalog.state;
 
-  exampleSubject = new BehaviorSubject<
-    [ExampleItem[], ExampleItem[], ExampleItem[]]
-  >([[], [], []]);
-  example$ = this.exampleSubject.asObservable();
+  readonly gpioExamples = computed(() => {
+    const state = this.catalogState();
+    return state.status === 'success'
+      ? splitDeviceExamplesByInterface(state.devices).gpio
+      : [];
+  });
+
+  readonly i2cExamples = computed(() => {
+    const state = this.catalogState();
+    return state.status === 'success'
+      ? splitDeviceExamplesByInterface(state.devices).i2c
+      : [];
+  });
+
+  remote$ = this.exampleDataService.getRemoteExampleList();
 
   ngOnInit(): void {
-    this.example$ = forkJoin([
-      this.exampleDataService.getGPIOExampleList(),
-      this.exampleDataService.getI2CExampleList(),
-      this.exampleDataService.getRemoteExampleList(),
-    ]);
+    this.catalog.load();
+  }
+
+  retryCatalog(): void {
+    this.catalog.retry();
   }
 
   async onSaveExample(example: ExampleItem): Promise<void> {

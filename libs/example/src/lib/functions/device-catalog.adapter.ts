@@ -76,7 +76,7 @@ export function toExampleItem(viewModel: DeviceExampleViewModel): ExampleItem {
     title: viewModel.model,
     overview: viewModel.description,
     js: '',
-    circuit: viewModel.circuitUrl ?? '',
+    circuit: '',
     link: '',
   };
 }
