@@ -18,17 +18,6 @@ import { DeviceCardComponent } from '../device-card/device-card.component';
     MatInputModule,
   ],
   templateUrl: './example-list.component.html',
-  styles: `
-    mat-button-toggle-group.device-interface-filter {
-      display: inline-grid;
-      grid-auto-flow: column;
-      grid-auto-columns: 1fr;
-    }
-
-    mat-button-toggle-group.device-interface-filter mat-button-toggle {
-      width: 100%;
-    }
-  `,
   host: {
     class: 'flex min-h-0 flex-1 flex-col',
   },
