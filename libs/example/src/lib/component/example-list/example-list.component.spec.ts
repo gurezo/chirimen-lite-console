@@ -1,7 +1,7 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { provideNoopAnimations } from '@angular/platform-browser/animations';
 import { vi } from 'vitest';
-import { DeviceExampleViewModel, ExampleItem } from '../../models';
+import { DeviceExampleViewModel } from '../../models';
 import { ExampleListComponent } from './example-list.component';
 
 const device: DeviceExampleViewModel = {
@@ -36,17 +36,6 @@ const analogDevice: DeviceExampleViewModel = {
   exampleId: 'analog-distance',
   circuitUrl: null,
 };
-
-const remoteExample: ExampleItem[] = [
-  {
-    id: 'remote_gpio_led',
-    title: 'Remote LED',
-    overview: 'remote',
-    js: '',
-    circuit: '',
-    link: '',
-  },
-];
 
 function cardModels(host: HTMLElement): string[] {
   return [...host.querySelectorAll('lib-device-card')].map(
@@ -96,7 +85,6 @@ describe('ExampleListComponent', () => {
     fixture = TestBed.createComponent(ExampleListComponent);
     component = fixture.componentInstance;
     fixture.componentRef.setInput('devices', []);
-    fixture.componentRef.setInput('remoteExample', []);
     fixture.detectChanges();
   });
 
@@ -121,17 +109,14 @@ describe('ExampleListComponent', () => {
     expect(host.querySelector('lib-device-card')).toBeNull();
   });
 
-  it('renders a device card grid and keeps the remote table', () => {
+  it('renders a device card grid', () => {
     fixture.componentRef.setInput('devices', [device]);
-    fixture.componentRef.setInput('remoteExample', remoteExample);
     fixture.detectChanges();
 
     const host = fixture.nativeElement as HTMLElement;
     expect(host.querySelector('lib-device-card')).toBeTruthy();
     expect(host.textContent).toContain('AHT10');
-    expect(host.querySelector('choh-example-item')).toBeTruthy();
-    expect(host.textContent).toContain('Remote');
-    expect(host.textContent).toContain('remote_gpio_led');
+    expect(host.querySelector('choh-example-item')).toBeNull();
   });
 
   it('exposes a labeled search field and keyboard-accessible interface filter', () => {
@@ -205,9 +190,8 @@ describe('ExampleListComponent', () => {
     expect(models[0]).toContain('AHT10');
   });
 
-  it('shows a no-matching empty state and keeps the remote table', () => {
+  it('shows a no-matching empty state', () => {
     fixture.componentRef.setInput('devices', [device, gpioDevice]);
-    fixture.componentRef.setInput('remoteExample', remoteExample);
     fixture.detectChanges();
 
     typeSearch(fixture, 'not-a-device');
@@ -216,8 +200,7 @@ describe('ExampleListComponent', () => {
     expect(host.querySelector('lib-device-card')).toBeNull();
     expect(host.textContent).toContain('No matching devices found.');
     expect(host.textContent).not.toContain('デバイスがありません。');
-    expect(host.querySelector('choh-example-item')).toBeTruthy();
-    expect(host.textContent).toContain('remote_gpio_led');
+    expect(host.querySelector('choh-example-item')).toBeNull();
   });
 
   it('forwards device card download as the example id', () => {

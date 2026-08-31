@@ -6,7 +6,6 @@ import {
   type CertifiedDeviceExample,
   type CertifiedDevicesDocument,
   type DeviceExampleViewModel,
-  type ExampleItem,
 } from '../models';
 
 /** Last path segment of a pizero-esm upstreamPath, used as wget example id. */
@@ -68,37 +67,4 @@ export function toDeviceExampleViewModels(
   return document.devices
     .map(toDeviceExampleViewModel)
     .filter((item): item is DeviceExampleViewModel => item !== null);
-}
-
-export function toExampleItem(viewModel: DeviceExampleViewModel): ExampleItem {
-  return {
-    id: viewModel.exampleId,
-    title: viewModel.model,
-    overview: viewModel.description,
-    js: '',
-    circuit: '',
-    link: '',
-  };
-}
-
-/**
- * Maps catalog devices onto the current GPIO / I2C table columns.
- * Non-I2C tags (GPIO, Analog, Actuator, Other) go to GPIO until Device Cards (#849).
- */
-export function splitDeviceExamplesByInterface(
-  devices: DeviceExampleViewModel[],
-): { gpio: ExampleItem[]; i2c: ExampleItem[] } {
-  const gpio: ExampleItem[] = [];
-  const i2c: ExampleItem[] = [];
-
-  for (const device of devices) {
-    const item = toExampleItem(device);
-    if (device.tag === 'I2C') {
-      i2c.push(item);
-    } else {
-      gpio.push(item);
-    }
-  }
-
-  return { gpio, i2c };
 }

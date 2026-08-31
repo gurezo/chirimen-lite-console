@@ -1,17 +1,11 @@
-import { HttpClientTestingModule } from '@angular/common/http/testing';
 import { signal } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { provideNoopAnimations } from '@angular/platform-browser/animations';
 import { NotificationService } from '@libs-shared';
 import { SerialNotificationService } from '@libs-web-serial';
-import { of } from 'rxjs';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { DeviceCatalogState, DeviceExampleViewModel } from '../../models';
-import {
-  DeviceCatalogService,
-  ExampleDataService,
-  ExampleDownloadService,
-} from '../../service';
+import { DeviceCatalogService, ExampleDownloadService } from '../../service';
 import { ExampleComponent } from './example.component';
 
 const catalogDevice: DeviceExampleViewModel = {
@@ -48,7 +42,7 @@ describe('ExampleComponent', () => {
     downloadToShellCwd.mockResolvedValue('main-hello-real-world.js');
 
     await TestBed.configureTestingModule({
-      imports: [ExampleComponent, HttpClientTestingModule],
+      imports: [ExampleComponent],
       providers: [
         provideNoopAnimations(),
         {
@@ -64,12 +58,6 @@ describe('ExampleComponent', () => {
         {
           provide: ExampleDownloadService,
           useValue: { downloadToShellCwd },
-        },
-        {
-          provide: ExampleDataService,
-          useValue: {
-            getRemoteExampleList: () => of([]),
-          },
         },
         {
           provide: DeviceCatalogService,

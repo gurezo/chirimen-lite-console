@@ -6,15 +6,13 @@ import {
   filterDeviceCatalog,
   type DeviceInterfaceFilter,
 } from '../../functions';
-import { DeviceExampleViewModel, ExampleItem } from '../../models';
+import { DeviceExampleViewModel } from '../../models';
 import { DeviceCardComponent } from '../device-card/device-card.component';
-import { ExampleItemComponent } from '../example-item/example-item.component';
 
 @Component({
   selector: 'choh-example-list',
   imports: [
     DeviceCardComponent,
-    ExampleItemComponent,
     MatButtonToggleModule,
     MatFormFieldModule,
     MatInputModule,
@@ -26,7 +24,6 @@ import { ExampleItemComponent } from '../example-item/example-item.component';
 })
 export class ExampleListComponent {
   readonly devices = input.required<DeviceExampleViewModel[]>();
-  readonly remoteExample = input.required<ExampleItem[]>();
   readonly downloadInProgress = input(false);
   readonly saveExample = output<string>();
 
