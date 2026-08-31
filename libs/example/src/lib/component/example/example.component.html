@@ -16,8 +16,7 @@
       @if (remote$ | async; as remote) {
         <choh-example-list
           class="flex min-h-0 flex-1 flex-col"
-          [gpioExample]="gpioExamples()"
-          [i2cExample]="i2cExamples()"
+          [devices]="catalogDevices()"
           [remoteExample]="remote"
           [downloadInProgress]="downloadInProgress()"
           (saveExample)="onSaveExample($event)"

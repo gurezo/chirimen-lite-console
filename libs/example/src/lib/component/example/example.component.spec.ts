@@ -125,14 +125,7 @@ describe('ExampleComponent', () => {
   });
 
   it('onSaveExample downloads via serial and notifies success', async () => {
-    await component.onSaveExample({
-      id: 'hello-real-world',
-      title: 'Lチカ',
-      overview: 'blink',
-      js: '',
-      circuit: '',
-      link: '',
-    });
+    await component.onSaveExample('hello-real-world');
 
     expect(downloadToShellCwd).toHaveBeenCalledWith('hello-real-world');
     expect(notifySuccess).toHaveBeenCalledWith(
@@ -145,14 +138,7 @@ describe('ExampleComponent', () => {
   it('onSaveExample notifies error on failure', async () => {
     downloadToShellCwd.mockRejectedValue(new Error('Serial port is not connected'));
 
-    await component.onSaveExample({
-      id: 'hello-real-world',
-      title: 'Lチカ',
-      overview: 'blink',
-      js: '',
-      circuit: '',
-      link: '',
-    });
+    await component.onSaveExample('hello-real-world');
 
     expect(notifyError).toHaveBeenCalledWith(
       'Example',
@@ -169,24 +155,10 @@ describe('ExampleComponent', () => {
       }),
     );
 
-    const first = component.onSaveExample({
-      id: 'hello-real-world',
-      title: 'Lチカ',
-      overview: 'blink',
-      js: '',
-      circuit: '',
-      link: '',
-    });
+    const first = component.onSaveExample('hello-real-world');
     expect(component.downloadInProgress()).toBe(true);
 
-    await component.onSaveExample({
-      id: 'gpio-onchange',
-      title: 'スイッチ',
-      overview: 'switch',
-      js: '',
-      circuit: '',
-      link: '',
-    });
+    await component.onSaveExample('gpio-onchange');
 
     expect(downloadToShellCwd).toHaveBeenCalledTimes(1);
     resolveDownload('main-hello-real-world.js');

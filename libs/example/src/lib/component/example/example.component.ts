@@ -2,8 +2,7 @@ import { AsyncPipe } from '@angular/common';
 import { Component, computed, inject, OnInit, signal } from '@angular/core';
 import { MatProgressSpinner } from '@angular/material/progress-spinner';
 import { ButtonComponent, NotificationService } from '@libs-shared';
-import { splitDeviceExamplesByInterface } from '../../functions';
-import { ExampleItem } from '../../models';
+import { DeviceExampleViewModel } from '../../models';
 import {
   DeviceCatalogService,
   ExampleDataService,
@@ -33,18 +32,9 @@ export class ExampleComponent implements OnInit {
   readonly downloadInProgress = signal(false);
   readonly catalogState = this.catalog.state;
 
-  readonly gpioExamples = computed(() => {
+  readonly catalogDevices = computed((): DeviceExampleViewModel[] => {
     const state = this.catalogState();
-    return state.status === 'success'
-      ? splitDeviceExamplesByInterface(state.devices).gpio
-      : [];
-  });
-
-  readonly i2cExamples = computed(() => {
-    const state = this.catalogState();
-    return state.status === 'success'
-      ? splitDeviceExamplesByInterface(state.devices).i2c
-      : [];
+    return state.status === 'success' ? state.devices : [];
   });
 
   remote$ = this.exampleDataService.getRemoteExampleList();
@@ -57,14 +47,14 @@ export class ExampleComponent implements OnInit {
     this.catalog.retry();
   }
 
-  async onSaveExample(example: ExampleItem): Promise<void> {
+  async onSaveExample(exampleId: string): Promise<void> {
     if (this.downloadInProgress()) {
       return;
     }
 
     this.downloadInProgress.set(true);
     try {
-      const fileName = await this.exampleDownload.downloadToShellCwd(example.id);
+      const fileName = await this.exampleDownload.downloadToShellCwd(exampleId);
       this.notify.success(
         'Example',
         `${fileName} をターミナルのカレントディレクトリに保存しました`,
