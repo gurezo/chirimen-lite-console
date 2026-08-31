@@ -160,7 +160,7 @@ describe('device-catalog.adapter', () => {
       title: 'AHT10',
       overview: 'humidity sensor',
       js: '',
-      circuit: 'https://example.test/aht10.png',
+      circuit: '',
       link: '',
     });
   });

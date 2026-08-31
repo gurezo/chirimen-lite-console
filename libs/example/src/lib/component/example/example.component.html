@@ -4,16 +4,36 @@
   <div
     class="flex min-h-0 w-full flex-1 flex-col gap-3 overflow-hidden rounded bg-white p-3 shadow-lg sm:p-5"
   >
-    <!-- <iframe src="https://tutorial.chirimen.org/pizero/esm-examples/"></iframe> -->
-    @if (example$ | async; as example) {
-      <choh-example-list
-        class="flex min-h-0 flex-1 flex-col"
-        [gpioExample]="example[0]"
-        [i2cExample]="example[1]"
-        [remoteExample]="example[2]"
-        [downloadInProgress]="downloadInProgress()"
-        (saveExample)="onSaveExample($event)"
-      />
+    @if (catalogState().status === 'error') {
+      <div
+        class="flex min-h-0 flex-1 flex-col items-center justify-center gap-3"
+        role="alert"
+      >
+        <p class="text-sm text-red-700">Unable to load device examples.</p>
+        <choh-button label="Retry" (clickEvent)="retryCatalog()" />
+      </div>
+    } @else if (catalogState().status === 'success') {
+      @if (remote$ | async; as remote) {
+        <choh-example-list
+          class="flex min-h-0 flex-1 flex-col"
+          [gpioExample]="gpioExamples()"
+          [i2cExample]="i2cExamples()"
+          [remoteExample]="remote"
+          [downloadInProgress]="downloadInProgress()"
+          (saveExample)="onSaveExample($event)"
+        />
+      }
+    } @else {
+      <div
+        class="flex min-h-0 flex-1 flex-col items-center justify-center gap-2"
+        role="status"
+      >
+        <mat-progress-spinner
+          mode="indeterminate"
+          diameter="48"
+          aria-label="Loading device examples"
+        />
+      </div>
     }
   </div>
 </div>
