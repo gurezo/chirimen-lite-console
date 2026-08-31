@@ -1,6 +1,6 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { provideNoopAnimations } from '@angular/platform-browser/animations';
-import { DeviceExampleViewModel } from '../../models';
+import { DeviceExampleViewModel, ExampleItem } from '../../models';
 import { ExampleListComponent } from './example-list.component';
 
 const device: DeviceExampleViewModel = {
@@ -13,6 +13,70 @@ const device: DeviceExampleViewModel = {
   exampleId: 'aht10',
   circuitUrl: null,
 };
+
+const gpioDevice: DeviceExampleViewModel = {
+  deviceId: '10k',
+  model: '10kΩ',
+  description: 'resistor',
+  category: 'カーボン抵抗',
+  tag: 'GPIO',
+  imageUrl: null,
+  exampleId: 'hello-real-world',
+  circuitUrl: null,
+};
+
+const analogDevice: DeviceExampleViewModel = {
+  deviceId: 'GP2Y0A21YK',
+  model: 'GP2Y0A21YK',
+  description: 'distance',
+  category: '距離センサ',
+  tag: 'Analog',
+  imageUrl: null,
+  exampleId: 'analog-distance',
+  circuitUrl: null,
+};
+
+const remoteExample: ExampleItem[] = [
+  {
+    id: 'remote_gpio_led',
+    title: 'Remote LED',
+    overview: 'remote',
+    js: '',
+    circuit: '',
+    link: '',
+  },
+];
+
+function cardModels(host: HTMLElement): string[] {
+  return [...host.querySelectorAll('lib-device-card')].map(
+    (card) => card.textContent ?? '',
+  );
+}
+
+function searchInput(host: HTMLElement): HTMLInputElement {
+  return host.querySelector('input[type="search"]') as HTMLInputElement;
+}
+
+function clickInterfaceFilter(
+  fixture: ComponentFixture<ExampleListComponent>,
+  value: 'all' | 'gpio' | 'i2c',
+): void {
+  const toggle = (fixture.nativeElement as HTMLElement).querySelector(
+    `mat-button-toggle[value="${value}"] button`,
+  ) as HTMLButtonElement;
+  toggle.click();
+  fixture.detectChanges();
+}
+
+function typeSearch(
+  fixture: ComponentFixture<ExampleListComponent>,
+  query: string,
+): void {
+  const input = searchInput(fixture.nativeElement as HTMLElement);
+  input.value = query;
+  input.dispatchEvent(new Event('input'));
+  fixture.detectChanges();
+}
 
 describe('ExampleListComponent', () => {
   let component: ExampleListComponent;
@@ -54,16 +118,7 @@ describe('ExampleListComponent', () => {
 
   it('renders a device card grid and keeps the remote table', () => {
     fixture.componentRef.setInput('devices', [device]);
-    fixture.componentRef.setInput('remoteExample', [
-      {
-        id: 'remote_gpio_led',
-        title: 'Remote LED',
-        overview: 'remote',
-        js: '',
-        circuit: '',
-        link: '',
-      },
-    ]);
+    fixture.componentRef.setInput('remoteExample', remoteExample);
     fixture.detectChanges();
 
     const host = fixture.nativeElement as HTMLElement;
@@ -71,6 +126,92 @@ describe('ExampleListComponent', () => {
     expect(host.textContent).toContain('AHT10');
     expect(host.querySelector('choh-example-item')).toBeTruthy();
     expect(host.textContent).toContain('Remote');
+    expect(host.textContent).toContain('remote_gpio_led');
+  });
+
+  it('exposes a labeled search field and keyboard-accessible interface filter', () => {
+    const host = fixture.nativeElement as HTMLElement;
+    const input = searchInput(host);
+    expect(input).toBeTruthy();
+    expect(input.getAttribute('placeholder')).toBe('Search devices...');
+    expect(host.textContent).toContain('Search devices');
+
+    const group = host.querySelector(
+      'mat-button-toggle-group',
+    ) as HTMLElement;
+    expect(group.getAttribute('aria-label')).toBe(
+      'Filter devices by interface',
+    );
+    expect(group.getAttribute('tabindex')).not.toBe('-1');
+  });
+
+  it('filters cards by model search', () => {
+    fixture.componentRef.setInput('devices', [
+      device,
+      gpioDevice,
+      analogDevice,
+    ]);
+    fixture.detectChanges();
+
+    typeSearch(fixture, 'aht');
+
+    const models = cardModels(fixture.nativeElement as HTMLElement);
+    expect(models).toHaveLength(1);
+    expect(models[0]).toContain('AHT10');
+    expect(models[0]).not.toContain('10kΩ');
+  });
+
+  it('filters cards by gpio and i2c toggles without remapping analog', () => {
+    fixture.componentRef.setInput('devices', [
+      device,
+      gpioDevice,
+      analogDevice,
+    ]);
+    fixture.detectChanges();
+
+    clickInterfaceFilter(fixture, 'gpio');
+    let models = cardModels(fixture.nativeElement as HTMLElement);
+    expect(models).toHaveLength(1);
+    expect(models[0]).toContain('10kΩ');
+
+    clickInterfaceFilter(fixture, 'i2c');
+    models = cardModels(fixture.nativeElement as HTMLElement);
+    expect(models).toHaveLength(1);
+    expect(models[0]).toContain('AHT10');
+
+    clickInterfaceFilter(fixture, 'all');
+    models = cardModels(fixture.nativeElement as HTMLElement);
+    expect(models).toHaveLength(3);
+  });
+
+  it('combines search query and interface filter', () => {
+    fixture.componentRef.setInput('devices', [
+      device,
+      { ...device, deviceId: 'ADT7410', model: 'ADT7410', exampleId: 'adt7410' },
+      { ...device, deviceId: 'AHT20-GPIO', model: 'AHT20', tag: 'GPIO' },
+    ]);
+    fixture.detectChanges();
+
+    typeSearch(fixture, 'aht');
+    clickInterfaceFilter(fixture, 'i2c');
+
+    const models = cardModels(fixture.nativeElement as HTMLElement);
+    expect(models).toHaveLength(1);
+    expect(models[0]).toContain('AHT10');
+  });
+
+  it('shows a no-matching empty state and keeps the remote table', () => {
+    fixture.componentRef.setInput('devices', [device, gpioDevice]);
+    fixture.componentRef.setInput('remoteExample', remoteExample);
+    fixture.detectChanges();
+
+    typeSearch(fixture, 'not-a-device');
+
+    const host = fixture.nativeElement as HTMLElement;
+    expect(host.querySelector('lib-device-card')).toBeNull();
+    expect(host.textContent).toContain('No matching devices found.');
+    expect(host.textContent).not.toContain('デバイスがありません。');
+    expect(host.querySelector('choh-example-item')).toBeTruthy();
     expect(host.textContent).toContain('remote_gpio_led');
   });
 });
