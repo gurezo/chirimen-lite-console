@@ -133,6 +133,7 @@ describe('ExampleListComponent', () => {
       'Filter devices by interface',
     );
     expect(group.getAttribute('tabindex')).not.toBe('-1');
+    expect(group.classList.contains('device-interface-filter')).toBe(true);
   });
 
   it('filters cards by model search', () => {
