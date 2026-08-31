@@ -11,7 +11,7 @@ export default [
         'error',
         {
           type: 'element',
-          prefix: 'choh',
+          prefix: ['choh', 'lib'],
           style: 'kebab-case',
         },
       ],

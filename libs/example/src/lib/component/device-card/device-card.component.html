@@ -1,0 +1,54 @@
+<div
+  class="block relative h-full rounded-xl overflow-hidden text-inherit shadow-[0_2px_4px_rgba(0,0,0,0.06),0_4px_12px_rgba(0,0,0,0.04)] transition-all duration-[250ms] hover:shadow-[0_8px_16px_rgba(0,0,0,0.12),0_4px_8px_rgba(0,0,0,0.08)] hover:-translate-y-1 after:content-[''] after:absolute after:inset-0 after:rounded-xl after:pointer-events-none after:transition-colors after:duration-[250ms] after:z-[1] after:bg-transparent hover:after:bg-black/5"
+>
+  <mat-card
+    class="flex flex-col h-full relative z-0 [&_mat-card-header]:flex-shrink-0 [&_mat-card-content]:flex-1 [&_mat-card-content]:min-h-0"
+  >
+    @if (device().imageUrl; as imageUrl) {
+      <img
+        mat-card-image
+        [src]="imageUrl"
+        [alt]="device().model"
+        class="h-40 object-cover"
+      />
+    } @else {
+      <div
+        class="flex h-40 items-center justify-center bg-black/10"
+        role="img"
+        [attr.aria-label]="device().model"
+      >
+        <mat-icon aria-hidden="true">memory</mat-icon>
+      </div>
+    }
+    <mat-card-header>
+      <mat-card-title>{{ device().model }}</mat-card-title>
+      <mat-card-subtitle>
+        <span
+          class="inline-block py-0.5 px-2 mr-2 text-xs font-medium bg-black/10 rounded"
+          >{{ device().tag }}</span
+        >
+        <span
+          class="inline-block py-0.5 px-2 mr-2 text-xs font-medium bg-black/10 rounded"
+          >Pi Zero</span
+        >
+        {{ device().category }}
+      </mat-card-subtitle>
+    </mat-card-header>
+    <mat-card-content>
+      <p class="m-0 overflow-hidden line-clamp-2">
+        {{ device().description | truncate: 60 }}
+      </p>
+    </mat-card-content>
+    <mat-card-actions>
+      <button
+        mat-stroked-button
+        type="button"
+        [attr.aria-label]="'Download Example for ' + device().model"
+        [disabled]="downloadInProgress()"
+        (click)="onSave()"
+      >
+        Download Example
+      </button>
+    </mat-card-actions>
+  </mat-card>
+</div>
