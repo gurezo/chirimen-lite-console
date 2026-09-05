@@ -9,6 +9,7 @@ minimumReleaseAgeExclude:
   - '@analogjs/*'
   - '@angular/*'
   - '@angular-devkit/*'
+  - '@angular-eslint/*'
   - '@commitlint/*'
   - '@eslint/*'
   - '@gurezo/*'
@@ -23,6 +24,10 @@ minimumReleaseAgeExclude:
   - '@types/*'
   - '@typescript-eslint/*'
   - '@vitest/*'
+  - angular-eslint
+  - autoprefixer
+  - browserslist
+  - electron-to-chromium
   - eslint
   - eslint-plugin-tailwindcss
   - globals
@@ -39,6 +44,7 @@ minimumReleaseAgeExclude:
   - verkit
   - vite
   - vitest
+  - zone.js
 
 onlyBuiltDependencies:
   - '@parcel/watcher'
