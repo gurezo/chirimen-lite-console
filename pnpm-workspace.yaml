@@ -13,6 +13,7 @@ minimumReleaseAgeExclude:
   - '@commitlint/*'
   - '@eslint/*'
   - '@gurezo/*'
+  - '@modelcontextprotocol/*'
   - '@ngrx/*'
   - '@ngtools/*'
   - '@nx/*'
@@ -27,11 +28,13 @@ minimumReleaseAgeExclude:
   - angular-eslint
   - autoprefixer
   - browserslist
+  - data-urls
   - electron-to-chromium
   - eslint
   - eslint-plugin-tailwindcss
   - globals
   - jasmine-core
+  - jsdom
   - jsonc-eslint-parser
   - nanoid
   - ngx-monaco-editor-v2
@@ -39,14 +42,14 @@ minimumReleaseAgeExclude:
   - postcss
   - prettier
   - rolldown
+  - tr46
   - typescript
   - typescript-eslint
   - verkit
   - vite
   - vitest
+  - whatwg-url
   - zone.js
-  - '@modelcontextprotocol/core@2.3.1'
-  - '@modelcontextprotocol/server@2.3.1'
 
 onlyBuiltDependencies:
   - '@parcel/watcher'
