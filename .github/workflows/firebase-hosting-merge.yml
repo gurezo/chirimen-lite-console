@@ -41,3 +41,6 @@ jobs:
           projectId: chirimen-lite-console
           target: chirimen-lite-console
           channelId: live
+          # 15.34.1 calls serviceusage.services.get before deploy and 403s for this
+          # service account. Unpin after https://github.com/firebase/firebase-tools/issues/11335
+          firebaseToolsVersion: 15.34.0
