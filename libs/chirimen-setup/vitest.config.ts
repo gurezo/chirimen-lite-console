@@ -1,5 +1,4 @@
 import { defineConfig } from 'vitest/config';
-import { nxViteTsPaths } from '@nx/vite/plugins/nx-tsconfig-paths.plugin';
 import { resolve } from 'path';
 import angular from '@analogjs/vite-plugin-angular';
 
@@ -9,7 +8,6 @@ export default defineConfig({
     angular({
       tsconfig: resolve(__dirname, 'tsconfig.spec.json'),
     }),
-    nxViteTsPaths(),
   ],
   test: {
     globals: true,
@@ -24,10 +22,14 @@ export default defineConfig({
     ],
     coverage: {
       provider: 'v8',
-      reportsDirectory: resolve(__dirname, '../../coverage/libs/chirimen-setup'),
+      reportsDirectory: resolve(
+        __dirname,
+        '../../coverage/libs/chirimen-setup',
+      ),
     },
   },
   resolve: {
+    tsconfigPaths: true,
     alias: {
       '@libs-chirimen-setup': resolve(__dirname, './src/index.ts'),
       '@libs-wifi': resolve(__dirname, '../wifi/src/index.ts'),
