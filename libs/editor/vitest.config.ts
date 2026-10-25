@@ -1,14 +1,10 @@
 import { defineConfig } from 'vitest/config';
 import { resolve } from 'path';
 import angular from '@analogjs/vite-plugin-angular';
-import { nxViteTsPaths } from '@nx/vite/plugins/nx-tsconfig-paths.plugin';
 
 export default defineConfig({
   cacheDir: resolve(process.cwd(), 'node_modules/.vite'),
-  plugins: [
-    angular({ tsconfig: resolve(__dirname, 'tsconfig.spec.json') }),
-    nxViteTsPaths(),
-  ],
+  plugins: [angular({ tsconfig: resolve(__dirname, 'tsconfig.spec.json') })],
   test: {
     globals: true,
     environment: 'jsdom',
@@ -26,6 +22,7 @@ export default defineConfig({
     },
   },
   resolve: {
+    tsconfigPaths: true,
     alias: {
       '@libs-editor': resolve(__dirname, './src/index.ts'),
       '@libs-dialogs': resolve(__dirname, '../dialogs/src/index.ts'),

@@ -25,10 +25,6 @@
       "cache": true,
       "dependsOn": ["^build"],
       "inputs": ["production", "^production"]
-    },
-    "@nx/vitest:test": {
-      "cache": true,
-      "inputs": ["default", "^production"]
     }
   },
   "defaultBase": "main",
@@ -64,12 +60,6 @@
     },
     "@schematics/angular:service": {
       "type": "service"
-    },
-    "@nx/angular:scam": {
-      "type": "component"
-    },
-    "@nx/angular:scam-directive": {
-      "type": "directive"
     },
     "@nx/angular:guard": {
       "typeSeparator": "."
@@ -138,5 +128,8 @@
       ]
     }
   ],
-  "nxCloudId": "6addc4f653805b98ef6b2806"
+  "nxCloudId": "6addc4f653805b98ef6b2806",
+  "affected": {
+    "legacy": true
+  }
 }
